@@ -1,0 +1,33 @@
+[package]
+name = "chiptune-8bit-player"
+version = "0.1.0"
+description = "An 8-bit themed record-player audio app for local music files"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "chiptune_8bit_player_lib"
+# Re-add "cdylib" if/when we ship iOS/Android: cdylib is needed for
+# Tauri's mobile entry point on iOS/Android. We drop it here because
+# lld-link uses a 16-bit symbol table for Windows PE exports, and a
+# Tauri + wry + webview2-com + windows-sys + windows-targets build
+# produces >65,535 exported symbols, exceeding the cap and failing
+# the link with `too many exported symbols (got NNNNN, max 65535)`.
+crate-type = ["staticlib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
