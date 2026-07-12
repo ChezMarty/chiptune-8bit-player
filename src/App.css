@@ -519,3 +519,514 @@
   color: var(--text-primary);
   line-height: 1;
 }
+
+/* =========================================================
+ * Right-click context menu (Library rows)
+ *
+ * Fixed-positioned so the menu can float over the transport
+ * and record player. Clamped into the viewport on first paint
+ * by ContextMenu.tsx (useLayoutEffect). Z-index 100 keeps it
+ * above the page chrome but below the track-info dialog.
+ * ========================================================= */
+.ctx-menu {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  /* Override the default .pixel-panel shadow with a slightly
+   * darker, longer offset so the menu reads as floating. */
+  box-shadow:
+    inset 0 0 0 2px var(--bg-panel-light),
+    6px 6px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+.ctx-menu__btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text-primary);
+  border: 0;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition: none;
+  /* Disable native button focus ring; we add our own dashed
+   * outline below for accessibility. */
+  outline: none;
+}
+
+.ctx-menu__btn:hover:not(:disabled),
+.ctx-menu__btn:focus-visible:not(:disabled) {
+  background: var(--accent-cyan);
+  color: var(--bg-app);
+}
+
+.ctx-menu__btn:active:not(:disabled) {
+  background: var(--accent-amber);
+  color: var(--bg-app);
+}
+
+.ctx-menu__btn:disabled {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.ctx-menu__btn:focus-visible {
+  /* Dashed focus ring on a transparent background looks like a
+   * plain outline. We use a left-side box-shadow instead so the
+   * 8-bit background still shows through. */
+  box-shadow: inset 4px 0 0 var(--accent-amber);
+}
+
+.ctx-menu__item--danger {
+  color: var(--accent-red);
+}
+
+.ctx-menu__item--danger:hover:not(:disabled),
+.ctx-menu__item--danger:focus-visible:not(:disabled) {
+  background: var(--accent-red);
+  color: var(--text-primary);
+}
+
+.ctx-menu__separator {
+  height: 2px;
+  background: var(--bg-elevated);
+  margin: 4px 2px;
+}
+
+/* Inline confirm prompt rendered in place of the menu items
+ * when the user clicks the destructive REMOVE action. Two
+ * side-by-side buttons; YES styled as a primary action. */
+.ctx-menu__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 6px;
+}
+
+.ctx-menu__confirm-text {
+  text-align: center;
+  font-size: 10px;
+  color: var(--accent-red);
+  letter-spacing: 1px;
+}
+
+.ctx-menu__confirm-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.ctx-menu__btn--yes {
+  background: var(--accent-red);
+  color: var(--text-primary);
+}
+
+.ctx-menu__btn--yes:hover:not(:disabled),
+.ctx-menu__btn--yes:focus-visible:not(:disabled) {
+  background: var(--accent-amber);
+  color: var(--bg-app);
+}
+
+/* =========================================================
+ * Track info dialog (modal metadata viewer)
+ *
+ * Backdrop is a fixed full-viewport scrim. Clicking the
+ * backdrop closes the dialog; the dialog content stops
+ * propagation via the role/aria check. Z-index 200 so it
+ * sits above the context menu.
+ * ========================================================= */
+.track-info__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.track-info {
+  width: min(440px, 100%);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.track-info__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 4px solid var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.track-info__title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--accent-cyan);
+  letter-spacing: 2px;
+}
+
+.track-info__close {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: transparent;
+  border: 2px solid var(--text-primary);
+  padding: 4px 8px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.track-info__close:hover {
+  background: var(--accent-red);
+  color: var(--text-primary);
+  border-color: var(--accent-red);
+}
+
+.track-info__grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 14px;
+  padding: 14px;
+  margin: 0;
+  overflow-y: auto;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.track-info__grid dt {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.track-info__grid dd {
+  margin: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.track-info__path {
+  font-size: 14px;
+  color: var(--text-secondary);
+  user-select: text;
+}
+
+/* Library hint shown in the row count. Dimmer than the
+ * primary counter so it doesn't compete with the count. */
+.library__hint {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.5px;
+  margin-left: 4px;
+}
+
+/* =========================================================
+ * Now Playing section (below the library list)
+ *
+ * Shows the currently playing track and a draggable queue of
+ * upcoming tracks. The queue is derived from the library list
+ * starting at currentIndex+1, so reordering here reorders the
+ * library. Fixed height with internal scroll so it never pushes
+ * the theme switcher off-screen.
+ * ========================================================= */
+.now-playing {
+  flex-shrink: 0;
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 4px solid var(--bg-elevated);
+  min-height: 0;
+}
+
+.now-playing__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.now-playing__title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--accent-cyan);
+  letter-spacing: 1.5px;
+}
+
+.now-playing__count {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+
+/* Current track display — non-draggable, highlighted. */
+.now-playing__current {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 6px;
+  margin-bottom: 4px;
+  background: rgba(229, 37, 33, 0.2);
+  border-left: 3px solid var(--accent-amber);
+  flex-shrink: 0;
+}
+
+.now-playing__current.is-paused {
+  background: rgba(78, 226, 236, 0.12);
+  border-left-color: var(--accent-cyan);
+}
+
+.now-playing__current-icon {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--accent-amber);
+  text-align: center;
+}
+
+.now-playing__current.is-paused .now-playing__current-icon {
+  color: var(--accent-cyan);
+}
+
+.now-playing__current-info {
+  min-width: 0;
+}
+
+.now-playing__current-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.now-playing__current-artist {
+  font-family: 'VT323', monospace;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--accent-amber);
+}
+
+.now-playing__current.is-paused .now-playing__current-artist {
+  color: var(--accent-cyan);
+}
+
+/* Upcoming list — scrollable, draggable items. */
+.now-playing__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.now-playing__item {
+  display: grid;
+  grid-template-columns: 14px 22px 1fr auto;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 4px;
+  cursor: grab;
+  color: var(--text-primary);
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid var(--bg-elevated);
+  transition: background 0.05s linear, border-color 0.05s linear;
+  user-select: none;
+}
+
+.now-playing__item:hover {
+  background: rgba(78, 226, 236, 0.1);
+}
+
+.now-playing__item:active {
+  cursor: grabbing;
+}
+
+.now-playing__item.is-dragging {
+  opacity: 0.35;
+}
+
+.now-playing__item.is-drag-over {
+  border-top-color: var(--accent-amber);
+}
+
+.now-playing__drag-handle {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1;
+}
+
+.now-playing__item:hover .now-playing__drag-handle {
+  color: var(--accent-cyan);
+}
+
+.now-playing__item-num {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.now-playing__item-info {
+  min-width: 0;
+}
+
+.now-playing__item-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 1px;
+}
+
+.now-playing__item-artist {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.now-playing__item-time {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--text-tertiary);
+}
+
+/* End-of-list drop zone. Invisible by default; shows an amber
+ * border-top when the user is dragging over it. */
+.now-playing__sentinel {
+  height: 24px;
+  list-style: none;
+  border-top: 2px dashed transparent;
+  transition: border-color 0.05s linear;
+}
+
+.now-playing__sentinel.is-drag-over {
+  border-top-color: var(--accent-amber);
+}
+
+/* Shared empty-state message (NOTHING PLAYING / END OF QUEUE). */
+.now-playing__empty {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 14px 6px;
+  letter-spacing: 1px;
+  border: 2px dashed var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+/* =========================================================
+ * App context menu (right-click anywhere in the app)
+ *
+ * Reuses .ctx-menu from the track context menu. Adds section
+ * labels (THEME), a checkmark gutter for the active theme, and
+ * an active-theme highlight.
+ * ========================================================= */
+.ctx-menu__section-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--text-tertiary);
+  letter-spacing: 1.5px;
+  padding: 6px 10px 2px;
+  text-transform: uppercase;
+}
+
+.ctx-menu__check {
+  display: inline-block;
+  width: 14px;
+  margin-right: 2px;
+  color: var(--accent-amber);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  text-align: center;
+}
+
+.ctx-menu__item--active {
+  color: var(--accent-amber);
+}
+
+.ctx-menu__item--active:hover:not(:disabled),
+.ctx-menu__item--active:focus-visible:not(:disabled) {
+  background: var(--accent-cyan);
+  color: var(--bg-app);
+}
+
+/* =========================================================
+ * About dialog content (reuses .track-info shell)
+ * ========================================================= */
+.about__content {
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.about__name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: var(--accent-cyan);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.about__version {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+}
+
+.about__desc {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  max-width: 36ch;
+  margin: 0 auto;
+}
+
+/* Shortcuts dialog: slightly tighter rows than the track-info grid
+ * because there are more entries. */
+.shortcuts-grid dt {
+  white-space: nowrap;
+}
+
+.shortcuts-grid dd {
+  font-size: 17px;
+}

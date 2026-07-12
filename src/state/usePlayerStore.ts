@@ -77,6 +77,16 @@ interface PlayerState {
   setTheme: (theme: ThemeId) => void
   next: () => void
   prev: () => void
+  /** Swap a track with its neighbor in the given direction. No-op at edges. */
+  moveTrack: (id: string, direction: 'up' | 'down') => void
+  /** Move a track to a specific absolute index in the library. */
+  moveTrackTo: (id: string, targetIndex: number) => void
+  /** Move a track to play immediately after the current track. */
+  playNext: (id: string) => void
+  /** Randomize the order of upcoming tracks (Fisher-Yates). No-op if < 2 upcoming. */
+  shuffleUpcoming: () => void
+  /** Remove all tracks after the current track. No-op if already empty. */
+  clearUpcoming: () => void
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -145,4 +155,91 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentTime: 0,
     })
   },
+
+  moveTrack: (id, direction) =>
+    set((s) => {
+      const idx = s.tracks.findIndex((t) => t.id === id)
+      if (idx < 0) return s
+      const newIdx = direction === 'up' ? idx - 1 : idx + 1
+      if (newIdx < 0 || newIdx >= s.tracks.length) return s
+      const newTracks = s.tracks.slice()
+      ;[newTracks[idx], newTracks[newIdx]] = [newTracks[newIdx], newTracks[idx]]
+      // Keep currentIndex pointing at the same track after the swap.
+      let currentIndex = s.currentIndex
+      if (idx === currentIndex) currentIndex = newIdx
+      else if (newIdx === currentIndex) currentIndex = idx
+      return { tracks: newTracks, currentIndex }
+    }),
+
+  moveTrackTo: (id, targetIndex) =>
+    set((s) => {
+      const idx = s.tracks.findIndex((t) => t.id === id)
+      if (idx < 0) return s
+      const clampedTarget = Math.max(0, Math.min(s.tracks.length - 1, targetIndex))
+      if (idx === clampedTarget) return s
+      const newTracks = s.tracks.slice()
+      const [track] = newTracks.splice(idx, 1)
+      // After removal, indices > idx shift down by 1. Adjust the insertion
+      // point so the caller-specified targetIndex refers to the ORIGINAL
+      // array positions (matches the intuitive "move to position N" API).
+      const adjustedTarget = clampedTarget > idx ? clampedTarget - 1 : clampedTarget
+      newTracks.splice(adjustedTarget, 0, track)
+      // Re-resolve currentIndex by id so the "current" semantic follows the
+      // same track regardless of where it moved to.
+      const currentTrackId = s.tracks[s.currentIndex]?.id
+      let currentIndex = s.currentIndex
+      if (currentTrackId) {
+        const resolved = newTracks.findIndex((t) => t.id === currentTrackId)
+        if (resolved >= 0) currentIndex = resolved
+      }
+      return { tracks: newTracks, currentIndex }
+    }),
+
+  playNext: (id) =>
+    set((s) => {
+      const tgtIdx = s.tracks.findIndex((t) => t.id === id)
+      if (tgtIdx < 0) return s
+      // The target is already the current track — "next" is meaningless
+      // (it would just move the same track down one slot and skip the
+      // current playback). No-op preserves the playback state.
+      if (tgtIdx === s.currentIndex) return s
+      // No current track — just select the target.
+      if (s.currentIndex < 0) {
+        return { currentIndex: tgtIdx, currentTime: 0 }
+      }
+      const track = s.tracks[tgtIdx]
+      // Remove target, then re-insert right after current. If the target
+      // was BEFORE the current index, removing it shifts currentIndex down
+      // by one, so we re-insert at (adjusted current + 1).
+      const removingBefore = tgtIdx < s.currentIndex
+      const tracks = s.tracks.filter((t) => t.id !== id)
+      const newCur = removingBefore ? s.currentIndex - 1 : s.currentIndex
+      const insertAt = newCur + 1
+      tracks.splice(insertAt, 0, track)
+      return { tracks, currentIndex: newCur }
+    }),
+
+  shuffleUpcoming: () =>
+    set((s) => {
+      if (s.currentIndex < 0) return s
+      const head = s.tracks.slice(0, s.currentIndex + 1)
+      const upcoming = s.tracks.slice(s.currentIndex + 1)
+      if (upcoming.length < 2) return s
+      // Fisher-Yates shuffle (unbiased). Mutates a copy; the original
+      // `upcoming` array is not used after this point.
+      const shuffled = upcoming.slice()
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      }
+      return { tracks: [...head, ...shuffled] }
+    }),
+
+  clearUpcoming: () =>
+    set((s) => {
+      if (s.currentIndex < 0) return s
+      const head = s.tracks.slice(0, s.currentIndex + 1)
+      if (head.length === s.tracks.length) return s
+      return { tracks: head }
+    }),
 }))

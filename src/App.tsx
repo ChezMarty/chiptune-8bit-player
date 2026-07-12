@@ -1,9 +1,16 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import './App.css'
 import { Library } from './components/Library'
 import { RecordPlayer } from './components/RecordPlayer'
 import { TransportControls } from './components/TransportControls'
 import { usePlayerStore, type ThemeId } from './state/usePlayerStore'
+import { setupPersistenceSubscription } from './lib/libraryPersistence'
+import { audioController } from './lib/audio'
+import { addAudioFiles } from './lib/addAudioFiles'
+import { AppContextMenu } from './components/AppContextMenu'
+import { KeyboardShortcutsDialog } from './components/KeyboardShortcutsDialog'
+import { AboutDialog } from './components/AboutDialog'
 
 // A bit longer than the CSS animation total (360ms) so the class is
 // always removed after the animation visibly finishes.
@@ -13,8 +20,25 @@ const FADE_TOTAL_MS = 400
 // The class names are stable and unique within the app.
 const FADE_SELECTORS = ['.library', '.record-player', '.transport'] as const
 
+interface AppMenuState {
+  x: number
+  y: number
+}
+
 function App() {
   const theme = usePlayerStore((s) => s.theme)
+  const tracks = usePlayerStore((s) => s.tracks)
+  const currentIndex = usePlayerStore((s) => s.currentIndex)
+  const isPlaying = usePlayerStore((s) => s.isPlaying)
+  const setTheme = usePlayerStore((s) => s.setTheme)
+  const next = usePlayerStore((s) => s.next)
+  const prev = usePlayerStore((s) => s.prev)
+  const shuffleUpcoming = usePlayerStore((s) => s.shuffleUpcoming)
+  const clearUpcoming = usePlayerStore((s) => s.clearUpcoming)
+
+  const [appMenu, setAppMenu] = useState<AppMenuState | null>(null)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
 
   // Capture the initial theme once. Comparing against this (rather than
   // a useRef boolean) survives React StrictMode's double-invocation in
@@ -48,13 +72,125 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [theme])
 
+  // Install the library persistence subscriber once on mount. The
+  // returned cleanup unsubscribes and flushes any pending debounced
+  // save so a last-second edit isn't lost on unmount (HMR or app close).
+  useEffect(() => {
+    return setupPersistenceSubscription()
+  }, [])
+
+  const hasTracks = tracks.length > 0
+  const hasCurrent = currentIndex >= 0 && tracks[currentIndex] !== undefined
+  // Number of tracks scheduled to play after the current one.
+  const upcomingCount = hasCurrent
+    ? Math.max(0, tracks.length - 1 - currentIndex)
+    : 0
+
+  // Global right-click handler. Shows the app context menu when the user
+  // right-clicks on the app background. Excludes form elements, dialogs,
+  // the context menu itself, and any element with its own onContextMenu
+  // (library track rows call e.stopPropagation in their handler, so they
+  // never reach here anyway — we don't need to explicitly exclude them).
+  const onAppContextMenu = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (
+      target.closest(
+        'button, input, textarea, select, .track-info, .track-info__backdrop, .ctx-menu',
+      )
+    ) {
+      return
+    }
+    e.preventDefault()
+    setAppMenu({ x: e.clientX, y: e.clientY })
+  }, [])
+
+  // All close/show handlers are memoized so the AppContextMenu and
+  // dialog effects (which depend on onClose) don't re-bind on every
+  // parent render.
+  const closeAppMenu = useCallback(() => setAppMenu(null), [])
+  const openShortcuts = useCallback(() => {
+    setShortcutsOpen(true)
+    setAppMenu(null)
+  }, [])
+  const closeShortcuts = useCallback(() => setShortcutsOpen(false), [])
+  const openAbout = useCallback(() => {
+    setAboutOpen(true)
+    setAppMenu(null)
+  }, [])
+  const closeAbout = useCallback(() => setAboutOpen(false), [])
+
+  function onPlayPause() {
+    if (!hasCurrent) return
+    audioController.togglePlay()
+  }
+  function onStop() {
+    if (!hasCurrent) return
+    audioController.stop()
+  }
+  function onNext() {
+    if (!hasTracks) return
+    next()
+  }
+  function onPrev() {
+    if (!hasTracks) return
+    prev()
+  }
+  function onAddFiles() {
+    void addAudioFiles()
+  }
+  function onShuffle() {
+    shuffleUpcoming()
+  }
+  function onClear() {
+    clearUpcoming()
+  }
+  function onSetTheme(themeId: ThemeId) {
+    setTheme(themeId)
+  }
+  async function onQuit() {
+    try {
+      await getCurrentWindow().close()
+    } catch (err) {
+      console.error('[quit] failed', err)
+    }
+  }
+
   return (
-    <div className="app-root">
+    <div className="app-root" onContextMenu={onAppContextMenu}>
       <Library />
       <main className="app-main">
         <RecordPlayer className="app-main__record" />
         <TransportControls />
       </main>
+
+      {appMenu && (
+        <AppContextMenu
+          x={appMenu.x}
+          y={appMenu.y}
+          isPlaying={isPlaying}
+          hasTracks={hasTracks}
+          hasCurrent={hasCurrent}
+          upcomingCount={upcomingCount}
+          currentTheme={theme}
+          onClose={closeAppMenu}
+          onPlayPause={onPlayPause}
+          onNext={onNext}
+          onPrev={onPrev}
+          onStop={onStop}
+          onAddFiles={onAddFiles}
+          onShuffle={onShuffle}
+          onClear={onClear}
+          onSetTheme={onSetTheme}
+          onShowShortcuts={openShortcuts}
+          onShowAbout={openAbout}
+          onQuit={onQuit}
+        />
+      )}
+
+      {shortcutsOpen && (
+        <KeyboardShortcutsDialog onClose={closeShortcuts} />
+      )}
+      {aboutOpen && <AboutDialog onClose={closeAbout} />}
     </div>
   )
 }
