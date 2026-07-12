@@ -13,6 +13,7 @@ import { KeyboardShortcutsDialog } from './components/KeyboardShortcutsDialog'
 import { AboutDialog } from './components/AboutDialog'
 import { SettingsButton } from './components/SettingsButton'
 import { SettingsDrawer } from './components/SettingsDrawer'
+import { TitleBar } from './components/TitleBar'
 import { I18nProvider } from './i18n/I18nProvider'
 
 // A bit longer than the CSS animation total (360ms) so the class is
@@ -165,6 +166,7 @@ function App() {
   return (
     <I18nProvider>
       <div className="app-root" onContextMenu={onAppContextMenu}>
+        <TitleBar />
         <Library />
         <main className="app-main">
           <SettingsButton

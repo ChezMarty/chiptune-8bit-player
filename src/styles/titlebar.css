@@ -1,0 +1,179 @@
+/* =========================================================
+ * Custom in-app title bar
+ *
+ * Replaces the OS-rendered title bar (decorations: false in
+ * tauri.conf.json) so the chrome can match the rest of the
+ * app — chunky pixel borders, Press Start 2P labels, theme
+ * token colors that recolor on theme switch.
+ *
+ * The bar is a single row of:
+ *   [LOGO + TITLE]  ----- drag handle -----  [MIN  MAX  CLOSE]
+ *
+ * Window-drag strategy. Earlier iterations used the CSS
+ * property `-webkit-app-region: drag` (with `no-drag` on the
+ * buttons) to mark the bar as an OS-level drag region. On
+ * Windows WebView2 that approach is unreliable: the
+ * `no-drag` opt-out doesn't reliably exempt buttons inside
+ * the drag region, so the OS treated them as part of the
+ * caption and consumed their click events.
+ *
+ * The current strategy is purely JS-driven:
+ *   - The wrapping `.titlebar` div carries `data-tauri-drag-region`
+ *     for Tauri's OS-level drag hook.
+ *   - A `mousedown` handler in TitleBar.tsx additionally calls
+ *     `getCurrentWindow().startDragging()` so a fast click still
+ *     resolves to a normal DOM click while a real drag motion
+ *     drives the window.
+ *   - The handler explicitly skips button children so they
+ *     always fire their onClick handlers.
+ *
+ * As a result the buttons are plain HTML `<button>` elements
+ * again — no CSS `app-region` workarounds, no `pointer-events:
+ * none` masks, no `cursor` tricks. The bar still drags.
+ * ========================================================= */
+.titlebar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  height: 36px;
+  background: var(--bg-panel);
+  border-bottom: 4px solid var(--border);
+  /* Hard chunky shadow so the bar reads as a separate piece of
+     hardware, consistent with the rest of the 8-bit chrome. */
+  box-shadow:
+    inset 0 -2px 0 0 rgba(0, 0, 0, 0.35),
+    0 2px 0 0 rgba(0, 0, 0, 0.35);
+  user-select: none;
+  /* Prevents the right-click on the drag region from selecting
+     text and showing the webview default menu (we swallow that
+     event in JS, but this is a defensive belt-and-braces). */
+  -webkit-user-select: none;
+  flex-shrink: 0;
+  /* Indicate draggability in the cursor so the user knows they
+     can pick up the window from the bar. The actual drag is
+     handled programmatically in TitleBar.tsx. */
+  cursor: grab;
+}
+
+.titlebar:active {
+  cursor: grabbing;
+}
+
+/* Brand chip — small icon + app name, pinned left. */
+.titlebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 100%;
+  /* Keep the brand label from competing with the controls in
+     the very top-right; let it sit flush against the left
+     border so the "chrome" reads as a status bar. */
+  border-right: 2px solid var(--bg-elevated);
+}
+
+.titlebar__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  /* Accent color picks up the active theme so the logo
+     recolors automatically when the user switches themes. */
+  color: var(--accent-red);
+  image-rendering: pixelated;
+}
+
+.titlebar__title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  /* Trim very long localized names with an ellipsis instead
+     of pushing the controls off-screen. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 36ch;
+}
+
+/* Empty middle stretch between the brand and the window
+   controls. No interactive content; the parent .titlebar's
+   mousedown handler is what catches drags here. */
+.titlebar__spacer {
+  height: 100%;
+  min-width: 0;
+}
+
+/* Right-aligned window controls. */
+.titlebar__controls {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  /* Border-left mirrors .titlebar__brand's border-right so the
+     control cluster reads as a paired hardware module. */
+  border-left: 2px solid var(--bg-elevated);
+}
+
+.titlebar__btn {
+  /* Square hit target to keep the controls visually even with
+     the 36px bar height. */
+  width: 40px;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-primary);
+  border: 0;
+  /* Crisp pixel rendering for the SVG icons. */
+  image-rendering: pixelated;
+  cursor: pointer;
+  /* Override the global dashed :focus-visible so the focused
+     button has a chunky pixel-compatible outline instead. */
+  outline: none;
+  transition: background 0.04s linear, color 0.04s linear;
+  /* Buttons are plain HTML elements again — no app-region
+     overrides, no pointer-events: none, no quirky cascade.
+     They receive click events directly from the DOM, and
+     the .titlebar mousedown handler skips them explicitly so
+     a click doesn't also try to start a window drag. */
+}
+
+.titlebar__btn + .titlebar__btn {
+  border-left: 2px solid var(--bg-elevated);
+}
+
+/* Minimize + maximize: cyan hover like the rest of the
+   non-destructive pixel-button hover states. */
+.titlebar__btn--min:hover,
+.titlebar__btn--max:hover {
+  background: var(--accent-cyan);
+  color: var(--bg-app);
+}
+
+.titlebar__btn--min:focus-visible,
+.titlebar__btn--max:focus-visible {
+  /* Inset pixel ring — visually an outline but pixel-true. */
+  box-shadow: inset 0 0 0 3px var(--accent-cyan);
+}
+
+/* Close: red hover, separate from the other two buttons so the
+   destructive action reads at a glance. Matches the
+   .ctx-menu__btn--yes and pixel-button--primary treatment. */
+.titlebar__btn--close:hover {
+  background: var(--accent-red);
+  color: var(--text-primary);
+}
+
+.titlebar__btn--close:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--accent-red);
+}
+
+.titlebar__btn:active {
+  /* Tonal invert on press reads as a "click" in 8-bit UIs. */
+  transform: translateY(1px);
+}

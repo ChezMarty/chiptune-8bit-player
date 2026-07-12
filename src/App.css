@@ -1,9 +1,13 @@
 /* =========================================================
- * App layout — sidebar (library) + main column (player +
- * transport). Grid-based, no rounded corners, chunky shadows.
+ * App layout — titlebar (custom, see styles/titlebar.css) +
+ * sidebar (library) + main column (player + transport).
+ * Grid-based, no rounded corners, chunky shadows.
  * ========================================================= */
 .app-root {
   display: grid;
+  /* First row = custom title bar (auto-sized). Second row holds
+     the library + main column and absorbs the remaining height. */
+  grid-template-rows: auto 1fr;
   grid-template-columns: 320px 1fr;
   height: 100vh;
   width: 100vw;

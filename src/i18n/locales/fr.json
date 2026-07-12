@@ -142,5 +142,11 @@
   "theme.arcade": "Arcade",
 
   "themeSwitcher.label": "THEME",
-  "themeSwitcher.aria": "Sélectionner le thème"
+  "themeSwitcher.aria": "Sélectionner le thème",
+
+  "titlebar.appName": "CHIPTUNE 8 BITS",
+  "titlebar.minimize": "Réduire",
+  "titlebar.maximize": "Agrandir",
+  "titlebar.restore": "Restaurer",
+  "titlebar.close": "Fermer"
 }
