@@ -1,6 +1,16 @@
 @import './styles/8bit.css';
 
-:root {
+/* =========================================================
+ * Theme palette
+ *
+ * The app exposes 5 themes via the `data-theme` attribute on
+ * <html> / :root. Each theme block overrides the same set of
+ * CSS custom properties. The default (NES) is selected on boot
+ * and lives at :root so the variables are always defined even
+ * before the bootstrap sets [data-theme].
+ * ========================================================= */
+:root,
+:root[data-theme='nes'] {
   --bg-app: #0F0F1B;
   --bg-panel: #1A1A2E;
   --bg-panel-light: #252544;
@@ -22,6 +32,135 @@
   --vinyl-shine: #5a4a2a;
 
   --border: #2A2A4A;
+}
+
+:root[data-theme='gameboy'] {
+  --bg-app: #0F380F;
+  --bg-panel: #306230;
+  --bg-panel-light: #8BAC0F;
+  --bg-elevated: #9BBC0F;
+
+  --text-primary: #9BBC0F;
+  --text-secondary: #8BAC0F;
+  --text-tertiary: #306230;
+
+  --accent-red: #8BAC0F;
+  --accent-red-dark: #306230;
+  --accent-cyan: #9BBC0F;
+  --accent-amber: #9BBC0F;
+  --accent-green: #9BBC0F;
+
+  --vinyl-black: #0F380F;
+  --vinyl-groove: #306230;
+  --vinyl-label: #8BAC0F;
+  --vinyl-shine: #5a8a30;
+
+  --border: #306230;
+}
+
+:root[data-theme='c64'] {
+  --bg-app: #403285;
+  --bg-panel: #6B5BB5;
+  --bg-panel-light: #9C8AE0;
+  --bg-elevated: #B0A0F0;
+
+  --text-primary: #A4EBF3;
+  --text-secondary: #6AB2F2;
+  --text-tertiary: #403285;
+
+  --accent-red: #A4EBF3;
+  --accent-red-dark: #6AB2F2;
+  --accent-cyan: #6AB2F2;
+  --accent-amber: #FFD9A0;
+  --accent-green: #6AB2F2;
+
+  --vinyl-black: #1A0F3A;
+  --vinyl-groove: #403285;
+  --vinyl-label: #6AB2F2;
+  --vinyl-shine: #7869C4;
+
+  --border: #7869C4;
+}
+
+:root[data-theme='gbc'] {
+  --bg-app: #5C0A0A;
+  --bg-panel: #8B1A1A;
+  --bg-panel-light: #B5302E;
+  --bg-elevated: #D04540;
+
+  --text-primary: #FFE4B5;
+  --text-secondary: #FFB347;
+  --text-tertiary: #8B1A1A;
+
+  --accent-red: #FF3030;
+  --accent-red-dark: #B02020;
+  --accent-cyan: #40E0D0;
+  --accent-amber: #FFD700;
+  --accent-green: #90EE90;
+
+  --vinyl-black: #1F0505;
+  --vinyl-groove: #5C0A0A;
+  --vinyl-label: #FFD700;
+  --vinyl-shine: #B5302E;
+
+  --border: #8B1A1A;
+}
+
+:root[data-theme='arcade'] {
+  --bg-app: #0A0A0F;
+  --bg-panel: #1A0033;
+  --bg-panel-light: #2D0052;
+  --bg-elevated: #3D0070;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #FF00FF;
+  --text-tertiary: #7A0099;
+
+  --accent-red: #FF1493;
+  --accent-red-dark: #B80069;
+  --accent-cyan: #00FFFF;
+  --accent-amber: #FFFF00;
+  --accent-green: #39FF14;
+
+  --vinyl-black: #0A0010;
+  --vinyl-groove: #1A0033;
+  --vinyl-label: #FF00FF;
+  --vinyl-shine: #FF1493;
+
+  --border: #3D0070;
+}
+
+/* =========================================================
+ * Theme-change "CRT power-on" animation.
+ *
+ * When [data-theme] changes, App.tsx adds `.theme-fading` to
+ * each major section (library, record player, transport).
+ * Each section animates its opacity 0 → 1 with a stagger,
+ * masking the synchronous color swap that just happened.
+ * Honors prefers-reduced-motion: users who opt out skip the
+ * fade entirely.
+ * ========================================================= */
+@keyframes theme-power-on {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.library.theme-fading,
+.record-player.theme-fading,
+.transport.theme-fading {
+  animation: theme-power-on 120ms ease-out;
+}
+
+.library.theme-fading       { animation-delay: 0ms;   }
+.record-player.theme-fading { animation-delay: 120ms; }
+.transport.theme-fading     { animation-delay: 240ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .library.theme-fading,
+  .record-player.theme-fading,
+  .transport.theme-fading {
+    animation: none;
+  }
 }
 
 * {

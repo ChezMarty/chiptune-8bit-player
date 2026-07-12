@@ -74,6 +74,11 @@ export function TransportControls() {
     audioController.togglePlay()
   }
 
+  function doStop() {
+    if (!hasCurrent) return
+    audioController.stop()
+  }
+
   function doNext() {
     if (!hasTracks) return
     next()
@@ -120,6 +125,15 @@ export function TransportControls() {
           title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
         >
           {isPlaying ? '❚❚' : '▶'}
+        </button>
+        <button
+          className="pixel-button pixel-button--stop transport__btn"
+          onClick={doStop}
+          disabled={!hasCurrent}
+          aria-label="Stop"
+          title="Stop"
+        >
+          ■
         </button>
         <button
           className="pixel-button transport__btn"

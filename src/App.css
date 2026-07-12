@@ -412,3 +412,110 @@
   border: 2px solid var(--bg-app);
   cursor: pointer;
 }
+
+/* =========================================================
+ * Stop button — same physical size as the play button (the
+ * .transport__btn class above enforces 64x56) but with a panel
+ * fill so it stays visually distinct from the red Play button.
+ * A different hover color (amber vs cyan) sets it apart from
+ * the prev/next buttons too.
+ * ========================================================= */
+.pixel-button--stop {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 3px solid var(--text-primary);
+}
+
+.pixel-button--stop:hover:not(:disabled) {
+  background: var(--accent-amber);
+  color: var(--bg-app);
+  border-color: var(--bg-app);
+}
+
+.pixel-button--stop:active:not(:disabled) {
+  background: var(--accent-red-dark);
+  color: var(--text-primary);
+}
+
+/* =========================================================
+ * Library footer + theme switcher
+ * ========================================================= */
+.library__footer {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 4px solid var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.theme-switcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-switcher__label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.theme-switcher__select-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.theme-switcher__select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 3px solid var(--text-primary);
+  padding: 8px 28px 8px 10px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  outline: none;
+  image-rendering: pixelated;
+  box-shadow:
+    inset -2px -2px 0 0 rgba(0, 0, 0, 0.4),
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.theme-switcher__select:hover {
+  background: var(--accent-cyan);
+  color: var(--bg-app);
+  border-color: var(--bg-app);
+}
+
+.theme-switcher__select:focus-visible {
+  outline: 3px dashed var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Native <option> elements in the dropdown popup. Browsers don't
+ * let us style the popup itself, but we can hint colors so the
+ * open menu at least matches the theme as best as it can. */
+.theme-switcher__select option {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+}
+
+.theme-switcher__chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 9px;
+  color: var(--text-primary);
+  line-height: 1;
+}

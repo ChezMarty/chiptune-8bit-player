@@ -87,6 +87,22 @@ class AudioController {
     }
   }
 
+  /**
+   * Stop playback WITHOUT rewinding. Functionally a named alias for
+   * pause() today, but documented separately so the call site reads
+   * as "stop" (semantic intent) rather than "pause" (mechanism).
+   * Pressing Play after a stop will resume from the current position.
+   */
+  stop(): void {
+    try {
+      this.audio.pause()
+      // Intentionally do NOT touch this.audio.currentTime —
+      // "stop" means "pause + keep position" in this app.
+    } catch (err) {
+      console.error('[audio] stop failed', err)
+    }
+  }
+
   togglePlay(): void {
     if (this.audio.paused) {
       void this.play()

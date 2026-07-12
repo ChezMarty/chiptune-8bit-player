@@ -72,57 +72,52 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
           disabled={!hasTrack}
         >
           <svg viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet">
+            <style>{`
+              .rp-vinyl-body { fill: url(#rp-vinyl-shine); }
+              .rp-vinyl-edge { fill: none; stroke: var(--vinyl-black); stroke-width: 3; }
+              .rp-vinyl-groove { fill: none; stroke: var(--vinyl-groove); stroke-width: 2; }
+              .rp-vinyl-shine-highlight { fill: none; stroke: var(--vinyl-shine); stroke-width: 1; opacity: 0.6; }
+              .rp-vinyl-label-fill { fill: var(--vinyl-label); }
+              .rp-vinyl-label-border { fill: none; stroke: color-mix(in srgb, var(--vinyl-label) 50%, black); stroke-width: 1.5; }
+              .rp-vinyl-spindle { fill: var(--vinyl-black); }
+              .rp-vinyl-fallback-note { fill: var(--vinyl-black); }
+            `}</style>
             <defs>
-              <radialGradient id="vinyl-shine" cx="50%" cy="50%" r="55%">
-                <stop offset="0%" stopColor="#2a2a2a" />
-                <stop offset="60%" stopColor="#141414" />
-                <stop offset="100%" stopColor="#0a0a0a" />
+              {/* Gradient maps to three theme tokens:
+                  - 0% (inner highlight)  = --vinyl-groove  (medium)
+                  - 60% (mid body)        = --vinyl-black   (dark)
+                  - 100% (outer edge)     = --vinyl-black   (dark, flat)
+                  The outer stop matches --vinyl-black so the rim blends
+                  into the edge stroke; using --bg-app here would make
+                  the outer edge lighter than the body in C64 and GBC. */}
+              <radialGradient id="rp-vinyl-shine" cx="50%" cy="50%" r="55%">
+                <stop offset="0%" style={{ stopColor: 'var(--vinyl-groove)' }} />
+                <stop offset="60%" style={{ stopColor: 'var(--vinyl-black)' }} />
+                <stop offset="100%" style={{ stopColor: 'var(--vinyl-black)' }} />
               </radialGradient>
             </defs>
             {/* Spinning group: vinyl body + grooves + label */}
             <g className="record-player__disc">
-              <circle cx="200" cy="200" r="195" fill="url(#vinyl-shine)" />
-              <circle
-                cx="200"
-                cy="200"
-                r="195"
-                fill="none"
-                stroke="#0a0a0a"
-                strokeWidth="3"
-              />
+              <circle className="rp-vinyl-body" cx="200" cy="200" r="195" />
+              <circle className="rp-vinyl-edge" cx="200" cy="200" r="195" />
               {/* Four concentric grooves (per design spec) */}
-              <g
-                fill="none"
-                stroke="#2A2A2A"
-                strokeWidth="2"
-                vectorEffect="non-scaling-stroke"
-              >
-                <circle cx="200" cy="200" r="180" />
-                <circle cx="200" cy="200" r="160" />
-                <circle cx="200" cy="200" r="142" />
-                <circle cx="200" cy="200" r="124" />
+              <g vectorEffect="non-scaling-stroke">
+                <circle className="rp-vinyl-groove" cx="200" cy="200" r="180" />
+                <circle className="rp-vinyl-groove" cx="200" cy="200" r="160" />
+                <circle className="rp-vinyl-groove" cx="200" cy="200" r="142" />
+                <circle className="rp-vinyl-groove" cx="200" cy="200" r="124" />
               </g>
               {/* Subtle reflective highlight on grooves (cosmetic) */}
               <circle
+                className="rp-vinyl-shine-highlight"
                 cx="200"
                 cy="200"
                 r="160"
-                fill="none"
-                stroke="#5a4a2a"
-                strokeWidth="1"
                 vectorEffect="non-scaling-stroke"
-                opacity="0.6"
               />
               {/* Center label disc (~30% of vinyl radius) */}
-              <circle cx="200" cy="200" r="62" fill="#F1B94C" />
-              <circle
-                cx="200"
-                cy="200"
-                r="62"
-                fill="none"
-                stroke="#8a6a20"
-                strokeWidth="1.5"
-              />
+              <circle className="rp-vinyl-label-fill" cx="200" cy="200" r="62" />
+              <circle className="rp-vinyl-label-border" cx="200" cy="200" r="62" />
               {/* Album art inside the label, pixelated */}
               {track?.artDataUrl ? (
                 <image
@@ -136,18 +131,18 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
                 />
               ) : (
                 <text
+                  className="rp-vinyl-fallback-note"
                   x="200"
                   y="212"
                   textAnchor="middle"
                   fontFamily="'Press Start 2P', monospace"
                   fontSize="32"
-                  fill="#0a0a0a"
                 >
                   ♪
                 </text>
               )}
               {/* Spindle hole */}
-              <circle cx="200" cy="200" r="6" fill="#0a0a0a" />
+              <circle className="rp-vinyl-spindle" cx="200" cy="200" r="6" />
             </g>
           </svg>
         </button>
@@ -163,41 +158,20 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
               className="record-player__tonearm-arm"
               style={{ transform: `rotate(${tonearmAngle}deg)` }}
             >            <svg viewBox="0 0 320 40" width="320" height="40" style={{ overflow: 'visible' }}>
+              <style>{`
+                .rp-tonearm-stylus { fill: var(--accent-red); }
+                .rp-tonearm-cartridge { fill: var(--bg-panel-light); stroke: var(--bg-app); stroke-width: 2; }
+                .rp-tonearm-shaft { fill: var(--text-primary); stroke: var(--bg-app); stroke-width: 1; }
+                .rp-tonearm-pivot { fill: color-mix(in srgb, var(--text-primary) 50%, var(--bg-app)); stroke: var(--bg-app); stroke-width: 2; }
+              `}</style>
               {/* Stylus tip (extends slightly past the left edge of the viewBox) */}
-              <rect x="-6" y="20" width="6" height="6" fill="#E52521" />
+              <rect className="rp-tonearm-stylus" x="-6" y="20" width="6" height="6" />
               {/* Cartridge head at the LEFT end (the end that swings onto the record) */}
-              <rect x="0" y="12" width="24" height="18" fill="#3a3a3a" />
-              <rect
-                x="0"
-                y="12"
-                width="24"
-                height="18"
-                fill="none"
-                stroke="#0a0a0a"
-                strokeWidth="2"
-              />
+              <rect className="rp-tonearm-cartridge" x="0" y="12" width="24" height="18" />
               {/* Arm shaft (cartridge → pivot) */}
-              <rect x="24" y="18" width="274" height="6" fill="#cccccc" />
-              <rect
-                x="24"
-                y="18"
-                width="274"
-                height="6"
-                fill="none"
-                stroke="#0a0a0a"
-                strokeWidth="1"
-              />
+              <rect className="rp-tonearm-shaft" x="24" y="18" width="274" height="6" />
               {/* Pivot base at the RIGHT end (anchored at the rotation pivot, top-right) */}
-              <rect x="298" y="14" width="22" height="22" fill="#888" />
-              <rect
-                x="298"
-                y="14"
-                width="22"
-                height="22"
-                fill="none"
-                stroke="#0a0a0a"
-                strokeWidth="2"
-              />
+              <rect className="rp-tonearm-pivot" x="298" y="14" width="22" height="22" />
             </svg>
             </div>
           </div>

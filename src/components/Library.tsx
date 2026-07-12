@@ -4,6 +4,7 @@ import { usePlayerStore, type Track } from '../state/usePlayerStore'
 import { readMetadata } from '../lib/metadata'
 import { pixelateImage } from '../lib/pixelate'
 import { audioController } from '../lib/audio'
+import { ThemeSwitcher } from './ThemeSwitcher'
 
 const SUPPORTED_EXTS = ['mp3', 'm4a', 'aac', 'flac', 'wav', 'ogg', 'oga', 'opus']
 
@@ -138,6 +139,10 @@ export function Library() {
           })
         )}
       </ul>
+
+      <div className="library__footer">
+        <ThemeSwitcher />
+      </div>
     </aside>
   )
 }
