@@ -1,19 +1,21 @@
 import { useEffect } from 'react'
+import { useT } from '../i18n/useT'
 
 export interface AboutDialogProps {
   onClose: () => void
 }
 
-const APP_NAME = 'CHIPTUNE 8-BIT PLAYER'
 const APP_VERSION = '0.1.0'
+/**
+ * The static "About" description text. Per the i18n spec, only UI chrome
+ * is translated — the description stays English so the spec's
+ * "translate UI chrome ONLY" rule is observed.
+ */
 const APP_DESCRIPTION =
   'An 8-bit themed record-player audio app for local music files. Right-click anywhere to explore.'
 
-/**
- * Modal "About" dialog. Shows the app name, version, and a short
- * description. Reuses the track-info dialog styling.
- */
 export function AboutDialog({ onClose }: AboutDialogProps) {
+  const { t } = useT()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -41,22 +43,24 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
       >
         <div className="track-info__header">
           <span id="about-title" className="track-info__title">
-            ABOUT
+            {t('dialog.about.title')}
           </span>
           <button
             type="button"
             className="track-info__close"
             onClick={onClose}
-            aria-label="Close about"
-            title="Close (Esc)"
+            aria-label={t('dialog.about.close')}
+            title={t('button.close.title')}
           >
             ✕
           </button>
         </div>
 
         <div className="about__content">
-          <div className="about__name">{APP_NAME}</div>
-          <div className="about__version">VERSION {APP_VERSION}</div>
+          <div className="about__name">{t('dialog.about.name')}</div>
+          <div className="about__version">
+            {t('dialog.about.versionPrefix')} {APP_VERSION}
+          </div>
           <div className="about__desc">{APP_DESCRIPTION}</div>
         </div>
       </div>

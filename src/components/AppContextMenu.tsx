@@ -1,12 +1,11 @@
 import { useLayoutEffect, useRef } from 'react'
-import { THEME_IDS, THEME_LABELS, type ThemeId } from '../state/usePlayerStore'
+import {
+  THEME_IDS,
+  THEME_LABELS_LOCALIZED,
+  type ThemeId,
+} from '../state/usePlayerStore'
+import { useT } from '../i18n/useT'
 
-/**
- * App-level right-click context menu. Shown when the user right-clicks on
- * the app background (not on a track row, button, input, or select — those
- * have their own behavior). Provides quick access to playback controls,
- * file import, queue management, theme switching, info dialogs, and quit.
- */
 export interface AppContextMenuProps {
   x: number
   y: number
@@ -54,10 +53,11 @@ export function AppContextMenu(props: AppContextMenuProps) {
     onShowAbout,
     onQuit,
   } = props
+  const { t, locale } = useT()
+  const themeLabels = THEME_LABELS_LOCALIZED[locale]
 
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Clamp position to viewport on first paint.
   useLayoutEffect(() => {
     const el = menuRef.current
     if (!el) return
@@ -76,7 +76,6 @@ export function AppContextMenu(props: AppContextMenuProps) {
     if (Math.abs(rect.top - targetY) > 0.5) el.style.top = `${targetY}px`
   }, [x, y])
 
-  // Global listeners: outside-click, Escape, scroll, resize all close.
   useLayoutEffect(() => {
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node | null
@@ -113,41 +112,32 @@ export function AppContextMenu(props: AppContextMenuProps) {
       ref={menuRef}
       className="ctx-menu pixel-panel"
       role="menu"
-      aria-label="App actions"
+      aria-label={t('ctx.app.aria')}
       style={{ left: initialX, top: initialY, width: MENU_WIDTH }}
     >
-      <Item
-        onClick={onPlayPause}
-        disabled={!hasCurrent}
-      >
-        {isPlaying ? '❚❚ PAUSE' : '▶ PLAY'}
+      <Item onClick={onPlayPause} disabled={!hasCurrent}>
+        {isPlaying ? t('ctx.app.pause') : t('ctx.app.play')}
       </Item>
-      <Item onClick={onNext} disabled={!hasTracks}>⏭ NEXT</Item>
-      <Item onClick={onPrev} disabled={!hasTracks}>⏮ PREVIOUS</Item>
-      <Item onClick={onStop} disabled={!hasCurrent}>⏹ STOP</Item>
+      <Item onClick={onNext} disabled={!hasTracks}>{t('ctx.app.next')}</Item>
+      <Item onClick={onPrev} disabled={!hasTracks}>{t('ctx.app.prev')}</Item>
+      <Item onClick={onStop} disabled={!hasCurrent}>{t('ctx.app.stop')}</Item>
 
       <Sep />
 
-      <Item onClick={onAddFiles}>➕ ADD FILES</Item>
+      <Item onClick={onAddFiles}>{t('ctx.app.add')}</Item>
 
       <Sep />
 
-      <Item
-        onClick={onShuffle}
-        disabled={upcomingCount < 2}
-      >
-        🔀 SHUFFLE QUEUE
+      <Item onClick={onShuffle} disabled={upcomingCount < 2}>
+        {t('ctx.app.shuffle')}
       </Item>
-      <Item
-        onClick={onClear}
-        disabled={upcomingCount === 0}
-      >
-        🗑 CLEAR QUEUE
+      <Item onClick={onClear} disabled={upcomingCount === 0}>
+        {t('ctx.app.clear')}
       </Item>
 
       <Sep />
 
-      <div className="ctx-menu__section-label">THEME</div>
+      <div className="ctx-menu__section-label">{t('ctx.app.themeSection')}</div>
       {THEME_IDS.map((id) => (
         <Item
           key={id}
@@ -155,21 +145,21 @@ export function AppContextMenu(props: AppContextMenuProps) {
           className={id === currentTheme ? 'ctx-menu__item--active' : ''}
         >
           <span className="ctx-menu__check" aria-hidden="true">
-            {id === currentTheme ? '✓' : '\u00A0'}
+            {id === currentTheme ? t('settings.check') : '\u00A0'}
           </span>
-          {THEME_LABELS[id].toUpperCase()}
+          {themeLabels[id].toUpperCase()}
         </Item>
       ))}
 
       <Sep />
 
-      <Item onClick={onShowShortcuts}>⌨ SHORTCUTS</Item>
-      <Item onClick={onShowAbout}>ℹ ABOUT</Item>
+      <Item onClick={onShowShortcuts}>{t('ctx.app.shortcuts')}</Item>
+      <Item onClick={onShowAbout}>{t('ctx.app.about')}</Item>
 
       <Sep />
 
       <Item onClick={onQuit} className="ctx-menu__item--danger">
-        ✕ QUIT
+        {t('ctx.app.quit')}
       </Item>
     </div>
   )

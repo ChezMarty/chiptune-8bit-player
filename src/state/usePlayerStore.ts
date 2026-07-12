@@ -1,4 +1,9 @@
 import { create } from 'zustand'
+import {
+  writeBoolPref,
+  writeIntPref,
+  writeStringPref,
+} from '../lib/preferences'
 
 export interface Track {
   id: string
@@ -25,7 +30,37 @@ export const THEME_LABELS: Record<ThemeId, string> = {
   arcade: 'Arcade',
 }
 
+/** Localized theme labels (e.g. `NES (Nintendo)` in French). */
+export const THEME_LABELS_LOCALIZED: Record<'en' | 'fr', Record<ThemeId, string>> = {
+  en: {
+    nes: 'NES',
+    gameboy: 'Game Boy',
+    c64: 'C64',
+    gbc: 'Game Boy Color',
+    arcade: 'Arcade',
+  },
+  fr: {
+    nes: 'NES (Nintendo)',
+    gameboy: 'Game Boy (Nintendo)',
+    c64: 'C64 (Commodore)',
+    gbc: 'Game Boy Couleur (Nintendo)',
+    arcade: 'Arcade',
+  },
+}
+
+/** What the user *chose* — `'os'` means auto-detect from navigator.language. */
+export type LocaleChoice = 'en' | 'fr' | 'os'
+
+export const LOCALE_CHOICES: LocaleChoice[] = ['en', 'fr', 'os']
+
 const THEME_STORAGE_KEY = 'chiptune-theme'
+
+export const LANGUAGE_STORAGE_KEY = 'chiptune-language'
+export const START_VOLUME_STORAGE_KEY = 'chiptune-start-volume'
+export const AUTOPLAY_STORAGE_KEY = 'chiptune-auto-play-import'
+export const STOP_REWINDS_STORAGE_KEY = 'chiptune-stop-rewinds'
+export const SHUFFLE_IMPORT_STORAGE_KEY = 'chiptune-shuffle-import'
+export const ALWAYS_ON_TOP_STORAGE_KEY = 'chiptune-always-on-top'
 
 /** Read the persisted theme from localStorage, validating against the union. */
 export function readStoredTheme(): ThemeId {
@@ -57,13 +92,28 @@ interface PlayerState {
   isPlaying: boolean
   currentTime: number
   duration: number
+  /** Runtime volume (0..1), drives the audio element. */
   volume: number
+  /** Persisted starting volume (0..100). Applied at boot. */
+  startVolume: number
 
   // UI flags
   importing: boolean
 
   // Theme
   theme: ThemeId
+
+  // Locale
+  /** What the user chose. `'os'` is resolved at render to `'en'` or `'fr'`. */
+  locale: LocaleChoice
+
+  // Window display
+  alwaysOnTop: boolean
+
+  // Playback defaults (persisted preferences)
+  autoPlayOnImport: boolean
+  stopRewinds: boolean
+  shuffleOnImport: boolean
 
   // Actions
   addTracks: (tracks: Track[]) => void
@@ -73,8 +123,21 @@ interface PlayerState {
   setCurrentTime: (t: number) => void
   setDuration: (d: number) => void
   setVolume: (v: number) => void
+  setStartVolume: (v: number) => void
   setImporting: (v: boolean) => void
   setTheme: (theme: ThemeId) => void
+  setLocale: (l: LocaleChoice) => void
+  /**
+   * Generic setter that mutates in-memory state and (best-effort) persists
+   * to localStorage for known preference keys. Used by the on-load hooks
+   * in `main.tsx` so they share one helper.
+   */
+  setPref: <K extends keyof PlayerState>(key: K, value: PlayerState[K]) => void
+  /** Apply/persist toggle for "always-on-top" window. */
+  setAlwaysOnTop: (v: boolean) => Promise<void>
+  setAutoPlayOnImport: (v: boolean) => void
+  setStopRewinds: (v: boolean) => void
+  setShuffleOnImport: (v: boolean) => void
   next: () => void
   prev: () => void
   /** Swap a track with its neighbor in the given direction. No-op at edges. */
@@ -96,8 +159,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentTime: 0,
   duration: 0,
   volume: 0.7,
+  startVolume: 70,
   importing: false,
   theme: 'nes',
+  locale: 'os',
+  alwaysOnTop: false,
+  autoPlayOnImport: false,
+  stopRewinds: false,
+  shuffleOnImport: false,
 
   addTracks: (tracks) =>
     set((s) => ({ tracks: [...s.tracks, ...tracks] })),
@@ -126,6 +195,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setCurrentTime: (t) => set({ currentTime: t }),
   setDuration: (d) => set({ duration: Number.isFinite(d) ? d : 0 }),
   setVolume: (v) => set({ volume: Math.max(0, Math.min(1, v)) }),
+  setStartVolume: (v) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(v)))
+    set({ startVolume: clamped, volume: clamped / 100 })
+    writeIntPref(START_VOLUME_STORAGE_KEY, clamped)
+  },
   setImporting: (v) => set({ importing: v }),
 
   setTheme: (theme) => {
@@ -136,6 +210,61 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     } catch {
       // localStorage unavailable; the in-memory value still works for the session.
     }
+  },
+
+  setLocale: (l) => {
+    set({ locale: l })
+    writeStringPref(LANGUAGE_STORAGE_KEY, l)
+  },
+
+  setPref: (key, value) => {
+    set({ [key]: value } as Partial<PlayerState>)
+    switch (key) {
+      case 'locale':
+        writeStringPref(LANGUAGE_STORAGE_KEY, String(value))
+        break
+      case 'startVolume':
+        writeIntPref(START_VOLUME_STORAGE_KEY, Number(value))
+        break
+      case 'autoPlayOnImport':
+        writeBoolPref(AUTOPLAY_STORAGE_KEY, Boolean(value))
+        break
+      case 'stopRewinds':
+        writeBoolPref(STOP_REWINDS_STORAGE_KEY, Boolean(value))
+        break
+      case 'shuffleOnImport':
+        writeBoolPref(SHUFFLE_IMPORT_STORAGE_KEY, Boolean(value))
+        break
+      case 'alwaysOnTop':
+        writeBoolPref(ALWAYS_ON_TOP_STORAGE_KEY, Boolean(value))
+        break
+    }
+  },
+
+  setAlwaysOnTop: async (v) => {
+    set({ alwaysOnTop: v })
+    writeBoolPref(ALWAYS_ON_TOP_STORAGE_KEY, v)
+    // Tauri-side application. Lazy-imported to keep the store free of
+    // platform-specific imports so it can run in a plain browser preview.
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      await getCurrentWindow().setAlwaysOnTop(v)
+    } catch (err) {
+      console.error('[alwaysOnTop] failed', err)
+    }
+  },
+
+  setAutoPlayOnImport: (v) => {
+    set({ autoPlayOnImport: v })
+    writeBoolPref(AUTOPLAY_STORAGE_KEY, v)
+  },
+  setStopRewinds: (v) => {
+    set({ stopRewinds: v })
+    writeBoolPref(STOP_REWINDS_STORAGE_KEY, v)
+  },
+  setShuffleOnImport: (v) => {
+    set({ shuffleOnImport: v })
+    writeBoolPref(SHUFFLE_IMPORT_STORAGE_KEY, v)
   },
 
   next: () => {

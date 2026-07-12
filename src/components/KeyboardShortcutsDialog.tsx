@@ -1,15 +1,12 @@
 import { useEffect } from 'react'
+import { useT } from '../i18n/useT'
 
 export interface KeyboardShortcutsDialogProps {
   onClose: () => void
 }
 
-/**
- * Modal dialog listing the keyboard shortcuts. Reuses the same backdrop
- * and panel styling as the track-info dialog. Closes on Escape or a
- * click on the backdrop / X button.
- */
 export function KeyboardShortcutsDialog({ onClose }: KeyboardShortcutsDialogProps) {
+  const { t } = useT()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -37,14 +34,14 @@ export function KeyboardShortcutsDialog({ onClose }: KeyboardShortcutsDialogProp
       >
         <div className="track-info__header">
           <span id="shortcuts-title" className="track-info__title">
-            SHORTCUTS
+            {t('dialog.shortcuts.title')}
           </span>
           <button
             type="button"
             className="track-info__close"
             onClick={onClose}
-            aria-label="Close shortcuts"
-            title="Close (Esc)"
+            aria-label={t('dialog.shortcuts.close')}
+            title={t('button.close.title')}
           >
             ✕
           </button>
@@ -52,25 +49,25 @@ export function KeyboardShortcutsDialog({ onClose }: KeyboardShortcutsDialogProp
 
         <dl className="track-info__grid shortcuts-grid">
           <dt>SPACE</dt>
-          <dd>Play / Pause</dd>
+          <dd>{t('shortcuts.space')}</dd>
 
           <dt>← / →</dt>
-          <dd>Seek ±5 seconds</dd>
+          <dd>{t('shortcuts.seek')}</dd>
 
           <dt>SHIFT + ←/→</dt>
-          <dd>Previous / Next track</dd>
+          <dd>{t('shortcuts.seek_shift')}</dd>
 
           <dt>↑ / ↓</dt>
-          <dd>Volume ±5%</dd>
+          <dd>{t('shortcuts.vol')}</dd>
 
           <dt>RIGHT-CLICK</dt>
-          <dd>Context menu</dd>
+          <dd>{t('shortcuts.contextMenu')}</dd>
 
           <dt>DOUBLE-CLICK</dt>
-          <dd>Play a track</dd>
+          <dd>{t('shortcuts.doubleClick')}</dd>
 
           <dt>ESC</dt>
-          <dd>Close dialog / menu</dd>
+          <dd>{t('shortcuts.esc')}</dd>
         </dl>
       </div>
     </div>

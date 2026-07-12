@@ -7,6 +7,7 @@ import { ThemeSwitcher } from './ThemeSwitcher'
 import { ContextMenu } from './ContextMenu'
 import { TrackInfoDialog } from './TrackInfoDialog'
 import { NowPlaying } from './NowPlaying'
+import { useT } from '../i18n/useT'
 
 /**
  * State for the right-click context menu. We store the track ID (not the
@@ -54,6 +55,7 @@ export function Library() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [infoDialog, setInfoDialog] = useState<InfoDialogState | null>(null)
+  const { t } = useT()
 
   async function onAddFiles() {
     setErrorMsg(null)
@@ -194,20 +196,20 @@ export function Library() {
   return (
     <aside className="library pixel-panel">
       <div className="library__header">
-        <span className="library__title">LIBRARY</span>          <button
+        <span className="library__title">{t('header.library')}</span>          <button
             className="library__add pixel-button"
             onClick={onAddFiles}
             disabled={importing}
-            aria-label="Add audio files"
-            title="Add audio files (or right-click anywhere in the app)"
+            aria-label={t('button.add.aria')}
+            title={t('button.add.title')}
           >
-            {importing ? 'LOADING...' : '+ ADD'}
+            {importing ? t('button.add.loading') : t('button.add')}
           </button>
       </div>
 
-      <div className="library__count" aria-label="Track count">
-        {tracks.length} TRACK{tracks.length === 1 ? '' : 'S'}
-        <span className="library__hint"> (RIGHT-CLICK FOR ACTIONS)</span>
+      <div className="library__count" aria-label={t('header.library')}>
+        {t('library.count', { n: tracks.length })}
+        <span className="library__hint">{t('library.hint')}</span>
       </div>
 
       {errorMsg && <div className="library__error">{errorMsg}</div>}
@@ -215,29 +217,33 @@ export function Library() {
       <ul className="library__list">
         {tracks.length === 0 ? (
           <li className="library__empty">
-            <div className="library__empty-line">PRESS "+ ADD"</div>
-            <div className="library__empty-line">TO LOAD AUDIO</div>
+            <div className="library__empty-line">{t('library.empty.line1')}</div>
+            <div className="library__empty-line">{t('library.empty.line2')}</div>
           </li>
         ) : (
-          tracks.map((t, idx) => {
+          tracks.map((tr, idx) => {
             const active = idx === currentIndex
             return (
               <li
-                key={t.id}
+                key={tr.id}
                 className={`library__row ${active ? 'is-active' : ''}`}
                 onClick={() => onRowClick(idx)}
                 onDoubleClick={() => onRowDoubleClick(idx)}
                 onContextMenu={(e) => onRowContextMenu(e, idx)}
               >
                 <span className="library__row-num">
-                  {active && isPlaying ? '►' : active ? '❚❚' : String(idx + 1).padStart(2, '0')}
+                  {active && isPlaying
+                    ? t('row.playing')
+                    : active
+                      ? t('row.paused_active')
+                      : String(idx + 1).padStart(2, '0')}
                 </span>
                 <div className="library__row-info">
-                  <div className="library__row-title">{t.title}</div>
-                  <div className="library__row-artist">{t.artist}</div>
+                  <div className="library__row-title">{tr.title}</div>
+                  <div className="library__row-artist">{tr.artist}</div>
                 </div>
                 <span className="library__row-time">
-                  {fmtTime(t.durationSec)}
+                  {fmtTime(tr.durationSec)}
                 </span>
               </li>
             )

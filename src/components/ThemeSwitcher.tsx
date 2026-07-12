@@ -1,8 +1,16 @@
-import { usePlayerStore, THEME_IDS, THEME_LABELS, type ThemeId } from '../state/usePlayerStore'
+import {
+  THEME_IDS,
+  THEME_LABELS_LOCALIZED,
+  usePlayerStore,
+  type ThemeId,
+} from '../state/usePlayerStore'
+import { useT } from '../i18n/useT'
 
 export function ThemeSwitcher() {
   const theme = usePlayerStore((s) => s.theme)
   const setTheme = usePlayerStore((s) => s.setTheme)
+  const { t, locale } = useT()
+  const localized = THEME_LABELS_LOCALIZED[locale]
 
   function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setTheme(e.target.value as ThemeId)
@@ -11,7 +19,7 @@ export function ThemeSwitcher() {
   return (
     <div className="theme-switcher">
       <label className="theme-switcher__label" htmlFor="theme-select">
-        THEME
+        {t('themeSwitcher.label')}
       </label>
       <div className="theme-switcher__select-wrap">
         <select
@@ -19,11 +27,11 @@ export function ThemeSwitcher() {
           className="theme-switcher__select"
           value={theme}
           onChange={onChange}
-          aria-label="Select theme"
+          aria-label={t('themeSwitcher.aria')}
         >
           {THEME_IDS.map((id) => (
             <option key={id} value={id}>
-              {THEME_LABELS[id]}
+              {localized[id]}
             </option>
           ))}
         </select>

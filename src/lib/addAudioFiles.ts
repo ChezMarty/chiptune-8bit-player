@@ -12,6 +12,18 @@ const SUPPORTED_EXTS = ['mp3', 'm4a', 'aac', 'flac', 'wav', 'ogg', 'oga', 'opus'
  * was empty, the first new track is set as current and loaded into the
  * audio controller.
  *
+ * After a successful import the persisted `autoPlayOnImport` and
+ * `shuffleOnImport` preferences are honored:
+ *
+ * - `autoPlayOnImport`: when the imported files are the first thing in
+ *   the queue (no prior track was playing), the first new track is
+ *   loaded and `audioController.play()` is invoked. When a session is
+ *   already running the new tracks queue at the end without
+ *   interrupting playback — the rule that fits every existing app
+ *   context.
+ * - `shuffleOnImport`: if at least one upcoming track exists, the
+ *   upcoming queue is shuffled via the store's `shuffleUpcoming()`.
+ *
  * Re-entrancy is guarded by the store's `importing` flag so rapid
  * invocations (e.g. clicking "+ ADD" twice) don't open duplicate pickers.
  *
@@ -68,10 +80,33 @@ export async function addAudioFiles(
       return
     }
     usePlayerStore.getState().addTracks(newTracks)
-    if (wasEmpty) {
+
+    const wantsAutoPlay = usePlayerStore.getState().autoPlayOnImport
+    if (wasEmpty && wantsAutoPlay) {
+      // First-time import: start the very first new track.
       const fresh = usePlayerStore.getState()
       fresh.setCurrent(0)
       audioController.load(newTracks[0].path)
+      void audioController.play()
+    } else if (wantsAutoPlay) {
+      // Mid-session import: jump to and play the first new track. This
+      // matches the spec's "first new track begins playing immediately"
+      // rule when auto-play is enabled.
+      const fresh = usePlayerStore.getState()
+      const targetIdx = fresh.tracks.length - newTracks.length
+      fresh.setCurrent(targetIdx)
+      audioController.load(newTracks[0].path)
+      void audioController.play()
+    } else if (wasEmpty) {
+      // Auto-play is OFF: still select the first new track so the user
+      // can immediately hit Play.
+      const fresh = usePlayerStore.getState()
+      fresh.setCurrent(0)
+      audioController.load(newTracks[0].path)
+    }
+
+    if (usePlayerStore.getState().shuffleOnImport) {
+      usePlayerStore.getState().shuffleUpcoming()
     }
   } catch (err) {
     console.error('[import] failed', err)

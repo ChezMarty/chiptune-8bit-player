@@ -1,33 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Track } from '../state/usePlayerStore'
-
-/**
- * The 8-bit styled right-click menu shown for a single track row.
- *
- * The menu is rendered as a fixed-positioned panel whose coordinates are
- * clamped to the viewport on first paint so the menu never opens off-screen.
- * The component is fully controlled: the parent owns visibility and the
- * `onClose` callback. The internal `phase` state only drives the inline
- * "Are you sure?" confirm prompt for the destructive REMOVE action.
- */
+import { useT } from '../i18n/useT'
 
 type Phase = 'normal' | 'confirm-remove'
 
 export interface ContextMenuProps {
   track: Track
-  /** Index of `track` within the current library. */
   trackIndex: number
-  /** True when this track is the one currently loaded in the player. */
   isCurrent: boolean
-  /** True when the player is actively playing. */
   isPlaying: boolean
-  /** True when this is the first track in the library (MOVE UP disabled). */
   isFirst: boolean
-  /** True when this is the last track in the library (MOVE DOWN disabled). */
   isLast: boolean
-  /** Cursor X for the initial menu position. */
   x: number
-  /** Cursor Y for the initial menu position. */
   y: number
   onClose: () => void
   onPlay: () => void
@@ -41,9 +25,6 @@ export interface ContextMenuProps {
   onRemove: () => void
 }
 
-// Reasonable size estimates used to clamp the menu into the viewport on
-// first paint. Measured in JS pixels. The menu is intentionally compact
-// (~240px wide, 8 short rows) so these estimates hold across themes.
 const MENU_WIDTH = 240
 const MENU_HEIGHT_NORMAL = 360
 const MENU_HEIGHT_CONFIRM = 110
@@ -68,13 +49,11 @@ export function ContextMenu(props: ContextMenuProps) {
     onShowInfo,
     onRemove,
   } = props
+  const { t } = useT()
 
   const [phase, setPhase] = useState<Phase>('normal')
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Clamp position to the viewport on first paint. useLayoutEffect avoids
-  // a one-frame flicker where the menu would appear off-screen before
-  // snapping back.
   useLayoutEffect(() => {
     const el = menuRef.current
     if (!el) return
@@ -91,10 +70,6 @@ export function ContextMenu(props: ContextMenuProps) {
     }
   }, [x, y, phase])
 
-  // Global listeners for closing the menu. The mousedown handler ignores
-  // clicks inside the menu element so that selecting items works. The
-  // scroll listener closes the menu when the library list scrolls, so we
-  // never end up with a stranded menu floating over the wrong row.
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node | null
@@ -120,13 +95,9 @@ export function ContextMenu(props: ContextMenuProps) {
     }
   }, [onClose])
 
-  // When this track is the one currently playing, the primary action
-  // becomes PAUSE. Otherwise it is PLAY (which loads + plays this track).
-  const primaryLabel = isCurrent && isPlaying ? '❚❚ PAUSE' : '▶ PLAY'
+  const primaryLabel = isCurrent && isPlaying ? t('ctx.track.pause') : t('ctx.track.play')
   const onPrimary = isCurrent && isPlaying ? onPause : onPlay
 
-  // Use the larger of the two phase estimates as the safe minimum height
-  // for the initial clamp.
   const safeHeight = Math.max(MENU_HEIGHT_NORMAL, MENU_HEIGHT_CONFIRM)
   const initialX = Math.max(
     VIEWPORT_MARGIN,
@@ -142,10 +113,8 @@ export function ContextMenu(props: ContextMenuProps) {
       ref={menuRef}
       className="ctx-menu pixel-panel"
       role="menu"
-      aria-label="Track actions"
+      aria-label={t('ctx.track.aria')}
       style={{ left: initialX, top: initialY, width: MENU_WIDTH }}
-      // Prevent the native context menu from re-appearing when the user
-      // right-clicks on the menu itself.
       onContextMenu={(e) => {
         e.preventDefault()
       }}
@@ -155,6 +124,15 @@ export function ContextMenu(props: ContextMenuProps) {
           primaryLabel={primaryLabel}
           onPrimary={onPrimary}
           onPlayNext={onPlayNext}
+          labels={{
+            playNext: t('ctx.track.playNext'),
+            moveUp: t('ctx.track.moveUp'),
+            moveDown: t('ctx.track.moveDown'),
+            showInFolder: t('ctx.track.showInFolder'),
+            copyPath: t('ctx.track.copyPath'),
+            showInfo: t('ctx.track.showInfo'),
+            remove: t('ctx.track.remove'),
+          }}
           isFirst={isFirst}
           isLast={isLast}
           onMoveUp={onMoveUp}
@@ -166,6 +144,11 @@ export function ContextMenu(props: ContextMenuProps) {
         />
       ) : (
         <ConfirmPhase
+          labels={{
+            question: t('ctx.track.confirm'),
+            yes: t('ctx.track.confirm.yes'),
+            no: t('ctx.track.confirm.no'),
+          }}
           onYes={onRemove}
           onNo={() => setPhase('normal')}
         />
@@ -176,6 +159,15 @@ export function ContextMenu(props: ContextMenuProps) {
 
 interface NormalPhaseProps {
   primaryLabel: string
+  labels: {
+    playNext: string
+    moveUp: string
+    moveDown: string
+    showInFolder: string
+    copyPath: string
+    showInfo: string
+    remove: string
+  }
   onPrimary: () => void
   onPlayNext: () => void
   isFirst: boolean
@@ -192,38 +184,43 @@ function NormalPhase(p: NormalPhaseProps) {
   return (
     <>
       <MenuButton onClick={p.onPrimary}>{p.primaryLabel}</MenuButton>
-      <MenuButton onClick={p.onPlayNext}>⏵ PLAY NEXT</MenuButton>
+      <MenuButton onClick={p.onPlayNext}>{p.labels.playNext}</MenuButton>
       <div className="ctx-menu__separator" aria-hidden="true" />
       <MenuButton onClick={p.onMoveUp} disabled={p.isFirst}>
-        ⬆ MOVE UP
+        {p.labels.moveUp}
       </MenuButton>
       <MenuButton onClick={p.onMoveDown} disabled={p.isLast}>
-        ⬇ MOVE DOWN
+        {p.labels.moveDown}
       </MenuButton>
       <div className="ctx-menu__separator" aria-hidden="true" />
-      <MenuButton onClick={p.onShowInFolder}>📂 SHOW IN FOLDER</MenuButton>
-      <MenuButton onClick={p.onCopyPath}>📋 COPY PATH</MenuButton>
-      <MenuButton onClick={p.onShowInfo}>ⓘ TRACK INFO</MenuButton>
+      <MenuButton onClick={p.onShowInFolder}>{p.labels.showInFolder}</MenuButton>
+      <MenuButton onClick={p.onCopyPath}>{p.labels.copyPath}</MenuButton>
+      <MenuButton onClick={p.onShowInfo}>{p.labels.showInfo}</MenuButton>
       <div className="ctx-menu__separator" aria-hidden="true" />
       <MenuButton
         onClick={p.onAskRemove}
         className="ctx-menu__item--danger"
       >
-        ✕ REMOVE
+        {p.labels.remove}
       </MenuButton>
     </>
   )
 }
 
 interface ConfirmPhaseProps {
+  labels: {
+    question: string
+    yes: string
+    no: string
+  }
   onYes: () => void
   onNo: () => void
 }
 
-function ConfirmPhase({ onYes, onNo }: ConfirmPhaseProps) {
+function ConfirmPhase({ labels, onYes, onNo }: ConfirmPhaseProps) {
   return (
-    <div className="ctx-menu__confirm" role="alertdialog" aria-label="Confirm remove">
-      <div className="ctx-menu__confirm-text">REMOVE TRACK?</div>
+    <div className="ctx-menu__confirm" role="alertdialog" aria-label={labels.question}>
+      <div className="ctx-menu__confirm-text">{labels.question}</div>
       <div className="ctx-menu__confirm-buttons">
         <button
           type="button"
@@ -231,14 +228,14 @@ function ConfirmPhase({ onYes, onNo }: ConfirmPhaseProps) {
           onClick={onYes}
           autoFocus
         >
-          ✓ YES
+          {labels.yes}
         </button>
         <button
           type="button"
           className="ctx-menu__btn"
           onClick={onNo}
         >
-          ✗ NO
+          {labels.no}
         </button>
       </div>
     </div>

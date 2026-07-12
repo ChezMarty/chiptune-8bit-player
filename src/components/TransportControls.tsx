@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { usePlayerStore } from '../state/usePlayerStore'
 import { audioController } from '../lib/audio'
+import { useT } from '../i18n/useT'
 
 export function TransportControls() {
   const tracks = usePlayerStore((s) => s.tracks)
@@ -12,12 +13,11 @@ export function TransportControls() {
   const setVolume = usePlayerStore((s) => s.setVolume)
   const next = usePlayerStore((s) => s.next)
   const prev = usePlayerStore((s) => s.prev)
+  const { t } = useT()
 
   const hasTracks = tracks.length > 0
   const hasCurrent = currentIndex >= 0 && tracks[currentIndex] !== undefined
 
-  // Wire keyboard shortcuts. Listener is registered once and reads via
-  // the store's getState() so it never needs to re-bind.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target
@@ -59,9 +59,6 @@ export function TransportControls() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Swap the audio source ONLY when currentIndex changes. Reading tracks
-  // via getState() keeps this from re-firing on library mutations that
-  // don't change the playing track.
   useEffect(() => {
     if (currentIndex < 0) return
     const t = usePlayerStore.getState().tracks[currentIndex]
@@ -112,37 +109,37 @@ export function TransportControls() {
           className="pixel-button transport__btn"
           onClick={doPrev}
           disabled={!hasTracks}
-          aria-label="Previous track"
-          title="Previous (shift+←)"
+          aria-label={t('transport.prev.aria')}
+          title={t('transport.prev.title')}
         >
-          ◀◀
+          {t('transport.prev')}
         </button>
         <button
           className="pixel-button pixel-button--primary transport__btn"
           onClick={togglePlay}
           disabled={!hasCurrent}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-          title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+          aria-label={isPlaying ? t('transport.pause.aria') : t('transport.play.aria')}
+          title={isPlaying ? t('transport.pause.title') : t('transport.play.title')}
         >
-          {isPlaying ? '❚❚' : '▶'}
+          {isPlaying ? t('transport.pause') : t('transport.play')}
         </button>
         <button
           className="pixel-button pixel-button--stop transport__btn"
           onClick={doStop}
           disabled={!hasCurrent}
-          aria-label="Stop"
-          title="Stop"
+          aria-label={t('transport.stop.aria')}
+          title={t('transport.stop.title')}
         >
-          ■
+          {t('transport.stop')}
         </button>
         <button
           className="pixel-button transport__btn"
           onClick={doNext}
           disabled={!hasTracks}
-          aria-label="Next track"
-          title="Next (shift+→)"
+          aria-label={t('transport.next.aria')}
+          title={t('transport.next.title')}
         >
-          ▶▶
+          {t('transport.next')}
         </button>
       </div>
 
@@ -152,7 +149,7 @@ export function TransportControls() {
           className="transport__progress"
           onClick={onSeek}
           role="slider"
-          aria-label="Track progress"
+          aria-label={t('transport.progress.aria')}
           aria-valuemin={0}
           aria-valuemax={duration || 0}
           aria-valuenow={currentTime}
@@ -170,7 +167,7 @@ export function TransportControls() {
       </div>
 
       <div className="transport__volume">
-        <span className="transport__volume-label">VOL</span>
+        <span className="transport__volume-label">{t('transport.volume.label')}</span>
         <input
           type="range"
           min={0}
@@ -178,7 +175,7 @@ export function TransportControls() {
           step={0.01}
           value={volume}
           onChange={onVolume}
-          aria-label="Volume"
+          aria-label={t('transport.volume.aria')}
           className="transport__volume-slider"
         />
         <span className="transport__volume-num">{Math.round(volume * 100)}</span>

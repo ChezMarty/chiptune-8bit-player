@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePlayerStore } from '../state/usePlayerStore'
+import { useT } from '../i18n/useT'
 
 /**
  * The "Now Playing" section rendered below the library list. Shows the
@@ -17,6 +18,7 @@ export function NowPlaying() {
   const currentIndex = usePlayerStore((s) => s.currentIndex)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const moveTrackTo = usePlayerStore((s) => s.moveTrackTo)
+  const { t } = useT()
 
   // Local drag state. `draggedId` is the id of the track being dragged;
   // `dragOverIdx` is the absolute index in `tracks` where the dragged
@@ -84,9 +86,9 @@ export function NowPlaying() {
   return (
     <div className="now-playing">
       <div className="now-playing__header">
-        <span className="now-playing__title">NOW PLAYING</span>
+        <span className="now-playing__title">{t('header.nowPlaying')}</span>
         <span className="now-playing__count">
-          {upcomingTracks.length} UP NEXT
+          {t('nowPlaying.upNext', { n: upcomingTracks.length })}
         </span>
       </div>
 
@@ -95,7 +97,7 @@ export function NowPlaying() {
           className={`now-playing__current ${isPlaying ? 'is-playing' : 'is-paused'}`}
         >
           <span className="now-playing__current-icon" aria-hidden="true">
-            {isPlaying ? '►' : '❚❚'}
+            {isPlaying ? t('row.playing') : t('row.paused_active')}
           </span>
           <div className="now-playing__current-info">
             <div
@@ -115,28 +117,28 @@ export function NowPlaying() {
       )}
 
       {!currentTrack && (
-        <div className="now-playing__empty">NOTHING PLAYING</div>
+        <div className="now-playing__empty">{t('nowPlaying.empty')}</div>
       )}
 
       {upcomingTracks.length > 0 ? (
         <ul className="now-playing__list">
-          {upcomingTracks.map((t, idx) => {
+          {upcomingTracks.map((tr, idx) => {
             const absoluteIdx = firstUpcomingIdx + idx
-            const isDragged = t.id === draggedId
+            const isDragged = tr.id === draggedId
             const isDragOver = dragOverIdx === absoluteIdx
             return (
               <li
-                key={t.id}
+                key={tr.id}
                 className={
                   `now-playing__item ${isDragged ? 'is-dragging' : ''} ` +
                   `${isDragOver ? 'is-drag-over' : ''}`.trim()
                 }
                 draggable
-                onDragStart={(e) => onDragStart(e, t.id)}
+                onDragStart={(e) => onDragStart(e, tr.id)}
                 onDragOver={(e) => onItemDragOver(e, idx)}
                 onDrop={(e) => onItemDrop(e, idx)}
                 onDragEnd={onDragEnd}
-                title="Drag to reorder"
+                title={t('nowPlaying.dragToReorder')}
               >
                 <span
                   className="now-playing__drag-handle"
@@ -150,19 +152,19 @@ export function NowPlaying() {
                 <div className="now-playing__item-info">
                   <div
                     className="now-playing__item-title"
-                    title={t.title}
+                    title={tr.title}
                   >
-                    {t.title}
+                    {tr.title}
                   </div>
                   <div
                     className="now-playing__item-artist"
-                    title={t.artist}
+                    title={tr.artist}
                   >
-                    {t.artist}
+                    {tr.artist}
                   </div>
                 </div>
                 <span className="now-playing__item-time">
-                  {fmtTime(t.durationSec)}
+                  {fmtTime(tr.durationSec)}
                 </span>
               </li>
             )
@@ -177,7 +179,7 @@ export function NowPlaying() {
           />
         </ul>
       ) : currentTrack ? (
-        <div className="now-playing__empty">END OF QUEUE</div>
+        <div className="now-playing__empty">{t('nowPlaying.endOfQueue')}</div>
       ) : null}
     </div>
   )

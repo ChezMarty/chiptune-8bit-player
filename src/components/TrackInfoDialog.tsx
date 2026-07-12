@@ -1,19 +1,14 @@
 import { useEffect } from 'react'
 import type { Track } from '../state/usePlayerStore'
+import { useT } from '../i18n/useT'
 
-/**
- * A small 8-bit styled modal showing the read-only metadata for a single
- * track: title, artist, album, duration, and the absolute file path. Used
- * by the context menu's "TRACK INFO" action.
- */
 export interface TrackInfoDialogProps {
   track: Track
   onClose: () => void
 }
 
 export function TrackInfoDialog({ track, onClose }: TrackInfoDialogProps) {
-  // Close on Escape. Click on the backdrop is handled by the parent
-  // wrapper element below.
+  const { t } = useT()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -43,19 +38,21 @@ export function TrackInfoDialog({ track, onClose }: TrackInfoDialogProps) {
       >
         <div className="track-info__header">
           <span id="track-info-title" className="track-info__title">
-            TRACK INFO
+            {t('dialog.trackInfo.title')}
           </span>
           <button
             type="button"
             className="track-info__close"
             onClick={onClose}
-            aria-label="Close track info"
-            title="Close (Esc)"
+            aria-label={t('dialog.trackInfo.close')}
+            title={t('button.close.title')}
           >
             ✕
           </button>
         </div>
 
+        {/* Per the i18n spec, the metadata <dl> field tags (TITLE, ARTIST,
+            ALBUM, …) stay in English — only the dialog chrome translates. */}
         <dl className="track-info__grid">
           <dt>TITLE</dt>
           <dd title={track.title}>{track.title}</dd>

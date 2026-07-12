@@ -11,6 +11,9 @@ import { addAudioFiles } from './lib/addAudioFiles'
 import { AppContextMenu } from './components/AppContextMenu'
 import { KeyboardShortcutsDialog } from './components/KeyboardShortcutsDialog'
 import { AboutDialog } from './components/AboutDialog'
+import { SettingsButton } from './components/SettingsButton'
+import { SettingsDrawer } from './components/SettingsDrawer'
+import { I18nProvider } from './i18n/I18nProvider'
 
 // A bit longer than the CSS animation total (360ms) so the class is
 // always removed after the animation visibly finishes.
@@ -39,6 +42,8 @@ function App() {
   const [appMenu, setAppMenu] = useState<AppMenuState | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
 
   // Capture the initial theme once. Comparing against this (rather than
   // a useRef boolean) survives React StrictMode's double-invocation in
@@ -95,7 +100,7 @@ function App() {
     const target = e.target as HTMLElement
     if (
       target.closest(
-        'button, input, textarea, select, .track-info, .track-info__backdrop, .ctx-menu',
+        'button, input, textarea, select, .track-info, .track-info__backdrop, .ctx-menu, .settings-drawer, .settings-drawer__backdrop',
       )
     ) {
       return
@@ -118,6 +123,8 @@ function App() {
     setAppMenu(null)
   }, [])
   const closeAbout = useCallback(() => setAboutOpen(false), [])
+  const openSettings = useCallback(() => setSettingsOpen(true), [])
+  const closeSettings = useCallback(() => setSettingsOpen(false), [])
 
   function onPlayPause() {
     if (!hasCurrent) return
@@ -156,42 +163,58 @@ function App() {
   }
 
   return (
-    <div className="app-root" onContextMenu={onAppContextMenu}>
-      <Library />
-      <main className="app-main">
-        <RecordPlayer className="app-main__record" />
-        <TransportControls />
-      </main>
+    <I18nProvider>
+      <div className="app-root" onContextMenu={onAppContextMenu}>
+        <Library />
+        <main className="app-main">
+          <SettingsButton
+            ref={settingsButtonRef}
+            open={settingsOpen}
+            onClick={() => {
+              if (settingsOpen) closeSettings()
+              else openSettings()
+            }}
+          />
+          <RecordPlayer className="app-main__record" />
+          <TransportControls />
+        </main>
 
-      {appMenu && (
-        <AppContextMenu
-          x={appMenu.x}
-          y={appMenu.y}
-          isPlaying={isPlaying}
-          hasTracks={hasTracks}
-          hasCurrent={hasCurrent}
-          upcomingCount={upcomingCount}
-          currentTheme={theme}
-          onClose={closeAppMenu}
-          onPlayPause={onPlayPause}
-          onNext={onNext}
-          onPrev={onPrev}
-          onStop={onStop}
-          onAddFiles={onAddFiles}
-          onShuffle={onShuffle}
-          onClear={onClear}
-          onSetTheme={onSetTheme}
-          onShowShortcuts={openShortcuts}
-          onShowAbout={openAbout}
-          onQuit={onQuit}
+        {appMenu && (
+          <AppContextMenu
+            x={appMenu.x}
+            y={appMenu.y}
+            isPlaying={isPlaying}
+            hasTracks={hasTracks}
+            hasCurrent={hasCurrent}
+            upcomingCount={upcomingCount}
+            currentTheme={theme}
+            onClose={closeAppMenu}
+            onPlayPause={onPlayPause}
+            onNext={onNext}
+            onPrev={onPrev}
+            onStop={onStop}
+            onAddFiles={onAddFiles}
+            onShuffle={onShuffle}
+            onClear={onClear}
+            onSetTheme={onSetTheme}
+            onShowShortcuts={openShortcuts}
+            onShowAbout={openAbout}
+            onQuit={onQuit}
+          />
+        )}
+
+        {shortcutsOpen && (
+          <KeyboardShortcutsDialog onClose={closeShortcuts} />
+        )}
+        {aboutOpen && <AboutDialog onClose={closeAbout} />}
+
+        <SettingsDrawer
+          open={settingsOpen}
+          onClose={closeSettings}
+          returnFocusRef={{ current: settingsButtonRef.current }}
         />
-      )}
-
-      {shortcutsOpen && (
-        <KeyboardShortcutsDialog onClose={closeShortcuts} />
-      )}
-      {aboutOpen && <AboutDialog onClose={closeAbout} />}
-    </div>
+      </div>
+    </I18nProvider>
   )
 }
 
