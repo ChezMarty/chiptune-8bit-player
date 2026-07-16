@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/gen-favicon.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "icons": "node scripts/gen-favicon.mjs"
+    "icons": "node scripts/gen-favicon.mjs",
+    "verify:icons": "node scripts/verify-icons.mjs"
   },
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.7.1",

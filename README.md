@@ -28,3 +28,48 @@ Playback Controls – Retro-inspired media controls, progress slider, and volume
 This project aims to combine the simplicity of vintage console interfaces with the convenience of a modern music player. Every pixel, color, and animation is inspired by the golden age of 8-bit gaming while maintaining usability and performance.
 
 Whether you're listening to chiptune, game soundtracks, or your favorite playlist, Chiptune 8-Bit Player delivers a nostalgic experience without sacrificing modern functionality.
+
+◷ Icon Maintenance
+
+The application icon is a 16×16 pixel-art cassette tape, generated
+from a single source-of-truth (`GRID` + `PALETTE` in
+`scripts/gen-favicon.mjs`). Every Tauri bundle asset (`bundle.icon`
++ the Windows MSIX `Square*Logo.png` tile set + the macOS legacy
+`icon.png`/Apple `icon.icns`) is emitted from this script — there is
+no second source of truth and no opportunity for stale residue.
+
+Workflow:
+
+```
+npm run icons          # regenerate every emitted icon asset
+npm run build          # implicit prebuild hook runs the same script
+npm run tauri build    # Tauri’s beforeBuildCommand runs build → icons
+npm run verify:icons   # decode every emitted PNG/ICO/ICNS and assert
+                       # the cassette signature (cyan #4EE2EC + cream
+                       # #F0E6C4) is present
+```
+
+To change the icon: edit `GRID` / `PALETTE` in
+`scripts/gen-favicon.mjs` and re-run `npm run icons`. NEVER regenerate
+via `npx tauri icon <source.png>` — Tauri's icon tool rasterises from
+a source PNG with bilinear filtering and will re-introduce exactly
+the softening this generator exists to avoid.
+
+For already-installed copies on Windows, run
+`tmp-refresh-icon-cache.ps1` (elevated) to drop the per-user
+icon/thumbnail cache DBs and restart Explorer so the new icon shows
+up immediately in Start menu / taskbar / desktop shortcuts.
+
+For users who ALREADY have the old `.exe` installed: rebuilding the
+app alone does not retroactively update the icon on their machine.
+Either (a) uninstall and reinstall the new build, or (b) install the
+new build over the old and run `tmp-refresh-icon-cache.ps1` once. New
+installs (clean install on a fresh machine) require no manual cache
+reset — the NSIS installer registers the new icon at install time.
+
+For users who ALREADY have the old `.exe` installed: rebuilding the
+app alone does not retroactively update the icon on their machine.
+Either (a) uninstall and reinstall the new build, or (b) install the
+new build over the old and run `tmp-refresh-icon-cache.ps1` once. New
+installs (clean install on a fresh machine) require no manual cache
+reset — the NSIS installer registers the new icon at install time.

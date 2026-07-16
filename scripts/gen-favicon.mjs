@@ -15,13 +15,33 @@
 //                                                shape-rendering="crispEdges")
 //   - public/favicon.ico                       — multi-frame ICO (16/32/48) for
 //                                                legacy browsers / Windows tools
+//   - public/favicon-source.png                — 512×512 PNG re-emitted from GRID
+//                                                so any stale residue from a
+//                                                previous icon set is overwritten
 //   - src-tauri/icons/32x32.png                — Tauri Windows/Linux bundle
 //   - src-tauri/icons/128x128.png              — 〃
 //   - src-tauri/icons/128x128@2x.png           — alt 256×256 bundle icon
 //   - src-tauri/icons/icon.ico                 — Tauri Windows bundle (multi-frame:
-//                                                 16/32/48/64/128/256)
+//                                                 16/32/48/64/128/256; RGBA PNG entries
+//                                                so compile-time
+//                                                `tauri::generate_context!()` accepts it)
 //   - src-tauri/icons/icon.icns                — Tauri macOS bundle (RGBA PNGs at
-//                                                 16/32/64/128/256/512/1024)
+//                                                16/32/64/128/256/512/1024)
+//   - src-tauri/icons/64x64.png                — extra Tauri bitmap fallback
+//   - src-tauri/icons/icon.png                 — legacy macOS / openable
+//                                                "any-app" fallback at 512×512
+//   - src-tauri/icons/Square{30,44,71,89,
+//     107,142,150,284,310}x{N}Logo.png        — Tauri-generated Windows
+//                                                MSIX/Appx tile set; sizes
+//                                                are fixed by Tauri's icon
+//                                                tool. Each is regenerated
+//                                                from GRID via the
+//                                                nearest-neighbour fallback
+//                                                (see emitRaster below) so
+//                                                no stale residue survives
+//                                                a previous icon set.
+//   - src-tauri/icons/StoreLogo.png            — Microsoft Store logo
+//                                                placeholder (50×50)
 //
 // Why we emit Tauri bundle icons directly:
 //   `npx tauri icon` rasterises the source via the Rust `image` crate, which
@@ -31,12 +51,26 @@
 //   only way to get crisp pixel art at every output resolution is to encode
 //   each Tauri bundle artefact byte-for-byte from the source grid (no resample).
 //
+// ◷ Maintenance contract:
+//   To change the icon, edit GRID / PALETTE below and re-run this script
+//   (`node scripts/gen-favicon.mjs` or `npm run icons`). NEVER regenerate
+//   via `npx tauri icon <source.png>` — Tauri's icon tool rasterises from a
+//   source PNG with bilinear filtering and will re-introduce exactly the
+//   softening this script exists to avoid. This script also double-writes
+//   `dist/favicon.*` if `dist/` exists, so a `npm run icons` call alone
+//   (without `npm run build`) is enough to refresh a stale built bundle.
+//
 // Approach notes:
 //   - 8-bit indexed PNG with a tRNS chunk so palette index 0 = transparent
-//     (used for vite-served favicon.ico and Tauri 32/128/256 bitmap sizes).
-//   - 8-bit RGBA PNG (color-type 6) for ICNS entries: Apple accepts PNG-encoded
-//     payloads since macOS 10.7 and rendering RGBA avoids any indexed-PNG
-//     decoder edge cases.
+//     (used for the standalone Tauri bitmap PNGs in 32×32 / 128×128 /
+//     128×128@2x and for vite-served public/favicon.ico — all of these
+//     consumers accept palette-indexed PNGs).
+//   - 8-bit RGBA PNG (color-type 6) for entries inside the Tauri
+//     `icon.ico` and for every ICNS entry: the Rust `ico` crate used by
+//     `tauri::generate_context!()` rejects color-type-3 (indexed) PNGs
+//     inside an ICO with "Unsupported PNG color type: Indexed", and
+//     Apple accepts PNG-encoded ICNS payloads since macOS 10.7. RGBA
+//     in both containers sidesteps these decoder quirks.
 //   - Each 16×16 logical cell blows up to a (physical/16)×(physical/16) solid
 //     block, so integer multiples (16, 32, 48, 64, 128, 256, 512, 1024) stay
 //     pixel-perfect with no resampling.
@@ -44,7 +78,7 @@
 //     + deflate + Adler32 trailer). PNG spec requires zlib, NOT raw deflate,
 //     so do not switch to deflateRawSync here.
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateSync, inflateSync } from 'node:zlib';
@@ -182,10 +216,30 @@ function emitSVG() {
 // ─── 2. PNG emitters (indexed + RGBA, via shared workhorse) ───────
 // Both emitPNG (indexed, used by vite favicon.ico + Tauri bitmaps) and
 // emitRGBA (used by the ICNS macOS bundle) are thin wrappers around the
-// shared emitRaster workhorse below. Each 16×16 logical cell is blown
-// up to a (physical/16)×(physical/16) solid block so integer multiples
-// (16, 32, 48, 64, 128, 256, 512, 1024) all stay pixel-perfect with
-// no resampling — Tauri's image-crate bilinear path is bypassed entirely.
+// shared emitRaster workhorse below.
+//
+// emitRaster supports ANY positive integer physical size via a
+// single nearest-neighbour sampling rule:
+//
+//     srcY = floor(y * H / physicalH)
+//     srcX = floor(x * W / physicalW)
+//
+// For integer multiples of W=H=16 (16, 32, 48, 64, 128, 256, 512, 1024),
+// this collapses to the same value as the previous "block-replication"
+// path (`floor(y / cellH)` where cellH = physicalH / 16 is an integer),
+// so every pre-existing PNG/ICO/ICNS output is byte-for-byte
+// reproducible — re-running this script never changes a file that
+// was already a cassette.
+//
+// For arbitrary sizes (e.g. the 30, 44, 71, 89, 107, 142, 150, 284,
+// 310 px Square*Logo MSIX tiles that Tauri's icon tool pins at fixed
+// dimensions every time it rasterises from a source PNG), the
+// per-cell replication count varies between floor(physicalW/W)
+// and ceil(physicalW/W) — standard nearest-neighbour behaviour that
+// keeps the cassette silhouette intact, just with a slightly uneven
+// cell stride. That's still recognisably pixel art and is
+// dramatically better than letting any stale residue from a prior
+// icon set survive on disk.
 function emitPNG(physicalW, physicalH) {
   return emitRaster(physicalW, physicalH, 3);
 }
@@ -198,14 +252,15 @@ function emitRaster(physicalW, physicalH, colorType) {
   if (colorType !== 3 && colorType !== 6) {
     throw new Error(`emitRaster: unsupported colorType ${colorType} (expected 3 or 6)`);
   }
-  const channels = colorType === 3 ? 1 : 4;
-  const cellW = physicalW / W;
-  const cellH = physicalH / H;
-  if (!Number.isInteger(cellW) || !Number.isInteger(cellH)) {
+  if (
+    !Number.isInteger(physicalW) || physicalW < 1 ||
+    !Number.isInteger(physicalH) || physicalH < 1
+  ) {
     throw new Error(
-      `physical size ${physicalW}x${physicalH} must be integer multiples of ${W}x${H}`,
+      `emitRaster: physical size ${physicalW}x${physicalH} must be positive integers`,
     );
   }
+  const channels = colorType === 3 ? 1 : 4;
 
   // PNG filter byte 0 (None) per scanline, then physicalW * channels bytes
   // of pixel data (1 byte/pixel for indexed, 4 bytes/pixel for RGBA).
@@ -214,9 +269,9 @@ function emitRaster(physicalW, physicalH, colorType) {
   for (let y = 0; y < physicalH; y++) {
     const off = y * scanlineBytes;
     raw[off] = 0;
-    const gy = Math.floor(y / cellH);
+    const gy = Math.min(H - 1, Math.floor((y * H) / physicalH));
     for (let x = 0; x < physicalW; x++) {
-      const gx = Math.floor(x / cellW);
+      const gx = Math.min(W - 1, Math.floor((x * W) / physicalW));
       const idx = GRID[gy][gx];
       if (colorType === 3) {
         raw[off + 1 + x] = idx;
@@ -267,7 +322,15 @@ function emitRaster(physicalW, physicalH, colorType) {
 // Windows Vista+ happily reads PNG-encoded ICO entries; modern browsers,
 // dev tools and TB+ installers all accept them. The output is a single
 // ICO file containing multiple sizes, packed back-to-back.
-function emitICO(sizes) {
+//
+// `opts.useRGBA` switches each entry from a palette-indexed PNG (color
+// type 3, smaller bytes) to an RGBA PNG (color type 6, larger bytes).
+// The Rust `ico` crate invoked by `tauri::generate_context!()` rejects
+// indexed-color PNGs inside an ICO, so the Tauri-bound `icon.ico` must
+// be emitted with `useRGBA: true`. The browser-bound `public/favicon.ico`
+// keeps the indexed form for compactness since browser ICO decoders
+// don't share that restriction.
+function emitICO(sizes, { useRGBA = false } = {}) {
   const N = sizes.length;
 
   const header = Buffer.alloc(6);
@@ -275,7 +338,7 @@ function emitICO(sizes) {
   header.writeUInt16LE(1, 2); // type 1 = icon
   header.writeUInt16LE(N, 4); // image count
 
-  const pngs = sizes.map((s) => emitPNG(s, s));
+  const pngs = sizes.map((s) => (useRGBA ? emitRGBA(s, s) : emitPNG(s, s)));
   const dirSize = N * 16;
   const entries = Buffer.alloc(dirSize);
 
@@ -357,20 +420,92 @@ writeFileSync(join(tauriIconsDir, '128x128.png'), emitPNG(128, 128));
 writeFileSync(join(tauriIconsDir, '128x128@2x.png'), emitPNG(256, 256));
 writeFileSync(
   join(tauriIconsDir, 'icon.ico'),
-  emitICO([16, 32, 48, 64, 128, 256]),
+  emitICO([16, 32, 48, 64, 128, 256], { useRGBA: true }),
 );
 writeFileSync(
   join(tauriIconsDir, 'icon.icns'),
   emitICNS([16, 32, 64, 128, 256, 512, 1024]),
 );
 
+// 3. Tauri Windows MSIX / Appx tile set + extra legacy fallbacks.
+//    Used here as belt-and-braces: Tauri's NSIS bundler only consumes
+//    `bundle.icon` from tauri.conf.json (5 entries above), so the
+//    Square*Logo / StoreLogo / 64x64 / icon.png files are NOT shipped
+//    inside the NSIS installer. We still regenerate each of them
+//    here because:
+//      (a) they were left on disk from a previous (`npx tauri icon`)
+//          run and would otherwise still carry the old icon;
+//      (b) a future MSIX bundler / Windows resource compiler may
+//          auto-probe any PNG in `src-tauri/icons/`;
+//      (c) keeping them in sync makes `git status` clean.
+//    Sizes here are NOT integer multiples of the 16×16 source grid,
+//    so emitRaster's nearest-neighbour fallback (added above) emits
+//    them as un-evenly-strided pixel art — the cassette silhouette
+//    stays intact, just with each output cell spanning either ⌊n/16⌋
+//    or ⌈n/16⌉ source cells.
+writeFileSync(join(tauriIconsDir, '64x64.png'),             emitPNG( 64,  64));
+writeFileSync(join(tauriIconsDir, 'icon.png'),              emitPNG(512, 512));
+writeFileSync(join(tauriIconsDir, 'Square30x30Logo.png'),   emitPNG( 30,  30));
+writeFileSync(join(tauriIconsDir, 'Square44x44Logo.png'),   emitPNG( 44,  44));
+writeFileSync(join(tauriIconsDir, 'Square71x71Logo.png'),   emitPNG( 71,  71));
+writeFileSync(join(tauriIconsDir, 'Square89x89Logo.png'),   emitPNG( 89,  89));
+writeFileSync(join(tauriIconsDir, 'Square107x107Logo.png'), emitPNG(107, 107));
+writeFileSync(join(tauriIconsDir, 'Square142x142Logo.png'), emitPNG(142, 142));
+writeFileSync(join(tauriIconsDir, 'Square150x150Logo.png'), emitPNG(150, 150));
+writeFileSync(join(tauriIconsDir, 'Square284x284Logo.png'), emitPNG(284, 284));
+writeFileSync(join(tauriIconsDir, 'Square310x310Logo.png'), emitPNG(310, 310));
+writeFileSync(join(tauriIconsDir, 'StoreLogo.png'),         emitPNG( 50,  50));
+
+// 4. Re-emit a cassette copy of public/favicon-source.png so any
+//    previous residue left behind by an older icon tool can never
+//    surface as the "old" icon. The file is not referenced from
+//    index.html, but Vite serves it at /favicon-source.png and some
+//    Windows tools / OS file pickers auto-probe sibling assets.
+writeFileSync(join(publicDir, 'favicon-source.png'), emitPNG(512, 512));
+
+// 5. If `dist/` already exists from a previous `npm run build`, mirror
+//    the cached favicon and source-PNG into it so a stale vite
+//    build doesn't ship the old icon. Without this, running only
+//    `npm run icons` (and not `npm run build`) would leave
+//    `dist/favicon.ico`, `dist/favicon.svg`, and `dist/favicon-source.png`
+//    at the bytes they had after the last Vite build, which can be
+//    hours/days old and may predate this fix.
+//
+//    The existence guard exists because (a) we want `npm run icons`
+//    to work for a contributor who has not run `npm run build` yet
+//    (no dist/, no mirror, no error), and (b) creating `dist/` from
+//    here would race with Vite's own write-stream if they ever
+//    interleave. `copyFileSync` is non-atomic per-file but is fine
+//    in practice since humans don't run the two commands back-to-back
+//    against a live Vite watch.
+const distDir = join(projectDir, 'dist');
+if (existsSync(distDir)) {
+  for (const name of ['favicon.svg', 'favicon.ico', 'favicon-source.png']) {
+    copyFileSync(join(publicDir, name), join(distDir, name));
+  }
+  console.log(`✓ mirrored favicons into dist/`);
+}
+
 console.log(`✓ wrote ${join('public', 'favicon.svg')}`);
 console.log(`✓ wrote ${join('public', 'favicon.ico')}`);
+console.log(`✓ wrote ${join('public', 'favicon-source.png')}`);
 console.log(`✓ wrote ${join('src-tauri', 'icons', '32x32.png')}`);
 console.log(`✓ wrote ${join('src-tauri', 'icons', '128x128.png')}`);
 console.log(`✓ wrote ${join('src-tauri', 'icons', '128x128@2x.png')}`);
 console.log(`✓ wrote ${join('src-tauri', 'icons', 'icon.ico')}`);
 console.log(`✓ wrote ${join('src-tauri', 'icons', 'icon.icns')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', '64x64.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'icon.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square30x30Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square44x44Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square71x71Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square89x89Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square107x107Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square142x142Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square150x150Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square284x284Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'Square310x310Logo.png')}`);
+console.log(`✓ wrote ${join('src-tauri', 'icons', 'StoreLogo.png')}`);
 
 // Round-trip self-test: re-inflate one PNG from each emitter and assert
 // pixel/scanline integrity. Catches silent CRC / chunk-order regressions
@@ -409,6 +544,72 @@ function reInflateIdat(png) {
     }
   }
 
+  // Non-integer-multiple: 30×30 indexed PNG. Catches regressions in the
+  // nearest-neighbour fallback path introduced so that the
+  // Square*Logo/StoreLogo fixed-tile sizes (30, 44, 71, 89, 107, 142,
+  // 150, 284, 310) emit clean PNGs without overrun / out-of-range
+  // palette indices.
+  {
+    const nn = emitPNG(30, 30);
+    const nnRaw = reInflateIdat(nn);
+    const nnScan = 1 + 30;
+    if (nnRaw.length !== nnScan * 30) {
+      throw new Error(`self-test failed: 30×30 raw ${nnRaw.length} != ${nnScan * 30}`);
+    }
+    for (let i = 0; i < nnRaw.length; i += nnScan) {
+      const pix = nnRaw.subarray(i + 1, i + nnScan);
+      for (const p of pix) {
+        if (p < 0 || p >= PALETTE.length) {
+          throw new Error(`self-test failed: 30×30 out-of-range palette index ${p}`);
+        }
+      }
+    }
+    if (nn[25] !== 3) {
+      throw new Error(`self-test failed: 30×30 IHDR color type ${nn[25]}, expected 3 (indexed)`);
+    }
+  }
+
+  // Non-integer-multiple larger tile: 107×107 (the most-arbitrary size in
+  // the Square*Logo family). Guards against integer-overflow mistakes
+  // in the nearest-neighbour math.
+  {
+    const tile = emitPNG(107, 107);
+    if (tile.length < 8 || tile.readUInt32BE(0) !== 0x89504e47) {
+      throw new Error(`self-test failed: 107×107 missing PNG magic`);
+    }
+    if (tile[25] !== 3) {
+      throw new Error(`self-test failed: 107×107 IHDR color type ${tile[25]}, expected 3 (indexed)`);
+    }
+    const tileRaw = reInflateIdat(tile);
+    const tileScan = 1 + 107;
+    if (tileRaw.length !== tileScan * 107) {
+      throw new Error(`self-test failed: 107×107 raw ${tileRaw.length} != ${tileScan * 107}`);
+    }
+  }
+
+  // Cassette signature check: at least one cyan (#4EE2EC = (78,226,236))
+  // and one cream (#F0E6C4 = (240,230,196)) pixel must appear in the
+  // RGBA-in-ICO payload — proves the cassette (not stale residue) is
+  // what gets baked into `tauri::generate_context!()` at compile time.
+  {
+    const rgbaRef = emitRGBA(64, 64);
+    const rg = reInflateIdat(rgbaRef);
+    const rgScan = 1 + 64 * 4;
+    let hasCyan = false, hasCream = false;
+    for (let y = 0; y < 64; y++) {
+      const off = y * rgScan;
+      for (let x = 0; x < 64; x++) {
+        const p = off + 1 + x * 4;
+        const r = rg[p], g = rg[p + 1], b = rg[p + 2];
+        if (r === 0x4e && g === 0xe2 && b === 0xec) hasCyan = true;
+        if (r === 0xf0 && g === 0xe6 && b === 0xc4) hasCream = true;
+      }
+    }
+    if (!hasCyan || !hasCream) {
+      throw new Error(`self-test failed: 64×64 RGBA missing cassette signature (cyan=${hasCyan} cream=${hasCream})`);
+    }
+  }
+
   // RGBA: 64×64 PNG (mirrors one ICNS entry), 4 bytes/pixel, alpha=0
   // ONLY at palette[0].
   const rgba = emitRGBA(64, 64);
@@ -424,5 +625,34 @@ function reInflateIdat(png) {
       throw new Error(`self-test failed: non-zero filter byte ${rgbRaw[off]} on scanline ${y}`);
     }
   }
-  console.log('✓ self-test passed: PNG (32×32 indexed) + PNG (64×64 RGBA) round-trip and pixel bounds hold');
+
+  // RGBA-in-ICO: round-trip one entry out of a multi-frame RGBA ICO.
+  // Mirrors what `tauri::generate_context!()` does over `icon.ico`, so a
+  // future regression that breaks Tauri compilation fails here instead.
+  const icoSizes = [16, 32, 48];
+  const ico = emitICO(icoSizes, { useRGBA: true });
+  const numEntries = ico.readUInt16LE(4);
+  if (numEntries !== icoSizes.length) {
+    throw new Error(`self-test failed: RGBA ICO reports ${numEntries} entries, expected ${icoSizes.length}`);
+  }
+  for (let i = 0; i < numEntries; i++) {
+    const o = 6 + i * 16;
+    const entrySize = ico.readUInt32LE(o + 8);
+    const entryOff = ico.readUInt32LE(o + 12);
+    const expected = emitRGBA(icoSizes[i], icoSizes[i]);
+    const actual = ico.subarray(entryOff, entryOff + entrySize);
+    if (!actual.equals(expected)) {
+      throw new Error(`self-test failed: RGBA ICO entry ${i} bytes diverge from emitRGBA reference`);
+    }
+    if (actual.readUInt32BE(0) !== 0x89504e47) {
+      throw new Error(`self-test failed: RGBA ICO entry ${i} does not start with PNG magic`);
+    }
+    // PNG layout: 8-byte signature, then IHDR chunk (4-byte length, 4-byte
+    // 'IHDR' type, then 13-byte data). Color type is the second byte of
+    // the IHDR data — i.e. PNG byte index 25 overall.
+    if (actual[25] !== 6) {
+      throw new Error(`self-test failed: RGBA ICO entry ${i} IHDR color type ${actual[25]}, expected 6`);
+    }
+  }
+  console.log('✓ self-test passed: indexed (32×32 + 30×30 + 107×107) + RGBA (64×64 cassette signature) + RGBA ICO entries round-trip and pixel bounds hold');
 })();
