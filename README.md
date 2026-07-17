@@ -73,3 +73,7 @@ Either (a) uninstall and reinstall the new build, or (b) install the
 new build over the old and run `tmp-refresh-icon-cache.ps1` once. New
 installs (clean install on a fresh machine) require no manual cache
 reset — the NSIS installer registers the new icon at install time.
+
+## 📄 License
+
+This project is licensed under the [MIT License](./LICENSE).

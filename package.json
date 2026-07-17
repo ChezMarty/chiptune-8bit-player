@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "author": "ChezMarty",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "prebuild": "node scripts/gen-favicon.mjs",
