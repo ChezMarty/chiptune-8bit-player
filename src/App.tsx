@@ -34,7 +34,6 @@ function App() {
   const tracks = usePlayerStore((s) => s.tracks)
   const currentIndex = usePlayerStore((s) => s.currentIndex)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
-  const setTheme = usePlayerStore((s) => s.setTheme)
   const next = usePlayerStore((s) => s.next)
   const prev = usePlayerStore((s) => s.prev)
   const shuffleUpcoming = usePlayerStore((s) => s.shuffleUpcoming)
@@ -92,20 +91,15 @@ function App() {
     ? Math.max(0, tracks.length - 1 - currentIndex)
     : 0
 
-  // Global right-click handler. Shows the app context menu when the user
-  // right-clicks on the app background. Excludes form elements, dialogs,
-  // the context menu itself, and any element with its own onContextMenu
-  // (library track rows call e.stopPropagation in their handler, so they
-  // never reach here anyway — we don't need to explicitly exclude them).
+  // Global right-click handler. Shows the app context menu on any
+  // right-click within the app root. The default browser context menu is
+  // already suppressed by a window-level listener (in main.tsx), so we
+  // unconditionally show our custom retro menu instead.
+  //
+  // Elements that have their own context menu (library track rows, the
+  // context menu itself) call e.stopPropagation in their own handlers,
+  // so they never reach here — we don't need to explicitly exclude them.
   const onAppContextMenu = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement
-    if (
-      target.closest(
-        'button, input, textarea, select, .track-info, .track-info__backdrop, .ctx-menu, .settings-drawer, .settings-drawer__backdrop',
-      )
-    ) {
-      return
-    }
     e.preventDefault()
     setAppMenu({ x: e.clientX, y: e.clientY })
   }, [])
@@ -152,9 +146,6 @@ function App() {
   function onClear() {
     clearUpcoming()
   }
-  function onSetTheme(themeId: ThemeId) {
-    setTheme(themeId)
-  }
   async function onQuit() {
     try {
       await getCurrentWindow().close()
@@ -189,7 +180,6 @@ function App() {
             hasTracks={hasTracks}
             hasCurrent={hasCurrent}
             upcomingCount={upcomingCount}
-            currentTheme={theme}
             onClose={closeAppMenu}
             onPlayPause={onPlayPause}
             onNext={onNext}
@@ -198,7 +188,6 @@ function App() {
             onAddFiles={onAddFiles}
             onShuffle={onShuffle}
             onClear={onClear}
-            onSetTheme={onSetTheme}
             onShowShortcuts={openShortcuts}
             onShowAbout={openAbout}
             onQuit={onQuit}

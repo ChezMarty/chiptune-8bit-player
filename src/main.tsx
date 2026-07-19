@@ -1,3 +1,10 @@
+// Prevent the default browser context menu (Back, Reload, Save As,
+// Print, Inspect, etc.) so the app feels like a native desktop
+// application. Custom React context menus in the app still work
+// because React's synthetic onContextMenu fires independently of
+// the native event's default behavior.
+window.addEventListener("contextmenu", (e) => e.preventDefault())
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";

@@ -1,6 +1,4 @@
 import { useLayoutEffect, useRef } from 'react'
-import { THEME_IDS, type ThemeId } from '../state/usePlayerStore'
-import { ALL_THEMES } from '../themes/definitions'
 import { useT } from '../i18n/useT'
 
 export interface AppContextMenuProps {
@@ -10,7 +8,6 @@ export interface AppContextMenuProps {
   hasTracks: boolean
   hasCurrent: boolean
   upcomingCount: number
-  currentTheme: ThemeId
   onClose: () => void
   onPlayPause: () => void
   onNext: () => void
@@ -19,7 +16,6 @@ export interface AppContextMenuProps {
   onAddFiles: () => void
   onShuffle: () => void
   onClear: () => void
-  onSetTheme: (theme: ThemeId) => void
   onShowShortcuts: () => void
   onShowAbout: () => void
   onQuit: () => void
@@ -36,7 +32,6 @@ export function AppContextMenu(props: AppContextMenuProps) {
     hasTracks,
     hasCurrent,
     upcomingCount,
-    currentTheme,
     onClose,
     onPlayPause,
     onNext,
@@ -45,7 +40,6 @@ export function AppContextMenu(props: AppContextMenuProps) {
     onAddFiles,
     onShuffle,
     onClear,
-    onSetTheme,
     onShowShortcuts,
     onShowAbout,
     onQuit,
@@ -130,26 +124,6 @@ export function AppContextMenu(props: AppContextMenuProps) {
       <Item onClick={onClear} disabled={upcomingCount === 0}>
         {t('ctx.app.clear')}
       </Item>
-
-      <Sep />
-
-      <div className="ctx-menu__section-label">{t('ctx.app.themeSection')}</div>
-      {THEME_IDS.map((id) => {
-        const def = ALL_THEMES.find((d) => d.id === id)
-        if (!def) return null
-        return (
-          <Item
-            key={id}
-            onClick={() => onSetTheme(id)}
-            className={id === currentTheme ? 'ctx-menu__item--active' : ''}
-          >
-            <span className="ctx-menu__check" aria-hidden="true">
-              {id === currentTheme ? t('settings.check') : '\u00A0'}
-            </span>
-            {t(def.labelKey as any).toUpperCase()}
-          </Item>
-        )
-      })}
 
       <Sep />
 
