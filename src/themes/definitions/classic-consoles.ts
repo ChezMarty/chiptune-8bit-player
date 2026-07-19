@@ -1,7 +1,10 @@
 /**
  * Classic Console themes:
  * NES, Game Boy, Game Boy Color, SNES, Sega Genesis,
- * Nintendo 64, PlayStation, PlayStation 2, Xbox, Dreamcast, Arcade
+ * Nintendo 64, PlayStation, PlayStation 2, Xbox, Dreamcast, Arcade,
+ * Famicom, Virtual Boy, Wii, Wii U, Nintendo Switch,
+ * Pokémon Red, Pokémon Blue, Pokémon Gold, Zelda, Mario,
+ * Sega Saturn, Sega CD, Game Gear, PSP, PS Vita
  */
 import type { ThemeDefinition } from '../types'
 import { PatternPresets } from '../patterns'
@@ -24,6 +27,30 @@ const nes: ThemeDefinition = {
     hoverBg: '#4EE2EC', hoverText: '#0D0D1A', activeBg: '#F1B94C', activeText: '#0D0D1A', disabledBg: '#1A1A2E', disabledText: '#4A4E65',
     feedbackSuccess: '#58D68D', feedbackWarning: '#F1B94C', feedbackError: '#E52521', feedbackInfo: '#4EE2EC',
     vinylBlack: '#141414', vinylGroove: '#2A2A2A', vinylLabel: '#F1B94C', vinylShine: '#5A4A2A',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Famicom — Burgundy + cream red & gold Japanese Famicom
+// ═══════════════════════════════════════════════════════════
+const famicom: ThemeDefinition = {
+  id: 'famicom',
+  labelKey: 'theme.name.famicom',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.famicom',
+  tokens: {
+    bgApp: '#1A0D0D', bgPanel: '#2E1515', bgPanelLight: '#441F1F', bgElevated: '#582828', bgPanelHover: '#683030',
+    textPrimary: '#FFE8D0', textSecondary: '#D0A080', textTertiary: '#885040', textInverse: '#1A0D0D', textLink: '#FFD040',
+    accent: '#D04040', accentDark: '#902020', accentSecondary: '#FFD040', accentTertiary: '#FFE8A0', accentPositive: '#60B050', accentNegative: '#E04040',
+    border: '#441F1F', borderLight: '#2E1515', borderFocus: '#FFD040', borderWidth: '4px', borderRadius: '0',
+    shadowPanel: '4px 4px 0 0 rgba(0, 0, 0, 0.45)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.4), inset 2px 2px 0 0 rgba(255,255,255,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.4), inset -2px -2px 0 0 rgba(255,255,255,0.06)',
+    surfaceRaised: '#582828', surfaceSunken: '#0F0606',
+    hoverBg: '#FFD040', hoverText: '#1A0D0D', activeBg: '#D04040', activeText: '#FFE8D0', disabledBg: '#2E1515', disabledText: '#885040',
+    feedbackSuccess: '#60B050', feedbackWarning: '#FFD040', feedbackError: '#E04040', feedbackInfo: '#FFD040',
+    vinylBlack: '#0F0606', vinylGroove: '#441F1F', vinylLabel: '#FFD040', vinylShine: '#582828',
     fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
     bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
     borderWeight: 'heavy', isDark: 'true',
@@ -79,6 +106,30 @@ const gameboyColor: ThemeDefinition = {
 }
 
 // ═══════════════════════════════════════════════════════════
+// Virtual Boy — Red & black stereoscopic 3D console
+// ═══════════════════════════════════════════════════════════
+const virtualBoy: ThemeDefinition = {
+  id: 'virtual-boy',
+  labelKey: 'theme.name.virtualBoy',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.virtualBoy',
+  tokens: {
+    bgApp: '#0A0000', bgPanel: '#1A0000', bgPanelLight: '#2A0808', bgElevated: '#380A0A', bgPanelHover: '#481010',
+    textPrimary: '#FF2020', textSecondary: '#CC1010', textTertiary: '#660808', textInverse: '#0A0000', textLink: '#FF4040',
+    accent: '#FF0000', accentDark: '#990000', accentSecondary: '#FF4040', accentTertiary: '#FF8080', accentPositive: '#FF2020', accentNegative: '#FF0000',
+    border: '#2A0808', borderLight: '#1A0000', borderFocus: '#FF4040', borderWidth: '3px', borderRadius: '0',
+    shadowPanel: '3px 3px 0 0 rgba(255, 0, 0, 0.12)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.6), inset 2px 2px 0 0 rgba(255,0,0,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.6), inset -2px -2px 0 0 rgba(255,0,0,0.04)',
+    surfaceRaised: '#380A0A', surfaceSunken: '#000000',
+    hoverBg: '#FF0000', hoverText: '#0A0000', activeBg: '#990000', activeText: '#FF2020', disabledBg: '#1A0000', disabledText: '#660808',
+    feedbackSuccess: '#FF2020', feedbackWarning: '#FF2020', feedbackError: '#FF0000', feedbackInfo: '#FF4040',
+    vinylBlack: '#000000', vinylGroove: '#2A0808', vinylLabel: '#FF2020', vinylShine: '#380A0A',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'linear-gradient(180deg, #1A0000 0%, #0A0000 50%, #000000 100%)', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
 // SNES
 // ═══════════════════════════════════════════════════════════
 const snes: ThemeDefinition = {
@@ -127,6 +178,78 @@ const segaGenesis: ThemeDefinition = {
 }
 
 // ═══════════════════════════════════════════════════════════
+// Sega Saturn — Dark grey + deep blue with gold accents
+// ═══════════════════════════════════════════════════════════
+const segaSaturn: ThemeDefinition = {
+  id: 'sega-saturn',
+  labelKey: 'theme.name.segaSaturn',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.segaSaturn',
+  tokens: {
+    bgApp: '#0C0E14', bgPanel: '#181A22', bgPanelLight: '#242832', bgElevated: '#303640', bgPanelHover: '#3C4250',
+    textPrimary: '#E0E0E8', textSecondary: '#8890A0', textTertiary: '#485060', textInverse: '#0C0E14', textLink: '#6090F0',
+    accent: '#2848A0', accentDark: '#183070', accentSecondary: '#6090F0', accentTertiary: '#D0A040', accentPositive: '#40B060', accentNegative: '#D04050',
+    border: '#242832', borderLight: '#181A22', borderFocus: '#6090F0', borderWidth: '3px', borderRadius: '0',
+    shadowPanel: '3px 3px 0 0 rgba(0, 0, 0, 0.5)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.5), inset 2px 2px 0 0 rgba(255,255,255,0.05)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.5), inset -2px -2px 0 0 rgba(255,255,255,0.05)',
+    surfaceRaised: '#303640', surfaceSunken: '#06070A',
+    hoverBg: '#2848A0', hoverText: '#E0E0E8', activeBg: '#183070', activeText: '#E0E0E8', disabledBg: '#181A22', disabledText: '#485060',
+    feedbackSuccess: '#40B060', feedbackWarning: '#D0A040', feedbackError: '#D04050', feedbackInfo: '#6090F0',
+    vinylBlack: '#06070A', vinylGroove: '#242832', vinylLabel: '#D0A040', vinylShine: '#303640',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Sega CD — Dark teal + magenta, 90s Sega add-on vibes
+// ═══════════════════════════════════════════════════════════
+const segaCd: ThemeDefinition = {
+  id: 'sega-cd',
+  labelKey: 'theme.name.segaCd',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.segaCd',
+  tokens: {
+    bgApp: '#061014', bgPanel: '#0E1A22', bgPanelLight: '#162832', bgElevated: '#1E3644', bgPanelHover: '#264450',
+    textPrimary: '#D0E8F0', textSecondary: '#6898B0', textTertiary: '#305060', textInverse: '#061014', textLink: '#FF50A0',
+    accent: '#D03070', accentDark: '#901840', accentSecondary: '#FF50A0', accentTertiary: '#FFA0C0', accentPositive: '#40C080', accentNegative: '#E04050',
+    border: '#162832', borderLight: '#0E1A22', borderFocus: '#FF50A0', borderWidth: '3px', borderRadius: '0',
+    shadowPanel: '3px 3px 0 0 rgba(208,48,112,0.08)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.5), inset 2px 2px 0 0 rgba(255,255,255,0.05)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.5), inset -2px -2px 0 0 rgba(255,255,255,0.05)',
+    surfaceRaised: '#1E3644', surfaceSunken: '#02080C',
+    hoverBg: '#D03070', hoverText: '#D0E8F0', activeBg: '#901840', activeText: '#D0E8F0', disabledBg: '#0E1A22', disabledText: '#305060',
+    feedbackSuccess: '#40C080', feedbackWarning: '#C0A040', feedbackError: '#E04050', feedbackInfo: '#FF50A0',
+    vinylBlack: '#02080C', vinylGroove: '#162832', vinylLabel: '#FF50A0', vinylShine: '#1E3644',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Game Gear — Dark portable with full color LCD palette
+// ═══════════════════════════════════════════════════════════
+const gameGear: ThemeDefinition = {
+  id: 'game-gear',
+  labelKey: 'theme.name.gameGear',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.gameGear',
+  tokens: {
+    bgApp: '#0D0D18', bgPanel: '#181830', bgPanelLight: '#242448', bgElevated: '#303060', bgPanelHover: '#3C3C70',
+    textPrimary: '#E0D8FF', textSecondary: '#A090D0', textTertiary: '#504878', textInverse: '#0D0D18', textLink: '#FF6090',
+    accent: '#E04080', accentDark: '#A02050', accentSecondary: '#FF6090', accentTertiary: '#FFA0C0', accentPositive: '#50D080', accentNegative: '#E05050',
+    border: '#242448', borderLight: '#181830', borderFocus: '#FF6090', borderWidth: '3px', borderRadius: '2px',
+    shadowPanel: '3px 3px 0 0 rgba(0, 0, 0, 0.5)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.4), inset 2px 2px 0 0 rgba(255,255,255,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.4), inset -2px -2px 0 0 rgba(255,255,255,0.06)',
+    surfaceRaised: '#303060', surfaceSunken: '#060610',
+    hoverBg: '#E04080', hoverText: '#0D0D18', activeBg: '#A02050', activeText: '#E0D8FF', disabledBg: '#181830', disabledText: '#504878',
+    feedbackSuccess: '#50D080', feedbackWarning: '#D0C040', feedbackError: '#E05050', feedbackInfo: '#FF6090',
+    vinylBlack: '#060610', vinylGroove: '#242448', vinylLabel: '#FFA0C0', vinylShine: '#303060',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: PatternPresets.lcdGrid, bgAppOverlay: 'none', bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
 // Nintendo 64 — Dark charcoal with N64 logo color accents
 // ═══════════════════════════════════════════════════════════
 const nintendo64: ThemeDefinition = {
@@ -147,6 +270,198 @@ const nintendo64: ThemeDefinition = {
     fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
     bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
     borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Wii — Light silver + blue glowing Wii menu aesthetic
+// ═══════════════════════════════════════════════════════════
+const wii: ThemeDefinition = {
+  id: 'wii',
+  labelKey: 'theme.name.wii',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.wii',
+  tokens: {
+    bgApp: '#E8ECF0', bgPanel: '#F4F6F8', bgPanelLight: '#FFFFFF', bgElevated: '#FFFFFF', bgPanelHover: '#ECF0F4',
+    textPrimary: '#282828', textSecondary: '#585858', textTertiary: '#A0A8B0', textInverse: '#FFFFFF', textLink: '#2888E0',
+    accent: '#68B8F0', accentDark: '#3090D0', accentSecondary: '#2888E0', accentTertiary: '#A0D8FF', accentPositive: '#50B060', accentNegative: '#E05050',
+    border: '#D0D8E0', borderLight: '#F4F6F8', borderFocus: '#68B8F0', borderWidth: '3px', borderRadius: '6px',
+    shadowPanel: '2px 2px 8px rgba(0,0,0,0.08)', shadowButton: 'inset -1px -1px 0 0 rgba(0,0,0,0.1), inset 1px 1px 0 0 rgba(255,255,255,0.8), 1px 1px 3px rgba(0,0,0,0.1)', shadowButtonInset: 'inset 1px 1px 0 0 rgba(0,0,0,0.1), inset -1px -1px 0 0 rgba(255,255,255,0.8)',
+    surfaceRaised: '#FFFFFF', surfaceSunken: '#E0E4E8',
+    hoverBg: '#68B8F0', hoverText: '#FFFFFF', activeBg: '#3090D0', activeText: '#FFFFFF', disabledBg: '#F4F6F8', disabledText: '#A0A8B0',
+    feedbackSuccess: '#50B060', feedbackWarning: '#D0B040', feedbackError: '#E05050', feedbackInfo: '#68B8F0',
+    vinylBlack: '#D8DCE0', vinylGroove: '#C0C8D0', vinylLabel: '#68B8F0', vinylShine: '#E0E4E8',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: 'none', bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'false',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Wii U — Dark + cyan blue, GamePad screen aesthetic
+// ═══════════════════════════════════════════════════════════
+const wiiU: ThemeDefinition = {
+  id: 'wii-u',
+  labelKey: 'theme.name.wiiU',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.wiiU',
+  tokens: {
+    bgApp: '#101418', bgPanel: '#1A1F24', bgPanelLight: '#242A32', bgElevated: '#303840', bgPanelHover: '#3C4450',
+    textPrimary: '#E0E8F0', textSecondary: '#8898B0', textTertiary: '#485868', textInverse: '#101418', textLink: '#40C0F0',
+    accent: '#2098D0', accentDark: '#106890', accentSecondary: '#40C0F0', accentTertiary: '#80E0FF', accentPositive: '#50C070', accentNegative: '#E05060',
+    border: '#242A32', borderLight: '#1A1F24', borderFocus: '#40C0F0', borderWidth: '4px', borderRadius: '4px',
+    shadowPanel: '4px 4px 0 0 rgba(0, 0, 0, 0.4)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.35), inset 2px 2px 0 0 rgba(255,255,255,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.35), inset -2px -2px 0 0 rgba(255,255,255,0.06)',
+    surfaceRaised: '#303840', surfaceSunken: '#080A0E',
+    hoverBg: '#2098D0', hoverText: '#E0E8F0', activeBg: '#106890', activeText: '#E0E8F0', disabledBg: '#1A1F24', disabledText: '#485868',
+    feedbackSuccess: '#50C070', feedbackWarning: '#D0B040', feedbackError: '#E05060', feedbackInfo: '#40C0F0',
+    vinylBlack: '#080A0E', vinylGroove: '#242A32', vinylLabel: '#40C0F0', vinylShine: '#303840',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Nintendo Switch — Neon red + blue joy-con palette
+// ═══════════════════════════════════════════════════════════
+const nintendoSwitch: ThemeDefinition = {
+  id: 'nintendo-switch',
+  labelKey: 'theme.name.switch',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.switch',
+  tokens: {
+    bgApp: '#1A1A20', bgPanel: '#282830', bgPanelLight: '#363640', bgElevated: '#444450', bgPanelHover: '#525260',
+    textPrimary: '#F0F0F0', textSecondary: '#A0A0B0', textTertiary: '#585868', textInverse: '#1A1A20', textLink: '#FF4050',
+    accent: '#E04040', accentDark: '#B02028', accentSecondary: '#3080FF', accentTertiary: '#FFD040', accentPositive: '#50C060', accentNegative: '#E04040',
+    border: '#363640', borderLight: '#282830', borderFocus: '#FF4050', borderWidth: '4px', borderRadius: '4px',
+    shadowPanel: '4px 4px 0 0 rgba(0, 0, 0, 0.4)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.35), inset 2px 2px 0 0 rgba(255,255,255,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.35), inset -2px -2px 0 0 rgba(255,255,255,0.06)',
+    surfaceRaised: '#444450', surfaceSunken: '#101018',
+    hoverBg: '#E04040', hoverText: '#F0F0F0', activeBg: '#3080FF', activeText: '#F0F0F0', disabledBg: '#282830', disabledText: '#585868',
+    feedbackSuccess: '#50C060', feedbackWarning: '#FFD040', feedbackError: '#E04040', feedbackInfo: '#3080FF',
+    vinylBlack: '#101018', vinylGroove: '#363640', vinylLabel: '#E04040', vinylShine: '#444450',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Pokémon Red — Warm red + white, Kanto region
+// ═══════════════════════════════════════════════════════════
+const pokemonRed: ThemeDefinition = {
+  id: 'pokemon-red',
+  labelKey: 'theme.name.pokemonRed',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.pokemonRed',
+  tokens: {
+    bgApp: '#F8E8E0', bgPanel: '#FFF2EC', bgPanelLight: '#FFFFFF', bgElevated: '#FFFFFF', bgPanelHover: '#FCE8E0',
+    textPrimary: '#281818', textSecondary: '#604030', textTertiary: '#B89080', textInverse: '#FFFFFF', textLink: '#D03030',
+    accent: '#E04040', accentDark: '#A02020', accentSecondary: '#FF6060', accentTertiary: '#FFA080', accentPositive: '#40A050', accentNegative: '#D03030',
+    border: '#E8C8B8', borderLight: '#FFF2EC', borderFocus: '#E04040', borderWidth: '3px', borderRadius: '4px',
+    shadowPanel: '2px 2px 0 0 rgba(224,64,64,0.1), -1px -1px 0 0 #FFFFFF', shadowButton: 'inset -1px -1px 0 0 rgba(0,0,0,0.08), inset 1px 1px 0 0 rgba(255,255,255,0.6), 1px 1px 3px rgba(0,0,0,0.1)', shadowButtonInset: 'inset 1px 1px 0 0 rgba(0,0,0,0.08), inset -1px -1px 0 0 rgba(255,255,255,0.6)',
+    surfaceRaised: '#FFFFFF', surfaceSunken: '#F0D8D0',
+    hoverBg: '#E04040', hoverText: '#FFFFFF', activeBg: '#A02020', activeText: '#FFFFFF', disabledBg: '#FFF2EC', disabledText: '#B89080',
+    feedbackSuccess: '#40A050', feedbackWarning: '#D0A040', feedbackError: '#D03030', feedbackInfo: '#E04040',
+    vinylBlack: '#E0C8C0', vinylGroove: '#D0B0A8', vinylLabel: '#E04040', vinylShine: '#E8D0C8',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: 'none', bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'false',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Pokémon Blue — Cool blue + white, water-type style
+// ═══════════════════════════════════════════════════════════
+const pokemonBlue: ThemeDefinition = {
+  id: 'pokemon-blue',
+  labelKey: 'theme.name.pokemonBlue',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.pokemonBlue',
+  tokens: {
+    bgApp: '#E0EAF8', bgPanel: '#ECF2FF', bgPanelLight: '#FFFFFF', bgElevated: '#FFFFFF', bgPanelHover: '#E0ECFC',
+    textPrimary: '#1A2430', textSecondary: '#304860', textTertiary: '#8098B8', textInverse: '#FFFFFF', textLink: '#2858D0',
+    accent: '#3868E0', accentDark: '#2040A0', accentSecondary: '#5888FF', accentTertiary: '#80B0FF', accentPositive: '#40A050', accentNegative: '#E04040',
+    border: '#C0D0E8', borderLight: '#ECF2FF', borderFocus: '#3868E0', borderWidth: '3px', borderRadius: '4px',
+    shadowPanel: '2px 2px 0 0 rgba(56,104,224,0.1), -1px -1px 0 0 #FFFFFF', shadowButton: 'inset -1px -1px 0 0 rgba(0,0,0,0.08), inset 1px 1px 0 0 rgba(255,255,255,0.6), 1px 1px 3px rgba(0,0,0,0.1)', shadowButtonInset: 'inset 1px 1px 0 0 rgba(0,0,0,0.08), inset -1px -1px 0 0 rgba(255,255,255,0.6)',
+    surfaceRaised: '#FFFFFF', surfaceSunken: '#D0DCE8',
+    hoverBg: '#3868E0', hoverText: '#FFFFFF', activeBg: '#2040A0', activeText: '#FFFFFF', disabledBg: '#ECF2FF', disabledText: '#8098B8',
+    feedbackSuccess: '#40A050', feedbackWarning: '#D0B040', feedbackError: '#E04040', feedbackInfo: '#3868E0',
+    vinylBlack: '#C0D0E0', vinylGroove: '#A8BCD0', vinylLabel: '#3868E0', vinylShine: '#D0DCE8',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: 'none', bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'false',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Pokémon Gold — Gold + cream, Johto nostalgia
+// ═══════════════════════════════════════════════════════════
+const pokemonGold: ThemeDefinition = {
+  id: 'pokemon-gold',
+  labelKey: 'theme.name.pokemonGold',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.pokemonGold',
+  tokens: {
+    bgApp: '#1A1408', bgPanel: '#2A2010', bgPanelLight: '#3D2C15', bgElevated: '#4E3818', bgPanelHover: '#5E4420',
+    textPrimary: '#FFE8C0', textSecondary: '#D0A850', textTertiary: '#805828', textInverse: '#1A1408', textLink: '#FFC040',
+    accent: '#E0A830', accentDark: '#B08018', accentSecondary: '#FFD060', accentTertiary: '#FFE8A0', accentPositive: '#60B040', accentNegative: '#D05040',
+    border: '#3D2C15', borderLight: '#2A2010', borderFocus: '#FFD060', borderWidth: '4px', borderRadius: '2px',
+    shadowPanel: '4px 4px 0 0 rgba(224, 168, 48, 0.12)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.4), inset 2px 2px 0 0 rgba(255,255,255,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.4), inset -2px -2px 0 0 rgba(255,255,255,0.06)',
+    surfaceRaised: '#4E3818', surfaceSunken: '#0C0A04',
+    hoverBg: '#E0A830', hoverText: '#1A1408', activeBg: '#B08018', activeText: '#FFE8C0', disabledBg: '#2A2010', disabledText: '#805828',
+    feedbackSuccess: '#60B040', feedbackWarning: '#FFC040', feedbackError: '#D05040', feedbackInfo: '#FFD060',
+    vinylBlack: '#0C0A04', vinylGroove: '#3D2C15', vinylLabel: '#FFE8A0', vinylShine: '#4E3818',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'linear-gradient(180deg, #2A2010 0%, #1A1408 50%, #0C0A04 100%)', bgAppOverlay: PatternPresets.warmPaper, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Zelda — Forest green + gold, Hyrule fantasy
+// ═══════════════════════════════════════════════════════════
+const zelda: ThemeDefinition = {
+  id: 'zelda',
+  labelKey: 'theme.name.zelda',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.zelda',
+  tokens: {
+    bgApp: '#0A140A', bgPanel: '#142210', bgPanelLight: '#1E3018', bgElevated: '#284020', bgPanelHover: '#325028',
+    textPrimary: '#E8E0B0', textSecondary: '#A0B050', textTertiary: '#486030', textInverse: '#0A140A', textLink: '#FFD040',
+    accent: '#60A030', accentDark: '#387018', accentSecondary: '#FFD040', accentTertiary: '#FFE080', accentPositive: '#70B040', accentNegative: '#D04040',
+    border: '#1E3018', borderLight: '#142210', borderFocus: '#FFD040', borderWidth: '4px', borderRadius: '0',
+    shadowPanel: '4px 4px 0 0 rgba(96, 160, 48, 0.08)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.45), inset 2px 2px 0 0 rgba(255,255,255,0.05)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.45), inset -2px -2px 0 0 rgba(255,255,255,0.05)',
+    surfaceRaised: '#284020', surfaceSunken: '#040A04',
+    hoverBg: '#60A030', hoverText: '#E8E0B0', activeBg: '#FFD040', activeText: '#0A140A', disabledBg: '#142210', disabledText: '#486030',
+    feedbackSuccess: '#70B040', feedbackWarning: '#FFD040', feedbackError: '#D04040', feedbackInfo: '#FFD040',
+    vinylBlack: '#040A04', vinylGroove: '#1E3018', vinylLabel: '#FFD040', vinylShine: '#284020',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: PatternPresets.lcdGrid, bgAppOverlay: 'none', bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Mario — Bright red + blue overalls, cheerful platformer
+// ═══════════════════════════════════════════════════════════
+const mario: ThemeDefinition = {
+  id: 'mario',
+  labelKey: 'theme.name.mario',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.mario',
+  tokens: {
+    bgApp: '#2028C8', bgPanel: '#2830D8', bgPanelLight: '#3840F0', bgElevated: '#4860FF', bgPanelHover: '#5870FF',
+    textPrimary: '#FFFFFF', textSecondary: '#D0D8FF', textTertiary: '#8090E0', textInverse: '#2028C8', textLink: '#FFD040',
+    accent: '#E04030', accentDark: '#B02018', accentSecondary: '#FFD040', accentTertiary: '#FFFFFF', accentPositive: '#50C040', accentNegative: '#E04030',
+    border: '#3840F0', borderLight: '#2830D8', borderFocus: '#FFD040', borderWidth: '4px', borderRadius: '2px',
+    shadowPanel: '4px 4px 0 0 rgba(0, 0, 0, 0.3)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.3), inset 2px 2px 0 0 rgba(255,255,255,0.15)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.3), inset -2px -2px 0 0 rgba(255,255,255,0.15)',
+    surfaceRaised: '#4860FF', surfaceSunken: '#1018A0',
+    hoverBg: '#FFD040', hoverText: '#2028C8', activeBg: '#E04030', activeText: '#FFFFFF', disabledBg: '#2830D8', disabledText: '#8090E0',
+    feedbackSuccess: '#50C040', feedbackWarning: '#FFD040', feedbackError: '#E04030', feedbackInfo: '#FFD040',
+    vinylBlack: '#1018A0', vinylGroove: '#2830D8', vinylLabel: '#FFD040', vinylShine: '#3840F0',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'false',
   },
 }
 
@@ -195,6 +510,54 @@ const playstation2: ThemeDefinition = {
     fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
     bgAppPattern: 'linear-gradient(180deg, #101830 0%, #080C18 60%, #040810 100%)', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
     borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// PSP — Black + silver, PlayStation Portable sleekness
+// ═══════════════════════════════════════════════════════════
+const psp: ThemeDefinition = {
+  id: 'psp',
+  labelKey: 'theme.name.psp',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.psp',
+  tokens: {
+    bgApp: '#101012', bgPanel: '#1A1A1E', bgPanelLight: '#262830', bgElevated: '#323640', bgPanelHover: '#3E4250',
+    textPrimary: '#E8E8E8', textSecondary: '#9898A0', textTertiary: '#505058', textInverse: '#101012', textLink: '#80B8FF',
+    accent: '#606068', accentDark: '#404048', accentSecondary: '#80B8FF', accentTertiary: '#FFB860', accentPositive: '#50B060', accentNegative: '#E05060',
+    border: '#262830', borderLight: '#1A1A1E', borderFocus: '#80B8FF', borderWidth: '3px', borderRadius: '4px',
+    shadowPanel: '3px 3px 0 0 rgba(0, 0, 0, 0.5)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.4), inset 2px 2px 0 0 rgba(255,255,255,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.4), inset -2px -2px 0 0 rgba(255,255,255,0.06)',
+    surfaceRaised: '#323640', surfaceSunken: '#08080A',
+    hoverBg: '#80B8FF', hoverText: '#101012', activeBg: '#606068', activeText: '#E8E8E8', disabledBg: '#1A1A1E', disabledText: '#505058',
+    feedbackSuccess: '#50B060', feedbackWarning: '#FFB860', feedbackError: '#E05060', feedbackInfo: '#80B8FF',
+    vinylBlack: '#08080A', vinylGroove: '#262830', vinylLabel: '#80B8FF', vinylShine: '#323640',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// PS Vita — Navy + cyan, OLED elegance
+// ═══════════════════════════════════════════════════════════
+const psVita: ThemeDefinition = {
+  id: 'ps-vita',
+  labelKey: 'theme.name.psVita',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.psVita',
+  tokens: {
+    bgApp: '#060E18', bgPanel: '#0E1828', bgPanelLight: '#162238', bgElevated: '#1E2E50', bgPanelHover: '#263A60',
+    textPrimary: '#D8E8F8', textSecondary: '#78A8D0', textTertiary: '#386088', textInverse: '#060E18', textLink: '#40C0FF',
+    accent: '#2098E0', accentDark: '#1068A0', accentSecondary: '#40C0FF', accentTertiary: '#80D8FF', accentPositive: '#40B070', accentNegative: '#E05060',
+    border: '#162238', borderLight: '#0E1828', borderFocus: '#40C0FF', borderWidth: '3px', borderRadius: '6px',
+    shadowPanel: '3px 3px 0 0 rgba(0, 0, 0, 0.5)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.35), inset 2px 2px 0 0 rgba(255,255,255,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.35), inset -2px -2px 0 0 rgba(255,255,255,0.06)',
+    surfaceRaised: '#1E2E50', surfaceSunken: '#020810',
+    hoverBg: '#2098E0', hoverText: '#D8E8F8', activeBg: '#1068A0', activeText: '#D8E8F8', disabledBg: '#0E1828', disabledText: '#386088',
+    feedbackSuccess: '#40B070', feedbackWarning: '#D0B040', feedbackError: '#E05060', feedbackInfo: '#40C0FF',
+    vinylBlack: '#020810', vinylGroove: '#162238', vinylLabel: '#40C0FF', vinylShine: '#1E2E50',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'linear-gradient(180deg, #0E1828 0%, #060E18 60%, #020810 100%)', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'true',
   },
 }
 
@@ -270,4 +633,9 @@ const arcade: ThemeDefinition = {
   },
 }
 
-export const classicConsoles: ThemeDefinition[] = [nes, gameboy, gameboyColor, snes, segaGenesis, nintendo64, playstation, playstation2, xbox, dreamcast, arcade]
+export const classicConsoles: ThemeDefinition[] = [
+  nes, famicom, gameboy, gameboyColor, virtualBoy, snes, segaGenesis,
+  segaSaturn, segaCd, gameGear, nintendo64, wii, wiiU, nintendoSwitch,
+  pokemonRed, pokemonBlue, pokemonGold, zelda, mario,
+  playstation, playstation2, psp, psVita, xbox, dreamcast, arcade,
+]

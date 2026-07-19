@@ -12,11 +12,13 @@
 
 import type { ThemeId, ThemeTokens } from './types'
 import { tokensToCssVars } from './types'
+import { updateFavicon } from '../lib/favicon'
 
 /**
  * Apply a theme to the document by:
  * 1. Setting all CSS custom properties from ThemeTokens
  * 2. Setting data-theme attribute for CSS selector-based overrides
+ * 3. Updating the browser favicon to match the theme colors
  */
 export function applyThemeTokens(tokens: ThemeTokens, themeId: ThemeId): void {
   if (typeof document === 'undefined') return
@@ -33,6 +35,11 @@ export function applyThemeTokens(tokens: ThemeTokens, themeId: ThemeId): void {
   // Also set `data-theme` for CSS selectors that key off the theme id
   // (e.g., per-theme tweaks in component CSS).
   root.setAttribute('data-theme', themeId)
+
+  // Schedule favicon update after CSS vars are painted.
+  // requestAnimationFrame inside updateFavicon ensures computed
+  // styles reflect the new property values.
+  updateFavicon()
 }
 
 /**
