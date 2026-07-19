@@ -1,7 +1,8 @@
 /**
  * Classic Console themes:
- * NES, Game Boy, Game Boy Color, SNES, Sega Genesis,
- * Nintendo 64, PlayStation, PlayStation 2, Xbox, Dreamcast, Arcade,
+ * NES, Game Boy, Game Boy Color, Game Boy Advance, SNES, Sega Genesis,
+ * Master System, Nintendo 64, GameCube, PlayStation, PlayStation 2,
+ * PlayStation 3, Xbox, Xbox 360, Dreamcast, Arcade,
  * Famicom, Virtual Boy, Wii, Wii U, Nintendo Switch,
  * Pokémon Red, Pokémon Blue, Pokémon Gold, Zelda, Mario,
  * Sega Saturn, Sega CD, Game Gear, PSP, PS Vita
@@ -633,9 +634,131 @@ const arcade: ThemeDefinition = {
   },
 }
 
+// ═══════════════════════════════════════════════════════════
+// Game Boy Advance — Indigo shell with vibrant 32-bit LCD
+// ═══════════════════════════════════════════════════════════
+const gameboyAdvance: ThemeDefinition = {
+  id: 'gameboy-advance',
+  labelKey: 'theme.name.gba',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.gba',
+  tokens: {
+    bgApp: '#1A102E', bgPanel: '#281840', bgPanelLight: '#382258', bgElevated: '#482C70', bgPanelHover: '#583680',
+    textPrimary: '#E0D0FF', textSecondary: '#A890E0', textTertiary: '#584878', textInverse: '#1A102E', textLink: '#80D0FF',
+    accent: '#8858D0', accentDark: '#5838A0', accentSecondary: '#80D0FF', accentTertiary: '#FFB0D0', accentPositive: '#60D080', accentNegative: '#E06070',
+    border: '#382258', borderLight: '#281840', borderFocus: '#80D0FF', borderWidth: '3px', borderRadius: '4px',
+    shadowPanel: '3px 3px 0 0 rgba(136, 88, 208, 0.1)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.35), inset 2px 2px 0 0 rgba(255,255,255,0.08)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.35), inset -2px -2px 0 0 rgba(255,255,255,0.08)',
+    surfaceRaised: '#482C70', surfaceSunken: '#0E081C',
+    hoverBg: '#8858D0', hoverText: '#E0D0FF', activeBg: '#80D0FF', activeText: '#1A102E', disabledBg: '#281840', disabledText: '#584878',
+    feedbackSuccess: '#60D080', feedbackWarning: '#FFD060', feedbackError: '#E06070', feedbackInfo: '#80D0FF',
+    vinylBlack: '#0E081C', vinylGroove: '#382258', vinylLabel: '#FFB0D0', vinylShine: '#482C70',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'linear-gradient(180deg, #281840 0%, #1A102E 50%, #0E081C 100%)', bgAppOverlay: PatternPresets.lcdGrid, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// GameCube — Indigo cube with vibrant A-button green
+// ═══════════════════════════════════════════════════════════
+const gamecube: ThemeDefinition = {
+  id: 'gamecube',
+  labelKey: 'theme.name.gamecube',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.gamecube',
+  tokens: {
+    bgApp: '#1A0E2E', bgPanel: '#281840', bgPanelLight: '#382258', bgElevated: '#482C70', bgPanelHover: '#583680',
+    textPrimary: '#E8E0F8', textSecondary: '#A898D0', textTertiary: '#584878', textInverse: '#1A0E2E', textLink: '#80FF60',
+    accent: '#7850C0', accentDark: '#483080', accentSecondary: '#80FF60', accentTertiary: '#FFB060', accentPositive: '#80FF60', accentNegative: '#E04040',
+    border: '#382258', borderLight: '#281840', borderFocus: '#80FF60', borderWidth: '4px', borderRadius: '4px',
+    shadowPanel: '4px 4px 0 0 rgba(120, 80, 192, 0.1)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.35), inset 2px 2px 0 0 rgba(255,255,255,0.08)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.35), inset -2px -2px 0 0 rgba(255,255,255,0.08)',
+    surfaceRaised: '#482C70', surfaceSunken: '#0E061C',
+    hoverBg: '#80FF60', hoverText: '#1A0E2E', activeBg: '#7850C0', activeText: '#E8E0F8', disabledBg: '#281840', disabledText: '#584878',
+    feedbackSuccess: '#80FF60', feedbackWarning: '#FFB060', feedbackError: '#E04040', feedbackInfo: '#78A0E0',
+    vinylBlack: '#0E061C', vinylGroove: '#382258', vinylLabel: '#80FF60', vinylShine: '#482C70',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'linear-gradient(180deg, #281840 0%, #1A0E2E 50%, #0E061C 100%)', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Master System — Red & black with white 80s Sega style
+// ═══════════════════════════════════════════════════════════
+const masterSystem: ThemeDefinition = {
+  id: 'master-system',
+  labelKey: 'theme.name.masterSystem',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.masterSystem',
+  tokens: {
+    bgApp: '#0C0A0A', bgPanel: '#1A1414', bgPanelLight: '#2A2020', bgElevated: '#382828', bgPanelHover: '#483232',
+    textPrimary: '#F0F0F0', textSecondary: '#D0A0A0', textTertiary: '#684848', textInverse: '#0C0A0A', textLink: '#FF4040',
+    accent: '#D03030', accentDark: '#901818', accentSecondary: '#FF4040', accentTertiary: '#FF8080', accentPositive: '#40C040', accentNegative: '#E03030',
+    border: '#2A2020', borderLight: '#1A1414', borderFocus: '#FF4040', borderWidth: '4px', borderRadius: '0',
+    shadowPanel: '4px 4px 0 0 rgba(208, 48, 48, 0.1)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.5), inset 2px 2px 0 0 rgba(255,255,255,0.06)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.5), inset -2px -2px 0 0 rgba(255,255,255,0.06)',
+    surfaceRaised: '#382828', surfaceSunken: '#050303',
+    hoverBg: '#D03030', hoverText: '#F0F0F0', activeBg: '#901818', activeText: '#F0F0F0', disabledBg: '#1A1414', disabledText: '#684848',
+    feedbackSuccess: '#40C040', feedbackWarning: '#D0C040', feedbackError: '#E03030', feedbackInfo: '#FF4040',
+    vinylBlack: '#050303', vinylGroove: '#2A2020', vinylLabel: '#D03030', vinylShine: '#382828',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// PlayStation 3 — Glossy black with XMB wave & Spidey font
+// ═══════════════════════════════════════════════════════════
+const playstation3: ThemeDefinition = {
+  id: 'playstation-3',
+  labelKey: 'theme.name.ps3',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.ps3',
+  tokens: {
+    bgApp: '#08080C', bgPanel: '#101018', bgPanelLight: '#181828', bgElevated: '#222240', bgPanelHover: '#2C2C50',
+    textPrimary: '#E8E8F0', textSecondary: '#9090B0', textTertiary: '#484868', textInverse: '#08080C', textLink: '#6088E0',
+    accent: '#303050', accentDark: '#202040', accentSecondary: '#6088E0', accentTertiary: '#FFD040', accentPositive: '#50B060', accentNegative: '#E04050',
+    border: '#181828', borderLight: '#101018', borderFocus: '#6088E0', borderWidth: '3px', borderRadius: '6px',
+    shadowPanel: '2px 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(48,48,80,0.05)', shadowButton: 'inset -1px -1px 0 0 rgba(0,0,0,0.4), inset 1px 1px 0 0 rgba(255,255,255,0.06), 1px 1px 4px rgba(0,0,0,0.4)', shadowButtonInset: 'inset 1px 1px 0 0 rgba(0,0,0,0.4), inset -1px -1px 0 0 rgba(255,255,255,0.04)',
+    surfaceRaised: '#222240', surfaceSunken: '#040406',
+    hoverBg: '#6088E0', hoverText: '#E8E8F0', activeBg: '#303050', activeText: '#E8E8F0', disabledBg: '#101018', disabledText: '#484868',
+    feedbackSuccess: '#50B060', feedbackWarning: '#FFD040', feedbackError: '#E04050', feedbackInfo: '#6088E0',
+    vinylBlack: '#040406', vinylGroove: '#181828', vinylLabel: '#FFD040', vinylShine: '#222240',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'linear-gradient(180deg, #101018 0%, #08080C 60%, #040406 100%)', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'true',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Xbox 360 — White/grey with glowing green sphere
+// ═══════════════════════════════════════════════════════════
+const xbox360: ThemeDefinition = {
+  id: 'xbox-360',
+  labelKey: 'theme.name.xbox360',
+  category: 'classic-consoles',
+  descriptionKey: 'theme.desc.xbox360',
+  tokens: {
+    bgApp: '#D8DCE0', bgPanel: '#E8ECF0', bgPanelLight: '#F4F6F8', bgElevated: '#FFFFFF', bgPanelHover: '#E0E4E8',
+    textPrimary: '#1A1A1A', textSecondary: '#484848', textTertiary: '#889098', textInverse: '#FFFFFF', textLink: '#60C040',
+    accent: '#50B030', accentDark: '#308018', accentSecondary: '#80D060', accentTertiary: '#B0F090', accentPositive: '#50B030', accentNegative: '#D04040',
+    border: '#C0C8D0', borderLight: '#E8ECF0', borderFocus: '#50B030', borderWidth: '3px', borderRadius: '5px',
+    shadowPanel: '2px 2px 8px rgba(0,0,0,0.08), 0 0 20px rgba(80,176,48,0.04)', shadowButton: 'inset -1px -1px 0 0 rgba(0,0,0,0.08), inset 1px 1px 0 0 rgba(255,255,255,0.6), 1px 1px 3px rgba(0,0,0,0.1)', shadowButtonInset: 'inset 1px 1px 0 0 rgba(0,0,0,0.08), inset -1px -1px 0 0 rgba(255,255,255,0.6)',
+    surfaceRaised: '#FFFFFF', surfaceSunken: '#D0D4D8',
+    hoverBg: '#50B030', hoverText: '#FFFFFF', activeBg: '#308018', activeText: '#FFFFFF', disabledBg: '#E8ECF0', disabledText: '#889098',
+    feedbackSuccess: '#50B030', feedbackWarning: '#D0B040', feedbackError: '#D04040', feedbackInfo: '#50B030',
+    vinylBlack: '#C0C8D0', vinylGroove: '#A8B0B8', vinylLabel: '#50B030', vinylShine: '#D0D8E0',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: 'none', bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'false',
+  },
+}
+
 export const classicConsoles: ThemeDefinition[] = [
-  nes, famicom, gameboy, gameboyColor, virtualBoy, snes, segaGenesis,
-  segaSaturn, segaCd, gameGear, nintendo64, wii, wiiU, nintendoSwitch,
+  nes, famicom, gameboy, gameboyColor, gameboyAdvance, virtualBoy, snes,
+  segaGenesis, masterSystem, segaSaturn, segaCd, gameGear, nintendo64,
+  gamecube, wii, wiiU, nintendoSwitch,
   pokemonRed, pokemonBlue, pokemonGold, zelda, mario,
-  playstation, playstation2, psp, psVita, xbox, dreamcast, arcade,
+  playstation, playstation2, playstation3, psp, psVita,
+  xbox, xbox360, dreamcast, arcade,
 ]

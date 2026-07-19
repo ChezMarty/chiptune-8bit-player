@@ -174,6 +174,11 @@
   "theme.name.zelda": "Zelda",
   "theme.name.mario": "Mario",
   "theme.name.arcade": "Retro Arcade",
+  "theme.name.gba": "Game Boy Advance",
+  "theme.name.gamecube": "GameCube",
+  "theme.name.masterSystem": "Master System",
+  "theme.name.ps3": "PlayStation 3",
+  "theme.name.xbox360": "Xbox 360",
 
   "theme.name.amiga": "Commodore Amiga",
   "theme.name.win95": "Windows 95",
@@ -187,6 +192,9 @@
   "theme.name.macClassic": "Macintosh Classic",
   "theme.name.macAqua": "Mac OS X Aqua",
   "theme.name.ibmPc": "IBM PC",
+  "theme.name.win98": "Windows 98",
+  "theme.name.c64": "Commodore 64",
+  "theme.name.atariSt": "Atari ST",
 
   "theme.name.crtGreen": "CRT Terminal Green",
   "theme.name.crtAmber": "CRT Amber Terminal",
@@ -265,6 +273,11 @@
   "theme.desc.zelda": "Zelda — forest green & gold, Hyrule fantasy",
   "theme.desc.mario": "Mario — bright red & blue, cheerful platformer",
   "theme.desc.arcade": "Neon arcade cabinet — vibrant magenta & cyan",
+  "theme.desc.gba": "Game Boy Advance — indigo shell with vibrant 32-bit LCD",
+  "theme.desc.gamecube": "GameCube — indigo cube with iconic A-button green glow",
+  "theme.desc.masterSystem": "Sega Master System — red & black 80s Sega aesthetic",
+  "theme.desc.ps3": "PlayStation 3 — glossy black XMB with iconic wave design",
+  "theme.desc.xbox360": "Xbox 360 — white & grey with glowing green sphere",
 
   "theme.desc.amiga": "Commodore Amiga Workbench — blue & orange",
   "theme.desc.win95": "Windows 95 — teal desktop & grey 3D bevels",
@@ -278,6 +291,9 @@
   "theme.desc.macClassic": "Macintosh System 6 — platinum grey & clean bevels",
   "theme.desc.macAqua": "Mac OS X Aqua — brushed metal & blue gel buttons",
   "theme.desc.ibmPc": "IBM PC 5150 — beige chassis with green accents",
+  "theme.desc.win98": "Windows 98 — teal desktop & gradient blue title bars",
+  "theme.desc.c64": "Commodore 64 — classic breadbin blue BASIC screen",
+  "theme.desc.atariSt": "Atari ST — grey GEM desktop with green desktop accents",
 
   "theme.desc.crtGreen": "Green phosphor terminal with scanlines",
   "theme.desc.crtAmber": "Amber phosphor terminal — warm orange glow",

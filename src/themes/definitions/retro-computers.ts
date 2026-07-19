@@ -1,8 +1,8 @@
 /**
  * Retro Computer themes:
- * Amiga, Windows 95, MS-DOS, Macintosh Classic, Windows XP,
+ * Amiga, Windows 95, Windows 98, MS-DOS, Macintosh Classic, Windows XP,
  * Windows Vista, Windows 7, Windows 2000, Windows 3.1,
- * Mac OS X Aqua, IBM PC, DOS Blue
+ * Mac OS X Aqua, IBM PC, Commodore 64, Atari ST, DOS Blue
  */
 import type { ThemeDefinition } from '../types'
 import { PatternPresets, scanlineCss } from '../patterns'
@@ -295,7 +295,80 @@ const ibmPc: ThemeDefinition = {
   },
 }
 
+// ═══════════════════════════════════════════════════════════
+// Windows 98 — Teal desktop with gradient blue title bars
+// ═══════════════════════════════════════════════════════════
+const windows98: ThemeDefinition = {
+  id: 'windows-98',
+  labelKey: 'theme.name.win98',
+  category: 'retro-computers',
+  descriptionKey: 'theme.desc.win98',
+  tokens: {
+    bgApp: '#008080', bgPanel: '#C0C0C0', bgPanelLight: '#E8E8E8', bgElevated: '#FFFFFF', bgPanelHover: '#D8D8D8',
+    textPrimary: '#000000', textSecondary: '#404040', textTertiary: '#808080', textInverse: '#FFFFFF', textLink: '#0000FF',
+    accent: '#0000A8', accentDark: '#000060', accentSecondary: '#008080', accentTertiary: '#A0A0A0', accentPositive: '#008000', accentNegative: '#FF0000',
+    border: '#808080', borderLight: '#E8E8E8', borderFocus: '#0000A8', borderWidth: '3px', borderRadius: '0',
+    shadowPanel: '2px 2px 0 0 #808080, -2px -2px 0 0 #FFFFFF, inset 0 0 0 1px #C0C0C0', shadowButton: 'inset -1px -1px 0 0 #808080, inset 1px 1px 0 0 #FFFFFF, 1px 1px 0 0 #404040', shadowButtonInset: 'inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #FFFFFF',
+    surfaceRaised: '#FFFFFF', surfaceSunken: '#C0C0C0',
+    hoverBg: '#0000A8', hoverText: '#FFFFFF', activeBg: '#808080', activeText: '#FFFFFF', disabledBg: '#C0C0C0', disabledText: '#808080',
+    feedbackSuccess: '#008000', feedbackWarning: '#808000', feedbackError: '#FF0000', feedbackInfo: '#0000A8',
+    vinylBlack: '#404040', vinylGroove: '#606060', vinylLabel: '#0000A8', vinylShine: '#808080',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: 'none', bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'false',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Commodore 64 — Breadbin beige + classic blue BASIC screen
+// ═══════════════════════════════════════════════════════════
+const commodore64: ThemeDefinition = {
+  id: 'commodore-64',
+  labelKey: 'theme.name.c64',
+  category: 'retro-computers',
+  descriptionKey: 'theme.desc.c64',
+  tokens: {
+    bgApp: '#2018A0', bgPanel: '#2820B0', bgPanelLight: '#3028C8', bgElevated: '#3830D8', bgPanelHover: '#4038E8',
+    textPrimary: '#A8A0FF', textSecondary: '#7870D0', textTertiary: '#4038A0', textInverse: '#2018A0', textLink: '#E0D0FF',
+    accent: '#7868E0', accentDark: '#4840A0', accentSecondary: '#A0D0FF', accentTertiary: '#FFE080', accentPositive: '#60D060', accentNegative: '#E05050',
+    border: '#3830C8', borderLight: '#2820B0', borderFocus: '#A0D0FF', borderWidth: '4px', borderRadius: '0',
+    shadowPanel: '4px 4px 0 0 rgba(0, 0, 0, 0.45)', shadowButton: 'inset -2px -2px 0 0 rgba(0,0,0,0.35), inset 2px 2px 0 0 rgba(255,255,255,0.08)', shadowButtonInset: 'inset 2px 2px 0 0 rgba(0,0,0,0.35), inset -2px -2px 0 0 rgba(255,255,255,0.08)',
+    surfaceRaised: '#3830D8', surfaceSunken: '#140E70',
+    hoverBg: '#A0D0FF', hoverText: '#2018A0', activeBg: '#7868E0', activeText: '#A8A0FF', disabledBg: '#2820B0', disabledText: '#4038A0',
+    feedbackSuccess: '#60D060', feedbackWarning: '#FFE080', feedbackError: '#E05050', feedbackInfo: '#A0D0FF',
+    vinylBlack: '#140E70', vinylGroove: '#3028C8', vinylLabel: '#FFE080', vinylShine: '#3830D8',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: PatternPresets.pixelNoise, bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'heavy', isDark: 'false',
+  },
+}
+
+// ═══════════════════════════════════════════════════════════
+// Atari ST — Grey GEM desktop with green accents
+// ═══════════════════════════════════════════════════════════
+const atariSt: ThemeDefinition = {
+  id: 'atari-st',
+  labelKey: 'theme.name.atariSt',
+  category: 'retro-computers',
+  descriptionKey: 'theme.desc.atariSt',
+  tokens: {
+    bgApp: '#286828', bgPanel: '#D0D0D0', bgPanelLight: '#E8E8E8', bgElevated: '#FFFFFF', bgPanelHover: '#DCDCDC',
+    textPrimary: '#000000', textSecondary: '#404040', textTertiary: '#808080', textInverse: '#FFFFFF', textLink: '#206820',
+    accent: '#000000', accentDark: '#404040', accentSecondary: '#286828', accentTertiary: '#808080', accentPositive: '#287828', accentNegative: '#C02020',
+    border: '#A0A0A0', borderLight: '#E8E8E8', borderFocus: '#286828', borderWidth: '3px', borderRadius: '2px',
+    shadowPanel: '1px 1px 0 0 #FFFFFF, -1px -1px 0 0 #A0A0A0, inset 0 0 0 1px #C0C0C0', shadowButton: 'inset -1px -1px 0 0 #A0A0A0, inset 1px 1px 0 0 #FFFFFF, 1px 1px 0 0 #606060', shadowButtonInset: 'inset 1px 1px 0 0 #A0A0A0, inset -1px -1px 0 0 #FFFFFF',
+    surfaceRaised: '#FFFFFF', surfaceSunken: '#C0C0C0',
+    hoverBg: '#286828', hoverText: '#FFFFFF', activeBg: '#000000', activeText: '#FFFFFF', disabledBg: '#D0D0D0', disabledText: '#A0A0A0',
+    feedbackSuccess: '#287828', feedbackWarning: '#888828', feedbackError: '#C02020', feedbackInfo: '#286828',
+    vinylBlack: '#A0A0A0', vinylGroove: '#888888', vinylLabel: '#286828', vinylShine: '#C0C0C0',
+    fontPixel: "'Press Start 2P', monospace", fontBody: "'VT323', system-ui, monospace",
+    bgAppPattern: 'none', bgAppOverlay: 'none', bgAppNoise: '0', bgAppScanlines: '0',
+    borderWeight: 'light', isDark: 'false',
+  },
+}
+
 export const retroComputers: ThemeDefinition[] = [
-  amiga, windows95, windows31, msDos, dosBlue, macClassic,
+  amiga, windows95, windows98, windows31, msDos, dosBlue, macClassic,
   windowsXp, windowsVista, windows7, windows2000, macOsxAqua, ibmPc,
+  commodore64, atariSt,
 ]

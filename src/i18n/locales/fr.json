@@ -174,6 +174,11 @@
   "theme.name.zelda": "Zelda",
   "theme.name.mario": "Mario",
   "theme.name.arcade": "Arcade Rétro",
+  "theme.name.gba": "Game Boy Advance",
+  "theme.name.gamecube": "GameCube",
+  "theme.name.masterSystem": "Master System",
+  "theme.name.ps3": "PlayStation 3",
+  "theme.name.xbox360": "Xbox 360",
 
   "theme.name.amiga": "Commodore Amiga",
   "theme.name.win95": "Windows 95",
@@ -187,6 +192,9 @@
   "theme.name.macClassic": "Macintosh Classic",
   "theme.name.macAqua": "Mac OS X Aqua",
   "theme.name.ibmPc": "IBM PC",
+  "theme.name.win98": "Windows 98",
+  "theme.name.c64": "Commodore 64",
+  "theme.name.atariSt": "Atari ST",
 
   "theme.name.crtGreen": "Terminal CRT Vert",
   "theme.name.crtAmber": "Terminal CRT Ambre",
@@ -265,6 +273,11 @@
   "theme.desc.zelda": "Zelda — vert forêt & or, fantasy d'Hyrule",
   "theme.desc.mario": "Mario — rouge & bleu vifs, plateforme joyeuse",
   "theme.desc.arcade": "Arcade néon — magenta & cyan vibrants",
+  "theme.desc.gba": "Game Boy Advance — coque indigo avec écran LCD 32 bits vibrant",
+  "theme.desc.gamecube": "GameCube — cube indigo avec lueur verte du bouton A iconique",
+  "theme.desc.masterSystem": "Sega Master System — esthétique Sega rouge & noir 80s",
+  "theme.desc.ps3": "PlayStation 3 — XMB noir brillant avec design vague iconique",
+  "theme.desc.xbox360": "Xbox 360 — blanc & gris avec sphère verte lumineuse",
 
   "theme.desc.amiga": "Commodore Amiga Workbench — bleu et orange",
   "theme.desc.win95": "Windows 95 — bureau turquoise & biseaux 3D gris",
@@ -278,6 +291,9 @@
   "theme.desc.macClassic": "Macintosh System 6 — gris platine & biseaux nets",
   "theme.desc.macAqua": "Mac OS X Aqua — métal brossé & boutons gel bleus",
   "theme.desc.ibmPc": "IBM PC 5150 — châssis beige avec accents verts",
+  "theme.desc.win98": "Windows 98 — bureau turquoise & barres titre bleu dégradé",
+  "theme.desc.c64": "Commodore 64 — écran BASIC bleu classique du breadbin",
+  "theme.desc.atariSt": "Atari ST — bureau GEM gris avec accents verts",
 
   "theme.desc.crtGreen": "Terminal phosphore vert avec scanlines",
   "theme.desc.crtAmber": "Terminal phosphore ambre — lueur orange chaleureuse",
