@@ -1,9 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
-import {
-  THEME_IDS,
-  THEME_LABELS_LOCALIZED,
-  type ThemeId,
-} from '../state/usePlayerStore'
+import { THEME_IDS, type ThemeId } from '../state/usePlayerStore'
+import { ALL_THEMES } from '../themes/definitions'
 import { useT } from '../i18n/useT'
 
 export interface AppContextMenuProps {
@@ -53,8 +50,7 @@ export function AppContextMenu(props: AppContextMenuProps) {
     onShowAbout,
     onQuit,
   } = props
-  const { t, locale } = useT()
-  const themeLabels = THEME_LABELS_LOCALIZED[locale]
+  const { t } = useT()
 
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -138,18 +134,22 @@ export function AppContextMenu(props: AppContextMenuProps) {
       <Sep />
 
       <div className="ctx-menu__section-label">{t('ctx.app.themeSection')}</div>
-      {THEME_IDS.map((id) => (
-        <Item
-          key={id}
-          onClick={() => onSetTheme(id)}
-          className={id === currentTheme ? 'ctx-menu__item--active' : ''}
-        >
-          <span className="ctx-menu__check" aria-hidden="true">
-            {id === currentTheme ? t('settings.check') : '\u00A0'}
-          </span>
-          {themeLabels[id].toUpperCase()}
-        </Item>
-      ))}
+      {THEME_IDS.map((id) => {
+        const def = ALL_THEMES.find((d) => d.id === id)
+        if (!def) return null
+        return (
+          <Item
+            key={id}
+            onClick={() => onSetTheme(id)}
+            className={id === currentTheme ? 'ctx-menu__item--active' : ''}
+          >
+            <span className="ctx-menu__check" aria-hidden="true">
+              {id === currentTheme ? t('settings.check') : '\u00A0'}
+            </span>
+            {t(def.labelKey as any).toUpperCase()}
+          </Item>
+        )
+      })}
 
       <Sep />
 

@@ -1,10 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useT } from '../i18n/useT'
 import {
-  THEME_IDS,
-  THEME_LABELS_LOCALIZED,
   usePlayerStore,
-  type ThemeId,
   type LocaleChoice,
   LOCALE_CHOICES,
 } from '../state/usePlayerStore'
@@ -17,8 +14,8 @@ export interface SettingsDrawerProps {
 }
 
 /**
- * The right-side slide-in settings panel. Hosts four sections:
- * LANGUAGE (segmented EN / FR / OS), THEME (vertical list), PLAYBACK
+ * The right-side slide-in settings panel. Hosts three sections:
+ * LANGUAGE (segmented EN / FR / OS), PLAYBACK
  * (starting volume, auto-play, stop behavior, shuffle on import),
  * DISPLAY (always-on-top toggle).
  *
@@ -32,9 +29,7 @@ export interface SettingsDrawerProps {
  * `returnFocusRef.current` on close.
  */
 export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawerProps) {
-  const { t, locale } = useT()
-  const theme = usePlayerStore((s) => s.theme)
-  const setTheme = usePlayerStore((s) => s.setTheme)
+  const { t } = useT()
   const localeChoice = usePlayerStore((s) => s.locale)
   const setLocale = usePlayerStore((s) => s.setLocale)
   const startVolume = usePlayerStore((s) => s.startVolume)
@@ -144,26 +139,6 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
               ))}
             </SegmentedRow>
             <p className="settings-section__hint">{t('settings.language.hint')}</p>
-          </Section>
-
-          <Section title={t('settings.section.theme')}>
-            {THEME_IDS.map((id) => {
-              const label = THEME_LABELS_LOCALIZED[locale][id]
-              const active = theme === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className={`settings-row settings-row--theme ${active ? 'is-active' : ''}`.trim()}
-                  onClick={() => setTheme(id as ThemeId)}
-                >
-                  <span className="settings-row__check" aria-hidden="true">
-                    {active ? t('settings.check') : '\u00A0'}
-                  </span>
-                  <span className="settings-row__label">{label}</span>
-                </button>
-              )
-            })}
           </Section>
 
           <Section title={t('settings.section.playback')}>

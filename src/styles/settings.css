@@ -22,7 +22,7 @@
 }
 
 .settings-button[aria-expanded='true'] {
-  background: var(--accent-cyan);
+  background: var(--accent-secondary);
   color: var(--bg-app);
   border-color: var(--bg-app);
 }
@@ -86,7 +86,7 @@
 .settings-drawer__title {
   font-family: 'Press Start 2P', monospace;
   font-size: 13px;
-  color: var(--accent-cyan);
+  color: var(--accent-secondary);
   letter-spacing: 2px;
 }
 
@@ -103,9 +103,9 @@
 
 .settings-drawer__close:hover,
 .settings-drawer__close:focus-visible {
-  background: var(--accent-red);
+  background: var(--accent);
   color: var(--text-primary);
-  border-color: var(--accent-red);
+  border-color: var(--accent);
   outline: none;
 }
 
@@ -142,7 +142,7 @@
 .settings-section__title {
   font-family: 'Press Start 2P', monospace;
   font-size: 10px;
-  color: var(--accent-cyan);
+  color: var(--accent-secondary);
   letter-spacing: 2px;
   margin-bottom: 10px;
   text-transform: uppercase;
@@ -182,13 +182,13 @@
 
 .settings-row--theme:hover {
   background: rgba(78, 226, 236, 0.12);
-  border-color: var(--accent-cyan);
+  border-color: var(--accent-secondary);
 }
 
 .settings-row--theme.is-active {
-  color: var(--accent-amber);
+  color: var(--accent-tertiary);
   background: rgba(241, 185, 76, 0.12);
-  border-color: var(--accent-amber);
+  border-color: var(--accent-tertiary);
 }
 
 .settings-row__label {
@@ -203,7 +203,7 @@
 }
 
 .settings-row--theme.is-active .settings-row__label {
-  color: var(--accent-amber);
+  color: var(--accent-tertiary);
 }
 
 .settings-row__check {
@@ -211,7 +211,7 @@
   width: 14px;
   font-family: 'Press Start 2P', monospace;
   font-size: 10px;
-  color: var(--accent-amber);
+  color: var(--accent-tertiary);
   margin-right: 4px;
   text-align: center;
 }
@@ -252,7 +252,7 @@
   -webkit-appearance: none;
   width: 14px;
   height: 18px;
-  background: var(--accent-amber);
+  background: var(--accent-tertiary);
   border: 2px solid var(--bg-app);
   cursor: pointer;
   border-radius: 0;
@@ -261,7 +261,7 @@
 .settings-row__volume input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 18px;
-  background: var(--accent-amber);
+  background: var(--accent-tertiary);
   border: 2px solid var(--bg-app);
   cursor: pointer;
   border-radius: 0;
@@ -301,16 +301,16 @@
 }
 
 .settings-row__segment:hover:not(.settings-row__segment--active) {
-  background: var(--accent-cyan);
+  background: var(--accent-secondary);
   color: var(--bg-app);
 }
 
 .settings-row__segment--active {
-  background: var(--accent-cyan);
+  background: var(--accent-secondary);
   color: var(--bg-app);
 }
 
 .settings-row__segment:focus-visible {
-  outline: 3px dashed var(--accent-amber);
+  outline: 3px dashed var(--accent-tertiary);
   outline-offset: 2px;
 }

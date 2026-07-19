@@ -140,7 +140,7 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
               style={{ transform: `rotate(${tonearmAngle}deg)` }}
             >            <svg viewBox="0 0 320 40" width="320" height="40" style={{ overflow: 'visible' }}>
               <style>{`
-                .rp-tonearm-stylus { fill: var(--accent-red); }
+                .rp-tonearm-stylus { fill: var(--accent); }
                 .rp-tonearm-cartridge { fill: var(--bg-panel-light); stroke: var(--bg-app); stroke-width: 2; }
                 .rp-tonearm-shaft { fill: var(--text-primary); stroke: var(--bg-app); stroke-width: 1; }
                 .rp-tonearm-pivot { fill: color-mix(in srgb, var(--text-primary) 50%, var(--bg-app)); stroke: var(--bg-app); stroke-width: 2; }

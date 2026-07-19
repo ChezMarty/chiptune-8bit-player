@@ -3,145 +3,138 @@
 @import './styles/settings.css';
 
 /* =========================================================
- * Theme palette
+ * Theme Engine — CSS custom properties
  *
- * The app exposes 5 themes via the `data-theme` attribute on
- * <html> / :root. Each theme block overrides the same set of
- * CSS custom properties. The default (NES) is selected on boot
- * and lives at :root so the variables are always defined even
- * before the bootstrap sets [data-theme].
+ * ALL color/style values are now injected dynamically by
+ * the ThemeEngine (src/themes/engine.ts) as inline styles
+ * on <html>. The blocks below serve as **fallbacks** for
+ * the default (NES) theme and guarantee values exist before
+ * the engine bootstraps.
+ *
+ * The engine also sets `data-theme` on <html> for any
+ * CSS selectors that need per-theme overrides.
  * ========================================================= */
-:root,
-:root[data-theme='nes'] {
-  --bg-app: #0F0F1B;
+
+:root {
+  /* ── Background ────────────────────────────────────── */
+  --bg-app: #0D0D1A;
   --bg-panel: #1A1A2E;
   --bg-panel-light: #252544;
-  --bg-elevated: #2a2a4a;
+  --bg-elevated: #2E2E50;
+  --bg-panel-hover: #35355A;
 
-  --text-primary: #F5F5F0;
-  --text-secondary: #8B9BB4;
-  --text-tertiary: #555a78;
+  /* ── Text ──────────────────────────────────────────── */
+  --text-primary: #F0EDE5;
+  --text-secondary: #8B8FA4;
+  --text-tertiary: #4A4E65;
+  --text-inverse: #0D0D1A;
+  --text-link: #4EE2EC;
 
-  --accent-red: #E52521;
-  --accent-red-dark: #8c1814;
-  --accent-cyan: #4EE2EC;
-  --accent-amber: #F1B94C;
-  --accent-green: #58d68d;
+  /* ── Accent ────────────────────────────────────────── */
+  --accent: #E52521;
+  --accent-dark: #8C1410;
+  --accent-secondary: #4EE2EC;
+  --accent-tertiary: #F1B94C;
+  --accent-positive: #58D68D;
+  --accent-negative: #E52521;
 
+  /* ── Borders ───────────────────────────────────────── */
+  --border: #2A2A4A;
+  --border-light: #1F1F3A;
+  --border-focus: #4EE2EC;
+  --border-width: 4px;
+  --border-radius: 0;
+
+  /* ── Shadows ───────────────────────────────────────── */
+  --shadow-panel: 4px 4px 0 0 rgba(0, 0, 0, 0.45);
+  --shadow-button: inset -2px -2px 0 0 rgba(0,0,0,0.4), inset 2px 2px 0 0 rgba(255,255,255,0.06);
+  --shadow-button-inset: inset 2px 2px 0 0 rgba(0,0,0,0.4), inset -2px -2px 0 0 rgba(255,255,255,0.06);
+
+  /* ── Surfaces ──────────────────────────────────────── */
+  --surface-raised: #2E2E50;
+  --surface-sunken: #0D0D1A;
+
+  /* ── Interactive states ────────────────────────────── */
+  --hover-bg: #4EE2EC;
+  --hover-text: #0D0D1A;
+  --active-bg: #F1B94C;
+  --active-text: #0D0D1A;
+  --disabled-bg: #1A1A2E;
+  --disabled-text: #4A4E65;
+
+  /* ── Feedback ──────────────────────────────────────── */
+  --feedback-success: #58D68D;
+  --feedback-warning: #F1B94C;
+  --feedback-error: #E52521;
+  --feedback-info: #4EE2EC;
+
+  /* ── Vinyl Record Player ───────────────────────────── */
   --vinyl-black: #141414;
   --vinyl-groove: #2A2A2A;
   --vinyl-label: #F1B94C;
-  --vinyl-shine: #5a4a2a;
+  --vinyl-shine: #5A4A2A;
 
-  --border: #2A2A4A;
-}
+  /* ── Typography ────────────────────────────────────── */
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-body: 'VT323', system-ui, monospace;
 
-:root[data-theme='gameboy'] {
-  --bg-app: #0F380F;
-  --bg-panel: #306230;
-  --bg-panel-light: #8BAC0F;
-  --bg-elevated: #9BBC0F;
+  /* ── Background effects ────────────────────────────── */
+  --bg-app-pattern: none;
+  --bg-app-overlay: none;
+  --bg-app-noise: 0;
+  --bg-app-scanlines: 0;
 
-  --text-primary: #9BBC0F;
-  --text-secondary: #8BAC0F;
-  --text-tertiary: #306230;
-
-  --accent-red: #8BAC0F;
-  --accent-red-dark: #306230;
-  --accent-cyan: #9BBC0F;
-  --accent-amber: #9BBC0F;
-  --accent-green: #9BBC0F;
-
-  --vinyl-black: #0F380F;
-  --vinyl-groove: #306230;
-  --vinyl-label: #8BAC0F;
-  --vinyl-shine: #5a8a30;
-
-  --border: #306230;
-}
-
-:root[data-theme='c64'] {
-  --bg-app: #403285;
-  --bg-panel: #6B5BB5;
-  --bg-panel-light: #9C8AE0;
-  --bg-elevated: #B0A0F0;
-
-  --text-primary: #A4EBF3;
-  --text-secondary: #6AB2F2;
-  --text-tertiary: #403285;
-
-  --accent-red: #A4EBF3;
-  --accent-red-dark: #6AB2F2;
-  --accent-cyan: #6AB2F2;
-  --accent-amber: #FFD9A0;
-  --accent-green: #6AB2F2;
-
-  --vinyl-black: #1A0F3A;
-  --vinyl-groove: #403285;
-  --vinyl-label: #6AB2F2;
-  --vinyl-shine: #7869C4;
-
-  --border: #7869C4;
-}
-
-:root[data-theme='gbc'] {
-  --bg-app: #5C0A0A;
-  --bg-panel: #8B1A1A;
-  --bg-panel-light: #B5302E;
-  --bg-elevated: #D04540;
-
-  --text-primary: #FFE4B5;
-  --text-secondary: #FFB347;
-  --text-tertiary: #8B1A1A;
-
-  --accent-red: #FF3030;
-  --accent-red-dark: #B02020;
-  --accent-cyan: #40E0D0;
-  --accent-amber: #FFD700;
-  --accent-green: #90EE90;
-
-  --vinyl-black: #1F0505;
-  --vinyl-groove: #5C0A0A;
-  --vinyl-label: #FFD700;
-  --vinyl-shine: #B5302E;
-
-  --border: #8B1A1A;
-}
-
-:root[data-theme='arcade'] {
-  --bg-app: #0A0A0F;
-  --bg-panel: #1A0033;
-  --bg-panel-light: #2D0052;
-  --bg-elevated: #3D0070;
-
-  --text-primary: #FFFFFF;
-  --text-secondary: #FF00FF;
-  --text-tertiary: #7A0099;
-
-  --accent-red: #FF1493;
-  --accent-red-dark: #B80069;
-  --accent-cyan: #00FFFF;
-  --accent-amber: #FFFF00;
-  --accent-green: #39FF14;
-
-  --vinyl-black: #0A0010;
-  --vinyl-groove: #1A0033;
-  --vinyl-label: #FF00FF;
-  --vinyl-shine: #FF1493;
-
-  --border: #3D0070;
+  /* ── Style hints ────────────────────────────────────── */
+  --border-weight: heavy;
+  --is-dark: true;
 }
 
 /* =========================================================
- * Theme-change "CRT power-on" animation.
+ * Background rendering — layered effects
  *
- * When [data-theme] changes, App.tsx adds `.theme-fading` to
- * each major section (library, record player, transport).
- * Each section animates its opacity 0 → 1 with a stagger,
- * masking the synchronous color swap that just happened.
- * Honors prefers-reduced-motion: users who opt out skip the
- * fade entirely.
+ * Applies patterns, noise, scanlines, and vignette as
+ * CSS background layers on <body>. The `--bg-app-noise`
+ * and `--bg-app-scanlines` properties control opacity
+ * through CSS `opacity()` on pseudo-elements, allowing
+ * effects to stack without repainting.
  * ========================================================= */
+body {
+  background-color: var(--bg-app);
+  background-image: var(--bg-app-pattern), var(--bg-app-overlay);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.4;
+  letter-spacing: 0.5px;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: none;
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+/* Noise overlay via ::before pseudo-element */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: var(--bg-app-noise, 0);
+  background-image: var(--bg-app-overlay, none);
+}
+
+/* Scanline overlay via ::after pseudo-element */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  opacity: var(--bg-app-scanlines, 0);
+  background-image: var(--bg-app-pattern, none);
+}
+
+/* Theme-change "CRT power-on" animation. */
 @keyframes theme-power-on {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -182,21 +175,8 @@ body {
   overflow: hidden;
 }
 
-body {
-  background-color: var(--bg-app);
-  color: var(--text-primary);
-  font-family: 'VT323', system-ui, monospace;
-  font-size: 18px;
-  line-height: 1.4;
-  letter-spacing: 0.5px;
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: none;
-  image-rendering: pixelated;
-  user-select: none;
-}
-
 ::selection {
-  background: var(--accent-red);
+  background: var(--accent);
   color: var(--bg-app);
 }
 
@@ -208,11 +188,11 @@ body {
   background: var(--bg-panel);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--accent-red);
+  background: var(--accent);
   border: 2px solid var(--bg-panel);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-amber);
+  background: var(--accent-tertiary);
 }
 
 button {
@@ -225,6 +205,6 @@ button {
 }
 
 button:focus-visible {
-  outline: 3px dashed var(--accent-cyan);
+  outline: 3px dashed var(--accent-secondary);
   outline-offset: 2px;
 }

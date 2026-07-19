@@ -4,6 +4,17 @@ import {
   writeIntPref,
   writeStringPref,
 } from '../lib/preferences'
+import type { ThemeId, ThemeSortMode } from '../themes/types'
+import { ALL_THEMES, THEME_MAP } from '../themes/definitions'
+import {
+  applyThemeTokens,
+  writeStoredTheme,
+  readUserMeta,
+  writeUserMeta,
+  toggleFavorite,
+} from '../themes/engine'
+
+export type { ThemeId, ThemeSortMode } from '../themes/types'
 
 export interface Track {
   id: string
@@ -17,43 +28,13 @@ export interface Track {
   artDataUrl?: string | null
 }
 
-/** The 5 theme ids. Order here also dictates the dropdown order. */
-export type ThemeId = 'nes' | 'gameboy' | 'c64' | 'gbc' | 'arcade'
-
-export const THEME_IDS: ThemeId[] = ['nes', 'gameboy', 'c64', 'gbc', 'arcade']
-
-export const THEME_LABELS: Record<ThemeId, string> = {
-  nes: 'NES',
-  gameboy: 'Game Boy',
-  c64: 'C64',
-  gbc: 'Game Boy Color',
-  arcade: 'Arcade',
-}
-
-/** Localized theme labels (e.g. `NES (Nintendo)` in French). */
-export const THEME_LABELS_LOCALIZED: Record<'en' | 'fr', Record<ThemeId, string>> = {
-  en: {
-    nes: 'NES',
-    gameboy: 'Game Boy',
-    c64: 'C64',
-    gbc: 'Game Boy Color',
-    arcade: 'Arcade',
-  },
-  fr: {
-    nes: 'NES (Nintendo)',
-    gameboy: 'Game Boy (Nintendo)',
-    c64: 'C64 (Commodore)',
-    gbc: 'Game Boy Couleur (Nintendo)',
-    arcade: 'Arcade',
-  },
-}
+/** All valid theme IDs derived from the definitions. */
+export const THEME_IDS: ThemeId[] = ALL_THEMES.map((d) => d.id)
 
 /** What the user *chose* — `'os'` means auto-detect from navigator.language. */
 export type LocaleChoice = 'en' | 'fr' | 'os'
 
 export const LOCALE_CHOICES: LocaleChoice[] = ['en', 'fr', 'os']
-
-const THEME_STORAGE_KEY = 'chiptune-theme'
 
 export const LANGUAGE_STORAGE_KEY = 'chiptune-language'
 export const START_VOLUME_STORAGE_KEY = 'chiptune-start-volume'
@@ -61,27 +42,6 @@ export const AUTOPLAY_STORAGE_KEY = 'chiptune-auto-play-import'
 export const STOP_REWINDS_STORAGE_KEY = 'chiptune-stop-rewinds'
 export const SHUFFLE_IMPORT_STORAGE_KEY = 'chiptune-shuffle-import'
 export const ALWAYS_ON_TOP_STORAGE_KEY = 'chiptune-always-on-top'
-
-/** Read the persisted theme from localStorage, validating against the union. */
-export function readStoredTheme(): ThemeId {
-  if (typeof window === 'undefined') return 'nes'
-  try {
-    const raw = window.localStorage.getItem(THEME_STORAGE_KEY)
-    if (raw && (THEME_IDS as string[]).includes(raw)) {
-      return raw as ThemeId
-    }
-  } catch {
-    // localStorage may throw in private-browsing or sandboxed contexts.
-    // Fall through to the default.
-  }
-  return 'nes'
-}
-
-/** Apply a theme id to the document. Safe to call before React mounts. */
-export function applyTheme(theme: ThemeId): void {
-  if (typeof document === 'undefined') return
-  document.documentElement.setAttribute('data-theme', theme)
-}
 
 interface PlayerState {
   // Library
@@ -102,6 +62,8 @@ interface PlayerState {
 
   // Theme
   theme: ThemeId
+  themeFavorites: ThemeId[]
+  themeSortMode: ThemeSortMode
 
   // Locale
   /** What the user chose. `'os'` is resolved at render to `'en'` or `'fr'`. */
@@ -126,6 +88,8 @@ interface PlayerState {
   setStartVolume: (v: number) => void
   setImporting: (v: boolean) => void
   setTheme: (theme: ThemeId) => void
+  toggleThemeFavorite: (id: ThemeId) => void
+  setThemeSortMode: (mode: ThemeSortMode) => void
   setLocale: (l: LocaleChoice) => void
   /**
    * Generic setter that mutates in-memory state and (best-effort) persists
@@ -162,6 +126,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   startVolume: 70,
   importing: false,
   theme: 'nes',
+  themeFavorites: [],
+  themeSortMode: 'name' as ThemeSortMode,
   locale: 'os',
   alwaysOnTop: false,
   autoPlayOnImport: false,
@@ -203,13 +169,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setImporting: (v) => set({ importing: v }),
 
   setTheme: (theme) => {
-    applyTheme(theme)
-    set({ theme })
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme)
-    } catch {
-      // localStorage unavailable; the in-memory value still works for the session.
+    const def = THEME_MAP[theme]
+    if (def) {
+      applyThemeTokens(def.tokens, theme)
     }
+    writeStoredTheme(theme)
+    set({ theme })
+  },
+
+  toggleThemeFavorite: (id) => {
+    const stored = readUserMeta()
+    const favorites = toggleFavorite(stored.favorites ?? [], id)
+    writeUserMeta({ ...stored, favorites })
+    set({ themeFavorites: favorites as ThemeId[] })
+  },
+
+  setThemeSortMode: (mode) => {
+    const stored = readUserMeta()
+    writeUserMeta({ ...stored, sortMode: mode })
+    set({ themeSortMode: mode })
   },
 
   setLocale: (l) => {

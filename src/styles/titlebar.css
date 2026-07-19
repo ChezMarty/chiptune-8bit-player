@@ -82,7 +82,7 @@
   height: 16px;
   /* Accent color picks up the active theme so the logo
      recolors automatically when the user switches themes. */
-  color: var(--accent-red);
+  color: var(--accent);
   image-rendering: pixelated;
 }
 
@@ -151,26 +151,26 @@
    non-destructive pixel-button hover states. */
 .titlebar__btn--min:hover,
 .titlebar__btn--max:hover {
-  background: var(--accent-cyan);
+  background: var(--accent-secondary);
   color: var(--bg-app);
 }
 
 .titlebar__btn--min:focus-visible,
 .titlebar__btn--max:focus-visible {
   /* Inset pixel ring — visually an outline but pixel-true. */
-  box-shadow: inset 0 0 0 3px var(--accent-cyan);
+  box-shadow: inset 0 0 0 3px var(--accent-secondary);
 }
 
 /* Close: red hover, separate from the other two buttons so the
    destructive action reads at a glance. Matches the
    .ctx-menu__btn--yes and pixel-button--primary treatment. */
 .titlebar__btn--close:hover {
-  background: var(--accent-red);
+  background: var(--accent);
   color: var(--text-primary);
 }
 
 .titlebar__btn--close:focus-visible {
-  box-shadow: inset 0 0 0 3px var(--accent-red);
+  box-shadow: inset 0 0 0 3px var(--accent);
 }
 
 .titlebar__btn:active {

@@ -4,16 +4,21 @@ import "./index.css";
 import App from "./App";
 import {
   ALWAYS_ON_TOP_STORAGE_KEY,
-  applyTheme,
   AUTOPLAY_STORAGE_KEY,
   LANGUAGE_STORAGE_KEY,
   LOCALE_CHOICES,
-  readStoredTheme,
   SHUFFLE_IMPORT_STORAGE_KEY,
   STOP_REWINDS_STORAGE_KEY,
   START_VOLUME_STORAGE_KEY,
   usePlayerStore,
+  type ThemeId,
 } from "./state/usePlayerStore";
+import { ALL_THEMES, THEME_MAP } from "./themes/definitions";
+import {
+  applyThemeTokens,
+  readStoredTheme,
+  readUserMeta,
+} from "./themes/engine";
 import {
   readBoolPref,
   readIntPref,
@@ -23,9 +28,20 @@ import { loadPersistedLibrary } from "./lib/libraryPersistence";
 
 // Apply the persisted theme BEFORE React mounts so the first paint
 // already reflects the user's choice — no flash of the default theme.
-const initialTheme = readStoredTheme();
-applyTheme(initialTheme);
-usePlayerStore.setState({ theme: initialTheme });
+const validIds = ALL_THEMES.map((d) => d.id);
+const initialTheme = readStoredTheme(validIds);
+const initialDef = THEME_MAP[initialTheme];
+if (initialDef) {
+  applyThemeTokens(initialDef.tokens, initialTheme);
+}
+const userMeta = readUserMeta();
+usePlayerStore.setState({
+  theme: initialTheme,
+  themeFavorites: (userMeta.favorites ?? []).filter((id) =>
+    (validIds as readonly string[]).includes(id),
+  ) as ThemeId[],
+  themeSortMode: (userMeta.sortMode as 'name' | 'favorites') || 'name',
+});
 
 // Seed language preference.
 const savedLocale = readStringPref(
