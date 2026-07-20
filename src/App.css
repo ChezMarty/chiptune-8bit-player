@@ -269,6 +269,44 @@
   image-rendering: pixelated;
 }
 
+/* Record-player status badge (loading / buffering / error) */
+.record-player__status {
+  min-height: 18px;
+  margin-bottom: 4px;
+}
+
+.record-player__status-badge {
+  display: inline-block;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 3px 10px;
+  border: 2px solid;
+  animation: badge-pulse 1.2s ease-in-out infinite;
+}
+
+.record-player__status-badge.is-loading {
+  color: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+}
+
+.record-player__status-badge.is-error {
+  color: var(--accent);
+  border-color: var(--accent);
+  animation: none;
+}
+
+.record-player__status-badge.is-ended {
+  color: var(--text-secondary);
+  border-color: var(--text-secondary);
+  animation: none;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* Record-player caption */
 .record-player__info {
   margin-top: 14px;

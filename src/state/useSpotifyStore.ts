@@ -355,7 +355,23 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
     set({ loadingRecent: true, error: null })
     try {
       const result = await spotifyService.recentlyPlayed(20)
-      set({ recentlyPlayed: result, loadingRecent: false })
+      // The Spotify "Recently Played" API returns play-history entries, not
+      // unique tracks. A track played twice appears twice with the same id.
+      // Deduplicate by track.id so React doesn't see duplicate keys.
+      const seen = new Set<string>()
+      const duplicateIds: string[] = []
+      const unique = result.filter((t) => {
+        if (seen.has(t.id)) {
+          duplicateIds.push(t.id)
+          return false
+        }
+        seen.add(t.id)
+        return true
+      })
+      if (unique.length !== result.length) {
+        console.log('[spotify] Deduplicated recentlyPlayed:', result.length, '→', unique.length, 'duplicate IDs:', [...new Set(duplicateIds)])
+      }
+      set({ recentlyPlayed: unique, loadingRecent: false })
     } catch (e) {
       set({ error: String(e), loadingRecent: false })
     }
@@ -419,9 +435,20 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
     set({ playbackError: null })
     try {
       console.log('[spotify] Playing track via Librespot engine:', track.title, track.uri)
+      // Build metadata from the SpotifyTrackInfo and pass it to the engine
+      // so the UI can display title/artist/art immediately.
+      const meta = {
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        album: track.album ?? undefined,
+        durationSec: (track.duration_ms ?? 0) / 1000,
+        imageUrl: track.image_url ?? null,
+        uri: track.uri,
+      }
       // Use the playback engine — it auto-selects Librespot or SDK.
       const { playbackEngine } = await import('../lib/playback/engine')
-      await playbackEngine.play(track.uri)
+      await playbackEngine.play(track.uri, meta)
       set({ isPlaying: true, playbackError: null })
     } catch (e) {
       const msg = String(e)

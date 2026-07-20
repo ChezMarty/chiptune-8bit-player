@@ -19,10 +19,20 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
+  const nowPlaying = usePlayerStore((s) => s.nowPlaying)
+  const activeSource = usePlayerStore((s) => s.activeSource)
+  const playbackStatus = usePlayerStore((s) => s.playbackStatus)
   const { t } = useT()
 
-  const track = currentIndex >= 0 ? tracks[currentIndex] : null
-  const hasTrack = !!track
+  // Use Spotify nowPlaying metadata if available; fall back to local library track.
+  const isSpotifySource = activeSource === 'spotify-librespot' || activeSource === 'spotify-sdk'
+  const localTrack = currentIndex >= 0 ? tracks[currentIndex] : null
+
+  // Unified track display: Spotify metadata takes priority when active.
+  const displayTitle = isSpotifySource && nowPlaying ? nowPlaying.title : (localTrack?.title || null)
+  const displayArtist = isSpotifySource && nowPlaying ? nowPlaying.artist : (localTrack?.artist || null)
+  const displayArtUrl = isSpotifySource && nowPlaying ? nowPlaying.imageUrl : (localTrack?.artDataUrl || null)
+  const hasTrack = !!(isSpotifySource ? nowPlaying : localTrack)
 
   const progress =
     duration > 0 ? Math.min(1, Math.max(0, currentTime / duration)) : 0
@@ -40,19 +50,21 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
   }
 
   useEffect(() => {
-    if (!track) {
+    if (!displayTitle || !displayArtist) {
       document.title = t('app.title')
       return
     }
     const sym = isPlaying ? '▶' : '❚❚'
-    document.title = `${sym} ${track.artist} — ${track.title}`.slice(0, 80)
-  }, [track?.id, track?.artist, track?.title, isPlaying, t])
+    document.title = `${sym} ${displayArtist} — ${displayTitle}`.slice(0, 80)
+  }, [displayTitle, displayArtist, isPlaying, t])
 
   const ariaLabel = !hasTrack
     ? t('recordPlayer.aria.noTrack')
-    : isPlaying
-      ? t('recordPlayer.aria.pause')
-      : t('recordPlayer.aria.play')
+    : playbackStatus === 'loading'
+      ? t('recordPlayer.aria.loading')
+      : isPlaying
+        ? t('recordPlayer.aria.pause')
+        : t('recordPlayer.aria.play')
 
   return (
     <div
@@ -102,9 +114,9 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
               />
               <circle className="rp-vinyl-label-fill" cx="200" cy="200" r="62" />
               <circle className="rp-vinyl-label-border" cx="200" cy="200" r="62" />
-              {track?.artDataUrl ? (
+              {displayArtUrl ? (
                 <image
-                  href={track.artDataUrl}
+                  href={displayArtUrl}
                   x="170"
                   y="170"
                   width="60"
@@ -156,14 +168,31 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
       </div>
 
       <div className="record-player__info">
+        <div className="record-player__status">
+          {playbackStatus === 'loading' && (
+            <span className="record-player__status-badge is-loading">
+              LOADING…
+            </span>
+          )}
+          {playbackStatus === 'error' && (
+            <span className="record-player__status-badge is-error">
+              ERROR
+            </span>
+          )}
+          {playbackStatus === 'ended' && (
+            <span className="record-player__status-badge is-ended">
+              ENDED
+            </span>
+          )}
+        </div>
         <div
           className="record-player__title"
-          title={track?.title || t('recordPlayer.titleEmpty')}
+          title={displayTitle || t('recordPlayer.titleEmpty')}
         >
-          {track?.title || t('recordPlayer.titleEmpty')}
+          {displayTitle || t('recordPlayer.titleEmpty')}
         </div>
-        <div className="record-player__artist" title={track?.artist || ''}>
-          {track?.artist || t('recordPlayer.artistEmpty')}
+        <div className="record-player__artist" title={displayArtist || ''}>
+          {displayArtist || t('recordPlayer.artistEmpty')}
         </div>
       </div>
     </div>

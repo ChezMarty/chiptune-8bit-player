@@ -6,6 +6,7 @@ import type {
   TrackEndedCallback,
   TrackChangedCallback,
   ErrorCallback,
+  AudioDataCallback,
   NowPlayingMeta,
 } from './types'
 
@@ -78,6 +79,36 @@ const PROGRESS_INTERVAL_MS = 200
  *
  * Falls back to 'unavailable' state if initialization fails (e.g.,
  * non-Premium account), letting the engine switch to Spotify Connect.
+ *
+ * ── PlayReady / EME warnings ──
+ *
+ * The Spotify Web Playback SDK (loaded from sdk.scdn.co/spotify-player.js)
+ * internally calls navigator.requestMediaKeySystemAccess() with the
+ * com.microsoft.playready.recommendation.3000 key system during its own
+ * initialization. This triggers the following console warnings on Windows:
+ *
+ *   "It is recommended that a robustness level be specified."
+ *   "com.microsoft.playready.recommendation"
+ *   "com.microsoft.playready.recommendation.3000"
+ *   "Before generating a request, setServerCertificate() must be called
+ *    with a valid server certificate."
+ *   "requestMediaKeySystemAccess()"
+ *
+ * These warnings originate from the Spotify SDK's internal DRM code, NOT
+ * from our application. No TypeScript/TSX/HTML/JS file in this project
+ * calls requestMediaKeySystemAccess, MediaKeys, setServerCertificate,
+ * or any other EME API.
+ *
+ * The warnings are completely harmless in this application because:
+ * 1. All Spotify audio is delivered via librespot (direct PCM streaming
+ *    through Web Audio API — no EME needed).
+ * 2. The Spotify SDK is loaded as a fallback only; Librespot is preferred.
+ * 3. No application functionality depends on PlayReady CDM working.
+ *
+ * The SDK's EME calls can be avoided entirely when Librespot is the active
+ * provider — the SDK is loaded at startup by playbackEngine.initialize()
+ * but its EME initialization is for Spotify's own encrypted streams, which
+ * we bypass via librespot's direct PCM delivery.
  */
 export class SpotifySdkProvider implements PlaybackProvider {
   readonly id: PlaybackSource = 'spotify-sdk'
@@ -94,16 +125,18 @@ export class SpotifySdkProvider implements PlaybackProvider {
   private endedCbs: TrackEndedCallback[] = []
   private trackCbs: TrackChangedCallback[] = []
   private errorCbs: ErrorCallback[] = []
+  private audioDataCbs: AudioDataCallback[] = []
 
   async initialize(): Promise<void> {
     if (this.initialized) return
     this.initialized = true
 
-    // 1. Inject the SDK script.
-    await this.injectSdk()
-
-    // 2. Wait for the SDK to become ready.
-    await new Promise<void>((resolve) => {
+    // 0. Create the ready Promise and set the callback BEFORE injecting the
+    //    script. The Spotify Web Playback SDK calls
+    //    window.onSpotifyWebPlaybackSDKReady() synchronously when it loads.
+    //    If the callback isn't set before the script element is appended,
+    //    the SDK throws AnthemError: "onSpotifyWebPlaybackSDKReady is not defined".
+    const sdkReady = new Promise<void>((resolve) => {
       if (window.Spotify) {
         resolve()
         return
@@ -112,6 +145,12 @@ export class SpotifySdkProvider implements PlaybackProvider {
       // Timeout if SDK never loads (e.g. offline).
       setTimeout(() => resolve(), 8000)
     })
+
+    // 1. Inject the SDK script (after the callback is set).
+    await this.injectSdk()
+
+    // 2. Wait for the SDK to become ready (callback fires or timeout).
+    await sdkReady
 
     if (!window.Spotify) {
       console.warn('[spotify-sdk] SDK script did not load')
@@ -214,6 +253,8 @@ export class SpotifySdkProvider implements PlaybackProvider {
     this.available = false
     this.initialized = false
     this.removeAllListeners()
+    // Clean up the global callback so a fresh mount doesn't see a stale reference.
+    window.onSpotifyWebPlaybackSDKReady = undefined
   }
 
   /** Whether the SDK is connected and ready for playback. */
@@ -286,12 +327,14 @@ export class SpotifySdkProvider implements PlaybackProvider {
   onTrackEnded(cb: TrackEndedCallback): void { this.endedCbs.push(cb) }
   onTrackChanged(cb: TrackChangedCallback): void { this.trackCbs.push(cb) }
   onError(cb: ErrorCallback): void { this.errorCbs.push(cb) }
+  onAudioData(cb: AudioDataCallback): void { this.audioDataCbs.push(cb) }
 
   removeAllListeners(): void {
     this.progressCbs = []
     this.endedCbs = []
     this.trackCbs = []
     this.errorCbs = []
+    this.audioDataCbs = []
   }
 
   // ── internal ──────────────────────────────────────────────

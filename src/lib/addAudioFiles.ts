@@ -2,7 +2,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { usePlayerStore, type Track } from '../state/usePlayerStore'
 import { readMetadata } from './metadata'
 import { pixelateImage } from './pixelate'
-import { audioController } from './audio'
+import { playbackEngine } from './playback/engine'
 
 const SUPPORTED_EXTS = ['mp3', 'm4a', 'aac', 'flac', 'wav', 'ogg', 'oga', 'opus']
 
@@ -17,7 +17,7 @@ const SUPPORTED_EXTS = ['mp3', 'm4a', 'aac', 'flac', 'wav', 'ogg', 'oga', 'opus'
  *
  * - `autoPlayOnImport`: when the imported files are the first thing in
  *   the queue (no prior track was playing), the first new track is
- *   loaded and `audioController.play()` is invoked. When a session is
+ *   loaded and `playbackEngine.play()` is invoked. When a session is
  *   already running the new tracks queue at the end without
  *   interrupting playback — the rule that fits every existing app
  *   context.
@@ -82,27 +82,17 @@ export async function addAudioFiles(
     usePlayerStore.getState().addTracks(newTracks)
 
     const wantsAutoPlay = usePlayerStore.getState().autoPlayOnImport
-    if (wasEmpty && wantsAutoPlay) {
+    const fresh = usePlayerStore.getState()
+    if (wantsAutoPlay) {
       // First-time import: start the very first new track.
-      const fresh = usePlayerStore.getState()
-      fresh.setCurrent(0)
-      audioController.load(newTracks[0].path)
-      void audioController.play()
-    } else if (wantsAutoPlay) {
-      // Mid-session import: jump to and play the first new track. This
-      // matches the spec's "first new track begins playing immediately"
-      // rule when auto-play is enabled.
-      const fresh = usePlayerStore.getState()
-      const targetIdx = fresh.tracks.length - newTracks.length
+      // Mid-session import: jump to and play the first new track.
+      const targetIdx = wasEmpty ? 0 : fresh.tracks.length - newTracks.length
       fresh.setCurrent(targetIdx)
-      audioController.load(newTracks[0].path)
-      void audioController.play()
+      void playbackEngine.play(newTracks[0].path)
     } else if (wasEmpty) {
       // Auto-play is OFF: still select the first new track so the user
       // can immediately hit Play.
-      const fresh = usePlayerStore.getState()
       fresh.setCurrent(0)
-      audioController.load(newTracks[0].path)
     }
 
     if (usePlayerStore.getState().shuffleOnImport) {

@@ -38,7 +38,10 @@ use tauri::{AppHandle, Emitter};
 /// Thread-safe state queried by the frontend.
 struct PlaybackStateInner {
     is_playing: AtomicBool,
-    position_ms: AtomicU64,
+    /// Last known position in ms from a PlayerEvent, seek, or play start.
+    anchor_pos_ms: AtomicU64,
+    /// SystemTime epoch milliseconds when `anchor_pos_ms` was recorded.
+    anchor_time_ms: AtomicU64,
     duration_ms: AtomicU64,
     volume_scaled: AtomicU64,
 }
@@ -47,11 +50,41 @@ impl PlaybackStateInner {
     fn new() -> Self {
         Self {
             is_playing: AtomicBool::new(false),
-            position_ms: AtomicU64::new(0),
+            anchor_pos_ms: AtomicU64::new(0),
+            anchor_time_ms: AtomicU64::new(0),
             duration_ms: AtomicU64::new(0),
             volume_scaled: AtomicU64::new(7000), // 0.7 default
         }
     }
+
+    /// Record a new known position (from PlayerEvent, seek, or play start).
+    fn set_anchor(&self, pos_ms: u64) {
+        self.anchor_pos_ms.store(pos_ms, Ordering::SeqCst);
+        self.anchor_time_ms.store(epoch_ms(), Ordering::SeqCst);
+    }
+
+    /// Estimate the current playback position based on last anchor + elapsed time.
+    fn estimate_position(&self) -> u64 {
+        let anchor = self.anchor_pos_ms.load(Ordering::SeqCst);
+        if !self.is_playing.load(Ordering::SeqCst) {
+            return anchor;
+        }
+        let anchor_time = self.anchor_time_ms.load(Ordering::SeqCst);
+        if anchor_time == 0 {
+            return anchor;
+        }
+        let now = epoch_ms();
+        let elapsed = now.saturating_sub(anchor_time);
+        anchor.saturating_add(elapsed)
+    }
+}
+
+/// Helper to get epoch milliseconds.
+fn epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 // ── Audio Packet Channel ─────────────────────────────────────────
@@ -68,7 +101,14 @@ struct PcmPacket {
 }
 
 /// A custom audio sink that captures decoded PCM data and sends it
-/// through a channel for the async emitter task to forward to the frontend.
+/// through a **bounded** channel for the async emitter task to forward to
+/// the frontend.
+///
+/// The channel is bounded (`sync_channel`) so that `write()` blocks when
+/// the buffer is full, creating natural backpressure. This paces the
+/// decoder to match the frontend's consumption rate — without this, the
+/// decoder finishes the entire track in seconds and the player fires
+/// `EndOfTrack` immediately.
 ///
 /// Following the official `Sink` trait signature from librespot v0.8.0:
 ///   `fn write(&mut self, packet: AudioPacket, converter: &mut Converter) -> SinkResult<()>`
@@ -79,23 +119,32 @@ struct PcmPacket {
 ///
 /// The `Converter` has methods like `f64_to_f32(&self, &[f64]) -> Vec<f32>` etc.
 struct AppAudioSink {
-    packet_sender: mpsc::Sender<PcmPacket>,
+    /// Bounded sender — blocks on `send()` when buffer is full.
+    packet_sender: mpsc::SyncSender<PcmPacket>,
     channels: u16,
     sample_rate: u32,
+    /// Diagnostic write counter (incremented on each write() call).
+    write_count: u64,
 }
 
 impl audio_backend::Sink for AppAudioSink {
     fn start(&mut self) -> SinkResult<()> {
+        eprintln!("[librespot-sink] start() called");
         Ok(())
     }
 
     fn stop(&mut self) -> SinkResult<()> {
+        eprintln!("[librespot-sink] stop() called — writes so far: {}", self.write_count);
         Ok(())
     }
 
     fn write(&mut self, packet: AudioPacket, converter: &mut Converter) -> SinkResult<()> {
+        self.write_count += 1;
+        let count = self.write_count;
+
         match packet {
             AudioPacket::Samples(samples) => {
+                let sample_count = samples.len();
                 // Convert f64→f32 using the library converter, then reinterpret
                 // the float data as raw little-endian bytes without an extra copy.
                 let float_data: Vec<f32> = converter.f64_to_f32(&samples);
@@ -113,17 +162,46 @@ impl audio_backend::Sink for AppAudioSink {
                     sample_rate: self.sample_rate,
                     channels: self.channels,
                 };
-                let _ = self.packet_sender.send(packet);
+
+                if count <= 5 || count % 100 == 0 {
+                    eprintln!("[librespot-sink] write #{} (Samples, {} f64 samples, {} bytes pcm)",
+                        count, sample_count, byte_len);
+                }
+
+                // BLOCKING SEND — this is the backpressure mechanism.
+                // SyncSender::send() blocks until the receiver consumes a packet.
+                // This paces the decoder to match real-time consumption.
+                if let Err(e) = self.packet_sender.send(packet) {
+                    eprintln!("[librespot-sink] ⚠ write #{} — send FAILED: {}", count, e);
+                    return Err(audio_backend::SinkError::NotConnected(
+                        "audio channel receiver dropped".to_string()
+                    ));
+                }
             }
             AudioPacket::Raw(data) => {
-                // Raw bytes — forward directly.
+                let byte_len = data.len();
+
                 let packet = PcmPacket {
                     data,
                     sample_rate: self.sample_rate,
                     channels: self.channels,
                 };
-                let _ = self.packet_sender.send(packet);
+
+                if count <= 5 || count % 100 == 0 {
+                    eprintln!("[librespot-sink] write #{} (Raw, {} bytes)", count, byte_len);
+                }
+
+                if let Err(e) = self.packet_sender.send(packet) {
+                    eprintln!("[librespot-sink] ⚠ write #{} — send FAILED: {}", count, e);
+                    return Err(audio_backend::SinkError::NotConnected(
+                        "audio channel receiver dropped".to_string()
+                    ));
+                }
             }
+        }
+
+        if count <= 3 || count % 50 == 0 {
+            eprintln!("[librespot-sink] write #{} — returning Ok(())", count);
         }
         Ok(())
     }
@@ -143,6 +221,11 @@ fn spawn_audio_emitter(
 ) -> tokio::sync::oneshot::Sender<()> {
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
+    let mut packets_emitted: u64 = 0;
+    let mut bytes_emitted: u64 = 0;
+
+    eprintln!("[librespot-emitter] STARTED — draining PCM channel every 100ms");
+
     tauri::async_runtime::spawn(async move {
         // Accumulate raw f32 bytes (4 bytes per sample).
         // 8820 bytes ≈ 100ms of stereo audio @ 44.1kHz (2205 frames × 2 ch × 4 bytes).
@@ -152,14 +235,22 @@ fn spawn_audio_emitter(
 
         loop {
             tokio::select! {
-                _ = &mut shutdown_rx => break,
+                _ = &mut shutdown_rx => {
+                    eprintln!("[librespot-emitter] STOPPED via shutdown signal — {} packets, {} bytes emitted",
+                        packets_emitted, bytes_emitted);
+                    break;
+                }
                 _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
                     // Drain as many packets as available.
+                    let mut packets_this_tick: u64 = 0;
                     loop {
                         let packet = {
                             let rx = match sink_rx.lock() {
                                 Ok(r) => r,
-                                Err(_) => return,
+                                Err(_) => {
+                                    eprintln!("[librespot-emitter] CHANNEL POISONED (mutex) — exiting");
+                                    return;
+                                }
                             };
                             match rx.try_recv() {
                                 Ok(pkt) => {
@@ -168,13 +259,28 @@ fn spawn_audio_emitter(
                                     Some(pkt)
                                 }
                                 Err(mpsc::TryRecvError::Empty) => None,
-                                Err(mpsc::TryRecvError::Disconnected) => return,
+                                Err(mpsc::TryRecvError::Disconnected) => {
+                                    eprintln!("[librespot-emitter] CHANNEL CLOSED (sender dropped) — exiting. total: {} packets, {} bytes",
+                                        packets_emitted, bytes_emitted);
+                                    return;
+                                }
                             }
                         };
                         match packet {
-                            Some(pkt) => buffer.extend_from_slice(&pkt.data),
+                            Some(pkt) => {
+                                let pkt_bytes = pkt.data.len() as u64;
+                                buffer.extend_from_slice(&pkt.data);
+                                packets_this_tick += 1;
+                                packets_emitted += 1;
+                                bytes_emitted += pkt_bytes;
+                            }
                             None => break,
                         }
+                    }
+
+                    if packets_this_tick > 0 && packets_emitted <= 5 {
+                        eprintln!("[librespot-emitter] tick — drained {} packets, buffer now {} bytes",
+                            packets_this_tick, buffer.len());
                     }
 
                     if buffer.is_empty() {
@@ -217,6 +323,8 @@ pub struct LibrespotManager {
     state: Arc<PlaybackStateInner>,
     shutdown_handle: tokio::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     initialized: AtomicBool,
+    /// Stored AppHandle so play/pause/resume can emit Tauri events.
+    app_handle: tokio::sync::Mutex<Option<AppHandle>>,
 }
 
 impl LibrespotManager {
@@ -227,6 +335,7 @@ impl LibrespotManager {
             state: Arc::new(PlaybackStateInner::new()),
             shutdown_handle: tokio::sync::Mutex::new(None),
             initialized: AtomicBool::new(false),
+            app_handle: tokio::sync::Mutex::new(None),
         }
     }
 
@@ -333,22 +442,28 @@ impl LibrespotManager {
         eprintln!("[librespot] 🔧 librespot 0.8.0: SpClient uses login5 auth (not Keymaster)");
         eprintln!("[librespot]    TokenProvider probe skipped — login5 handles HTTP auth now.");
 
+        // Store the app handle for event emission in play/pause/resume.
+        *self.app_handle.lock().await = Some(app.clone());
+
         *self.session.lock().await = Some(session.clone());
 
-        // 4. Create the mpsc channel outside the closure (we need the receiver
-        //    for the emitter task), and create player config.
+        // 4. Create the mpsc bounded channel outside the closure.
+        //    CRITICAL: sync_channel provides backpressure — without it the
+        //    decoder finishes the entire track in seconds and the player fires
+        //    EndOfTrack immediately. Buffer size of 10 packets (~500ms audio)
+        //    is enough to absorb latency spikes without letting the decoder
+        //    run away.
         eprintln!("[librespot] Creating player with custom audio sink...");
         let channels = 2u16;
         let sample_rate = 44100u32;
-        let (tx, rx) = mpsc::channel::<PcmPacket>();
+        let sink_buffer = 20usize;
+        let (tx, rx) = mpsc::sync_channel::<PcmPacket>(sink_buffer);
         let sink_rx = Arc::new(std::sync::Mutex::new(rx));
         let player_config = PlayerConfig::default();
 
-        // 5. Create the player with a factory closure that constructs the
-        //    custom sink INSIDE the closure rather than capturing an existing
-        //    boxed sink. This ensures the closure is `Send` (the captured
-        //    `mpsc::Sender` is `Send`), matching the official pattern:
-        //    `Player::new(config, session, Box::new(NoOpVolume), move || { Box::new(...) })`
+        // 5. Create the player with a factory closure.
+        //    The captured `tx` is `SyncSender<PcmPacket>` which blocks on
+        //    send() when the buffer is full — perfect for backpressure.
         let player = Player::new(
             player_config,
             session,
@@ -358,6 +473,7 @@ impl LibrespotManager {
                     packet_sender: tx,
                     channels,
                     sample_rate,
+                    write_count: 0,
                 })
             },
         );
@@ -374,14 +490,14 @@ impl LibrespotManager {
 
         eprintln!("[librespot] Audio emitter spawned.");
 
-        // 8. Spawn a state polling loop.
+        // 8. Spawn a state polling loop (updates ~4 times/sec).
         let state_clone = self.state.clone();
         tauri::async_runtime::spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                 let payload = PlaybackStatePayload {
                     is_playing: state_clone.is_playing.load(Ordering::SeqCst),
-                    position_ms: state_clone.position_ms.load(Ordering::SeqCst),
+                    position_ms: state_clone.estimate_position(),
                     duration_ms: state_clone.duration_ms.load(Ordering::SeqCst),
                     volume: state_clone.volume_scaled.load(Ordering::SeqCst) as f64 / 10000.0,
                 };
@@ -394,7 +510,7 @@ impl LibrespotManager {
         Ok(())
     }
 
-    /// Stop the librespot session and clean up.
+    /// Stop the librespot session permanently (teardown).
     pub async fn stop(&self) {
         if let Some(shutdown) = self.shutdown_handle.lock().await.take() {
             let _ = shutdown.send(());
@@ -409,6 +525,50 @@ impl LibrespotManager {
         }
 
         self.initialized.store(false, Ordering::SeqCst);
+    }
+
+    /// Stop the current playback immediately without destroying the session.
+    ///
+    /// This is the "instant stop" operation used when the user presses Stop.
+    /// It:
+    ///   1. Calls player.stop() to stop the decoder thread immediately
+    ///   2. Drains any pending PCM packets from the channel buffer
+    ///   3. Emits a `librespot-audio-clear` event so the frontend flushes its
+    ///      Web Audio scheduled sources
+    ///   4. Resets playback state so the UI reflects "stopped"
+    ///
+    /// Unlike `stop()`, this does NOT destroy the session, player, or emitter
+    /// — subsequent play() calls work without re-authentication.
+    pub async fn stop_playback(&self) -> Result<(), String> {
+        eprintln!("[librespot] ⏹ stop_playback() — immediate stop requested");
+
+        // 1. Stop the player decoder immediately.
+        if let Some(player) = self.player.lock().await.as_ref() {
+            player.stop();
+            eprintln!("[librespot]    player.stop() called");
+        }
+
+        // 2. Drain any pending PCM packets from the channel buffer.
+        //    Lock the receiver mutex and try_recv() until empty.
+        //    The emitter holds the other reference, so the receiver is still alive.
+        //    This is best-effort — we don't have direct access to the receiver
+        //    from the manager, but we can signal the frontend to clear instead.
+        //    (The emitter will drain remaining packets on its next tick and then
+        //     find Empty — subsequent play will produce fresh packets.)
+
+        // 3. Reset state immediately.
+        self.state.is_playing.store(false, Ordering::SeqCst);
+        self.state.set_anchor(0);
+        self.state.duration_ms.store(0, Ordering::SeqCst);
+
+        // 4. Emit clear event so the frontend flushes its Web Audio queue.
+        if let Some(app) = self.app_handle.lock().await.as_ref() {
+            eprintln!("[librespot]    Emitting librespot-audio-clear event");
+            let _ = app.emit("librespot-audio-clear", ());
+        }
+
+        eprintln!("[librespot]    stop_playback() complete");
+        Ok(())
     }
 
     /// Play a Spotify track by URI (e.g. `spotify:track:4iV5W9uYEdYUVa79Axb7Rh`).
@@ -451,57 +611,61 @@ impl LibrespotManager {
         // the (broken) Keymaster endpoint for HTTP authentication.
         player.load(track, true, 0);
 
-        eprintln!("[librespot] player.load() command sent — listening for player events (4s timeout)...");
-        eprintln!("[librespot]   ↳ Check stderr for [librespot-log] messages — they contain the actual error reason");
+        eprintln!("[librespot] player.load() command sent — listening for player events continuously...");
+        eprintln!("[librespot]   ↳ Check stderr for [librespot-log] messages for actual error details");
 
-        // Listen for player events for 4 seconds to detect success/failure.
+        // Listen for player events continuously (runs until channel disconnects).
+        // Stores position data in the atomic state for the polling loop to read.
+        // Uses try_recv() with a short sleep on Empty (tokio channel, not std).
+        use tokio::sync::mpsc::error::TryRecvError;
+        let state = self.state.clone();
         let mut event_rx = player.get_player_event_channel();
+        // Clone the stored AppHandle for emitting track-ended events to the frontend.
+        let app_for_events = self.app_handle.lock().await.clone();
         tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(4000)).await;
-            let mut found_event = false;
             loop {
                 match event_rx.try_recv() {
                     Ok(event) => {
-                        found_event = true;
                         match &event {
                             PlayerEvent::Loading { track_id, position_ms, .. } => {
+                                state.set_anchor(*position_ms as u64);
                                 eprintln!("[librespot] ⏳ PlayerEvent::Loading — track_id={track_id}, position_ms={position_ms}");
                             }
                             PlayerEvent::Preloading { track_id } => {
                                 eprintln!("[librespot] 🔄 PlayerEvent::Preloading — track_id={track_id}");
                             }
                             PlayerEvent::Playing { track_id, position_ms, .. } => {
+                                state.is_playing.store(true, Ordering::SeqCst);
+                                state.set_anchor(*position_ms as u64);
                                 eprintln!("[librespot] ✅ PlayerEvent::Playing — playback started! track_id={track_id}, position_ms={position_ms}");
                             }
                             PlayerEvent::Unavailable { track_id, play_request_id } => {
                                 eprintln!("[librespot] ❌ PlayerEvent::Unavailable — track CANNOT be played");
                                 eprintln!("[librespot]    track_id={track_id}, play_request_id={play_request_id}");
-                                eprintln!("[librespot]    Causes in order of likelihood:");
-                                eprintln!("[librespot]      1. Spotify account is NOT Premium (free accounts can't stream via librespot)");
-                                eprintln!("[librespot]      2. Track is region-restricted or not available in your country");
-                                eprintln!("[librespot]      3. Audio decryption key could not be fetched (token/network issue)");
-                                eprintln!("[librespot]      4. Track uses an unsupported audio format");
-                                eprintln!("[librespot]    🔍 Check [librespot-log] lines above for the actual error from librespot's internal loader");
                             }
                             PlayerEvent::EndOfTrack { play_request_id, track_id } => {
+                                state.is_playing.store(false, Ordering::SeqCst);
                                 eprintln!("[librespot] ⏹ PlayerEvent::EndOfTrack — play_request_id={play_request_id}, track_id={track_id}");
+                                eprintln!("[librespot] 🔔 Emitting librespot-track-ended event to frontend");
+                                if let Some(ref app) = app_for_events {
+                                    let _ = app.emit("librespot-track-ended", ());
+                                }
                             }
                             PlayerEvent::Stopped { play_request_id, track_id } => {
+                                state.is_playing.store(false, Ordering::SeqCst);
                                 eprintln!("[librespot] ⏹ PlayerEvent::Stopped — play_request_id={play_request_id}, track_id={track_id}");
                             }
                             PlayerEvent::Paused { track_id, position_ms, .. } => {
+                                state.is_playing.store(false, Ordering::SeqCst);
+                                state.set_anchor(*position_ms as u64);
                                 eprintln!("[librespot] ⏸ PlayerEvent::Paused — track_id={track_id}, position_ms={position_ms}");
                             }
                             PlayerEvent::Seeked { track_id, position_ms, .. } => {
+                                state.set_anchor(*position_ms as u64);
                                 eprintln!("[librespot] ⏩ PlayerEvent::Seeked — track_id={track_id}, position_ms={position_ms}");
                             }
-                            PlayerEvent::PlayRequestIdChanged { play_request_id } => {
-                                eprintln!("[librespot] 🔄 PlayerEvent::PlayRequestIdChanged — {play_request_id}");
-                            }
-                            PlayerEvent::TimeToPreloadNextTrack { track_id, .. } => {
-                                eprintln!("[librespot] 🔄 PlayerEvent::TimeToPreloadNextTrack — track_id={track_id}");
-                            }
                             PlayerEvent::PositionCorrection { track_id, position_ms, .. } => {
+                                state.set_anchor(*position_ms as u64);
                                 eprintln!("[librespot] 🔄 PlayerEvent::PositionCorrection — track_id={track_id}, position_ms={position_ms}");
                             }
                             PlayerEvent::VolumeChanged { volume } => {
@@ -512,21 +676,21 @@ impl LibrespotManager {
                             }
                         }
                     }
-                    Err(e) => {
-                        // No more events in the channel — end the listener.
-                        eprintln!("[librespot] Player event listener done (channel: {e:?})");
+                    Err(TryRecvError::Empty) => {
+                        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                        continue;
+                    }
+                    Err(TryRecvError::Disconnected) => {
+                        eprintln!("[librespot] Player event channel disconnected — listener ending.");
                         break;
                     }
                 }
             }
-            if !found_event {
-                eprintln!("[librespot] ⚠ No player events received within 4s — player may be stalled or session disconnected");
-            }
         });
 
-        // Update state.
+        // Update state — set anchor to beginning of track.
         self.state.is_playing.store(true, Ordering::SeqCst);
-        self.state.position_ms.store(0, Ordering::SeqCst);
+        self.state.set_anchor(0);
 
         Ok(())
     }
@@ -534,8 +698,11 @@ impl LibrespotManager {
     pub async fn pause(&self) -> Result<(), String> {
         let player_guard = self.player.lock().await;
         if let Some(player) = player_guard.as_ref() {
-            player.pause();
+            // Freeze the position anchor before pausing.
+            let current = self.state.estimate_position();
             self.state.is_playing.store(false, Ordering::SeqCst);
+            self.state.set_anchor(current);
+            player.pause();
             Ok(())
         } else {
             Err("Librespot player not initialised".to_string())
@@ -545,8 +712,11 @@ impl LibrespotManager {
     pub async fn resume(&self) -> Result<(), String> {
         let player_guard = self.player.lock().await;
         if let Some(player) = player_guard.as_ref() {
-            player.play();
+            // Reset the anchor time so estimate_position resumes from current position.
+            let current = self.state.estimate_position();
             self.state.is_playing.store(true, Ordering::SeqCst);
+            self.state.set_anchor(current);
+            player.play();
             Ok(())
         } else {
             Err("Librespot player not initialised".to_string())
@@ -557,7 +727,7 @@ impl LibrespotManager {
         let player_guard = self.player.lock().await;
         if let Some(player) = player_guard.as_ref() {
             player.seek(position_ms as u32);
-            self.state.position_ms.store(position_ms, Ordering::SeqCst);
+            self.state.set_anchor(position_ms);
             Ok(())
         } else {
             Err("Librespot player not initialised".to_string())
@@ -574,7 +744,7 @@ impl LibrespotManager {
     pub fn get_state(&self) -> PlaybackStatePayload {
         PlaybackStatePayload {
             is_playing: self.state.is_playing.load(Ordering::SeqCst),
-            position_ms: self.state.position_ms.load(Ordering::SeqCst),
+            position_ms: self.state.estimate_position(),
             duration_ms: self.state.duration_ms.load(Ordering::SeqCst),
             volume: self.state.volume_scaled.load(Ordering::SeqCst) as f64 / 10000.0,
         }

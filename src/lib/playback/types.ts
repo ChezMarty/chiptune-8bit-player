@@ -24,11 +24,21 @@ export interface NowPlayingMeta {
   uri?: string
 }
 
+/** Raw PCM audio data emitted during active playback (for visualizers). */
+export interface AudioData {
+  /** Interleaved float32 samples (range -1..1). */
+  samples: Float32Array
+  sampleRate: number
+  channels: number
+}
+
 /** Event callback types */
 export type ProgressCallback = (p: PlaybackProgress) => void
 export type TrackEndedCallback = () => void
 export type TrackChangedCallback = (meta: NowPlayingMeta | null) => void
 export type ErrorCallback = (error: string) => void
+/** Callback receiving raw PCM audio data for visualizer use. */
+export type AudioDataCallback = (data: AudioData) => void
 
 /**
  * Generic playback provider. Every provider (local, Spotify SDK,
@@ -79,6 +89,8 @@ export interface PlaybackProvider {
   onTrackEnded(cb: TrackEndedCallback): void
   onTrackChanged(cb: TrackChangedCallback): void
   onError(cb: ErrorCallback): void
+  /** Register callback for raw PCM audio data (for visualizers). */
+  onAudioData(cb: AudioDataCallback): void
 
   /** Remove all registered callbacks. */
   removeAllListeners(): void

@@ -13,11 +13,14 @@ import {
   writeUserMeta,
   toggleFavorite,
 } from '../themes/engine'
+import type { NowPlayingMeta } from '../lib/playback/types'
 
 export type { ThemeId, ThemeSortMode } from '../themes/types'
 
 /** Which playback engine is driving the audio output right now. */
 export type PlaybackSource = 'local' | 'spotify-sdk' | 'spotify-librespot'
+
+export type PlaybackStatus = 'stopped' | 'loading' | 'playing' | 'paused' | 'ended' | 'error'
 
 export interface Track {
   id: string
@@ -49,6 +52,11 @@ export const ALWAYS_ON_TOP_STORAGE_KEY = 'chiptune-always-on-top'
 interface PlayerState {
   // Library
   tracks: Track[]
+
+  // Now-playing metadata (provider-agnostic, set by PlaybackEngine)
+  nowPlaying: NowPlayingMeta | null
+  /** Detailed playback status for UI state display. */
+  playbackStatus: PlaybackStatus
 
   // Playback
   currentIndex: number
@@ -84,6 +92,8 @@ interface PlayerState {
   activeSource: PlaybackSource
 
   // Actions
+  setNowPlaying: (meta: NowPlayingMeta | null) => void
+  setPlaybackStatus: (status: PlaybackStatus) => void
   addTracks: (tracks: Track[]) => void
   removeTrack: (id: string) => void
   setCurrent: (idx: number) => void
@@ -126,6 +136,8 @@ interface PlayerState {
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   tracks: [],
+  nowPlaying: null,
+  playbackStatus: 'stopped',
   currentIndex: -1,
   isPlaying: false,
   currentTime: 0,
@@ -167,9 +179,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentTime: 0,
     })),
 
-  setPlaying: (v) => set({ isPlaying: v }),
-  setCurrentTime: (t) => set({ currentTime: t }),
-  setDuration: (d) => set({ duration: Number.isFinite(d) ? d : 0 }),
+  setPlaying: (v) => {
+    console.log('[STORE] setPlaying(', v, ') ←', new Error().stack?.split('\n').slice(2).join('\n'))
+    set({ isPlaying: v })
+  },
+  setCurrentTime: (t) => {
+    console.log('[STORE] setCurrentTime(', t, ') ←', new Error().stack?.split('\n').slice(2).join('\n'))
+    set({ currentTime: t })
+  },
+  setDuration: (d) => {
+    console.log('[STORE] setDuration(', d, ') ←', new Error().stack?.split('\n').slice(2).join('\n'))
+    set({ duration: Number.isFinite(d) ? d : 0 })
+  },
   setVolume: (v) => set({ volume: Math.max(0, Math.min(1, v)) }),
   setStartVolume: (v) => {
     const clamped = Math.max(0, Math.min(100, Math.round(v)))
@@ -361,4 +382,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }),
 
   setActiveSource: (source) => set({ activeSource: source }),
+
+  setNowPlaying: (meta) => set({ nowPlaying: meta }),
+
+  setPlaybackStatus: (status) => {
+    console.log('[STORE] setPlaybackStatus(', status, ') ←', new Error().stack?.split('\n').slice(2).join('\n'))
+    set({ playbackStatus: status })
+  },
 }))

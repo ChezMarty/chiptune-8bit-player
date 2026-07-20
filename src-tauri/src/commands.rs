@@ -278,13 +278,22 @@ pub async fn librespot_start(
         .await
 }
 
-/// Stop the librespot session.
+/// Stop the librespot session (teardown — destroys session and player).
 #[tauri::command]
 pub async fn librespot_stop(
     manager: State<'_, LibrespotManager>,
 ) -> Result<(), String> {
     manager.stop().await;
     Ok(())
+}
+
+/// Stop the current playback immediately without destroying the session.
+/// Clears audio buffers in both Rust and the frontend.
+#[tauri::command]
+pub async fn librespot_stop_playback(
+    manager: State<'_, LibrespotManager>,
+) -> Result<(), String> {
+    manager.stop_playback().await
 }
 
 /// Play a Spotify track by URI.

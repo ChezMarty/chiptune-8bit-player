@@ -3,8 +3,10 @@ import { LocalPlaybackProvider } from './localProvider'
 import { SpotifySdkProvider } from './spotifySdkProvider'
 import { LibrespotProvider } from './librespotProvider'
 import type {
+  AudioDataCallback,
   PlaybackProvider,
   PlaybackSource,
+  NowPlayingMeta,
 } from './types'
 
 /**
@@ -24,6 +26,11 @@ class PlaybackEngine {
   private librespot: LibrespotProvider
   private active: PlaybackProvider
   private initialized = false
+  private audioDataCbs: AudioDataCallback[] = []
+
+  // Track the last-played resource + metadata for restarting after EndOfTrack.
+  private lastResource: string | null = null
+  private lastMeta: NowPlayingMeta | null = null
 
   constructor() {
     this.local = new LocalPlaybackProvider()
@@ -31,8 +38,9 @@ class PlaybackEngine {
     this.librespot = new LibrespotProvider()
     this.active = this.local
 
-    // Wire the local provider's now-playing into the store.
-    this.setupLocalSync()
+    // Wire the initial active provider (local) so its events drive the store.
+    this.wireActiveProvider()
+
   }
 
   /** Call once at app startup. Initializes all providers. */
@@ -69,9 +77,11 @@ class PlaybackEngine {
   setSource(source: PlaybackSource): void {
     if (this.active.id === source) return
 
-    // Pause the current provider before switching.
+    // Step 1: Clean up the OLD provider so its events stop affecting the store.
+    this.active.removeAllListeners()
     this.active.pause().catch(() => {})
 
+    // Step 2: Switch to the new provider.
     switch (source) {
       case 'local':
         this.active = this.local
@@ -84,36 +94,185 @@ class PlaybackEngine {
         break
     }
 
-    usePlayerStore.getState().setActiveSource(source)
+    // Step 3: Wire the NEW provider's callbacks.
+    const store = usePlayerStore.getState()
+    store.setActiveSource(source)
+    if (source !== 'local') {
+      store.setNowPlaying(null)
+    }
+    store.setPlaybackStatus('loading')
     console.log('[playback] Switched to', source)
+    this.wireActiveProvider()
   }
 
-  /** Start playing a resource with automatic provider detection. */
-  async play(resource: string): Promise<void> {
+  /**
+   * Wire only the active provider's callbacks. Call this after switching
+   * providers so stale events from inactive providers never touch the store.
+   */
+  private wireActiveProvider(): void {
+    // We store the current active source so callbacks can verify freshness.
+    const currentSource = this.active.id
+
+    this.active.removeAllListeners()
+
+    this.active.onProgress((p) => {
+      // Guard: ignore events from previously-active providers.
+      if (currentSource !== this.active.id) return
+      console.log('[ENGINE] onProgress fired from provider', this.active.id, '→ currentTimeSec=', p.currentTimeSec, 'durationSec=', p.durationSec, 'isPlaying=', p.isPlaying)
+      const store = usePlayerStore.getState()
+      store.setCurrentTime(p.currentTimeSec)
+      // Only overwrite duration if the provider reports a non-zero value.
+      // This preserves the duration set from track metadata (e.g., librespot
+      // which sends 0 from Rust until the backend tracks it properly).
+      if (p.durationSec > 0) store.setDuration(p.durationSec)
+      store.setPlaying(p.isPlaying)
+      if (p.isPlaying) {
+        console.log('[ENGINE] onProgress → setPlaybackStatus playing')
+        store.setPlaybackStatus('playing')
+      } else if (store.playbackStatus === 'playing') {
+        console.log('[ENGINE] onProgress → setPlaybackStatus paused')
+        store.setPlaybackStatus('paused')
+      }
+    })
+
+    this.active.onTrackChanged((meta) => {
+      if (currentSource !== this.active.id) return
+      const store = usePlayerStore.getState()
+      if (meta) {
+        store.setNowPlaying(meta)
+        store.setDuration(meta.durationSec)
+        console.log('[state] Playing ← engine.onTrackChanged (new track metadata)')
+        store.setPlaybackStatus('playing')
+      } else {
+        // Track ended — fall back to local track if any.
+        const s = usePlayerStore.getState()
+        const localTrack = s.tracks[s.currentIndex]
+        if (!localTrack || s.activeSource !== 'local') {
+          store.setNowPlaying(null)
+        }
+      }
+    })
+
+    this.active.onTrackEnded(() => {
+      if (currentSource !== this.active.id) return
+      const store = usePlayerStore.getState()
+      console.log('[ENGINE] onTrackEnded fired from provider', this.active.id)
+      store.setPlaybackStatus('ended')
+      store.setPlaying(false)
+      this.next().catch(() => {})
+    })
+
+    this.active.onError((error) => {
+      if (currentSource !== this.active.id) return
+      const store = usePlayerStore.getState()
+      console.log('[state] Error ← engine.onError:', error)
+      store.setPlaybackStatus('error')
+      console.error('[playback] Provider error:', error)
+    })
+
+    // Forward audio data to engine-level subscribers (e.g. visualizers).
+    if (this.audioDataCbs.length > 0) {
+      this.active.onAudioData((data) => {
+        // Use active provider guard: capture currentSource at subscription time.
+        if (currentSource !== this.active.id) return
+        this.audioDataCbs.forEach((cb) => cb(data))
+      })
+    }
+  }
+
+  /**
+   * Start playing a resource with automatic provider detection.
+   *
+   * @param resource  Spotify URI (spotify:track:xxx) or local file path.
+   * @param meta      Optional track metadata. When provided, it is stored in
+   *                  the player store so the UI can display title/artist/art.
+   */
+  async play(resource: string, meta?: NowPlayingMeta): Promise<void> {
+    const store = usePlayerStore.getState()
+
+    // Store the resource + metadata so we can restart after EndOfTrack.
+    this.lastResource = resource
+    this.lastMeta = meta ?? null
+
     if (resource.startsWith('spotify:')) {
       // Spotify URI — use Librespot (direct streaming) if available,
       // or fall back to the Web Playback SDK.
       if (this.librespot.isAvailable()) {
         this.setSource('spotify-librespot')
+        console.log('[state] Loading ← engine.play (Spotify URI)')
+        // Set provided metadata immediately (UI shows track info right away).
+        // Also set duration so the right timer shows total duration instead of 00:00.
+        if (meta) {
+          store.setNowPlaying(meta)
+          store.setDuration(meta.durationSec)
+        }
+        store.setPlaybackStatus('loading')
         await this.active.play(resource)
       } else if (this.spotifySdk.isAvailable()) {
         this.setSource('spotify-sdk')
+        store.setPlaybackStatus('loading')
+        if (meta) {
+          store.setNowPlaying(meta)
+          store.setDuration(meta.durationSec)
+        }
         // For SDK, we need to transfer playback to our device first,
         // then call play via the Web API with our device_id.
         const deviceId = this.spotifySdk.getDeviceId()
         await this.playOnSpotify(resource, deviceId)
       } else {
+        store.setPlaybackStatus('error')
         throw new Error('No Spotify playback engine available')
       }
     } else {
       // Local file path.
       this.setSource('local')
+      store.setPlaybackStatus('loading')
       await this.active.play(resource)
     }
   }
 
   async togglePlay(): Promise<void> {
-    await this.active.togglePlay()
+    const store = usePlayerStore.getState()
+    console.log('[ENGINE] togglePlay() — current isPlaying=', store.isPlaying, 'status=', store.playbackStatus)
+
+    // If the player is in 'ended' or 'stopped' state, restart the current
+    // track from the beginning instead of calling resume(). Librespot's
+    // player.play() only resumes a PAUSED player — after player.stop() the
+    // player is in a Stopped state and needs player.load() to play again.
+    if ((store.playbackStatus === 'ended' || store.playbackStatus === 'stopped') && this.lastResource) {
+      console.log('[ENGINE] togglePlay() —', store.playbackStatus, 'state, restarting track')
+      await this.play(this.lastResource, this.lastMeta ?? undefined)
+      return
+    }
+
+    // Capture the REAL playback state BEFORE the optimistic update,
+    // then call the correct method directly. DO NOT call
+    // this.active.togglePlay() — the provider's togglePlay() reads
+    // store.isPlaying which has ALREADY been flipped by the optimistic
+    // update above, causing the provider to call the wrong method.
+    const wasPlaying = store.isPlaying
+
+    // Optimistic UI: flip immediately, then send correct command.
+    if (wasPlaying) {
+      console.log('[ENGINE] togglePlay() → pausing (optimistic store update)')
+      store.setPlaying(false)
+      store.setPlaybackStatus('paused')
+    } else {
+      console.log('[ENGINE] togglePlay() → playing (optimistic store update)')
+      store.setPlaying(true)
+      store.setPlaybackStatus('playing')
+    }
+
+    // Call the correct method directly using the PRE-OPTIMISTIC state.
+    // This avoids the race where the provider reads the already-flipped
+    // store.isPlaying and calls the wrong method.
+    console.log('[ENGINE] togglePlay() — calling active.', wasPlaying ? 'pause()' : 'resume()', '(wasPlaying=', wasPlaying, ')')
+    if (wasPlaying) {
+      await this.active.pause()
+    } else {
+      await this.active.resume()
+    }
+    console.log('[ENGINE] togglePlay() — completed')
   }
 
   async pause(): Promise<void> {
@@ -125,7 +284,17 @@ class PlaybackEngine {
   }
 
   async stop(): Promise<void> {
+    // Optimistic UI: reset everything immediately,
+    // then clean up the backend.
+    const store = usePlayerStore.getState()
+    console.log('[ENGINE] stop() called — optimistic store update started')
+    store.setPlaybackStatus('stopped')
+    store.setPlaying(false)
+    store.setCurrentTime(0)
+    console.log('[ENGINE] stop() — optimistic store update done, calling active.stop()')
+
     await this.active.stop()
+    console.log('[ENGINE] stop() — active.stop() completed')
   }
 
   async next(): Promise<void> {
@@ -137,7 +306,15 @@ class PlaybackEngine {
   }
 
   async seek(seconds: number): Promise<void> {
+    // Optimistic UI: update position immediately,
+    // then send the seek command to the backend.
+    const store = usePlayerStore.getState()
+    console.log('[ENGINE] seek(', seconds, ') — optimistic store update')
+    store.setCurrentTime(seconds)
+    console.log('[ENGINE] seek() — calling active.seek()')
+
     await this.active.seek(seconds)
+    console.log('[ENGINE] seek() — active.seek() completed')
   }
 
   async setVolume(v: number): Promise<void> {
@@ -164,21 +341,28 @@ class PlaybackEngine {
     return this.spotifySdk
   }
 
-  // ── internal ──────────────────────────────────────────────
-
-  private setupLocalSync(): void {
-    // When the store's currentIndex changes and we're on local,
-    // load the track into the local provider.
-    usePlayerStore.subscribe((state, prev) => {
-      if (this.active.id !== 'local') return
-      if (state.currentIndex !== prev.currentIndex) {
-        const track = state.tracks[state.currentIndex]
-        if (track) {
-          this.local.play(track.path).catch(() => {})
-        }
-      }
-    })
+  /**
+   * Subscribe to raw PCM audio data from the active provider.
+   * Used by visualizer components. The callback receives interleaved
+   * float32 samples at the provider's native sample rate.
+   *
+   * Currently only librespot emits audio data. Local and Spotify SDK
+   * providers don't expose raw PCM, so the callback will never fire
+   * for those sources. This is intentional — the architecture is ready
+   * for future providers that emit PCM data.
+   */
+  subscribeAudioData(cb: AudioDataCallback): () => void {
+    this.audioDataCbs.push(cb)
+    // Re-wire the active provider so it forwards audio data to this subscriber.
+    this.wireActiveProvider()
+    // Return an unsubscribe function.
+    return () => {
+      const idx = this.audioDataCbs.indexOf(cb)
+      if (idx >= 0) this.audioDataCbs.splice(idx, 1)
+    }
   }
+
+  // ── internal ──────────────────────────────────────────────
 
   private async playOnSpotify(uri: string, deviceId: string | null): Promise<void> {
     // Use the Spotify Web API to start playback on the SDK device.

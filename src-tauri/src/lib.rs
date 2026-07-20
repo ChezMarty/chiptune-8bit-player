@@ -103,6 +103,7 @@ pub fn run() {
             commands::librespot_resume,
             commands::librespot_seek,
             commands::librespot_set_volume,
+            commands::librespot_stop_playback,
             commands::librespot_get_state,
         ])
         .run(tauri::generate_context!())

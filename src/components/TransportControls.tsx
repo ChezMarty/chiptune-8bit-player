@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { usePlayerStore } from '../state/usePlayerStore'
 import { playbackEngine } from '../lib/playback/engine'
 import { useT } from '../i18n/useT'
@@ -10,10 +10,20 @@ export function TransportControls() {
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
   const volume = usePlayerStore((s) => s.volume)
+  const nowPlaying = usePlayerStore((s) => s.nowPlaying)
+  const activeSource = usePlayerStore((s) => s.activeSource)
+  const playbackStatus = usePlayerStore((s) => s.playbackStatus)
   const { t } = useT()
 
-  const hasTracks = tracks.length > 0
-  const hasCurrent = currentIndex >= 0 && tracks[currentIndex] !== undefined
+  // Drag state for seek bar
+  const isDraggingRef = useRef(false)
+  const progressRef = useRef<HTMLDivElement | null>(null)
+
+  const isSpotify = activeSource === 'spotify-librespot' || activeSource === 'spotify-sdk'
+  const hasCurrent = isSpotify
+    ? !!nowPlaying
+    : currentIndex >= 0 && tracks[currentIndex] !== undefined
+  const hasTracks = tracks.length > 0 || isSpotify
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -66,6 +76,12 @@ export function TransportControls() {
 
   function togglePlay() {
     if (!hasCurrent) return
+    // In 'ended' state, pressing play restarts the current track from 0.
+    // The engine handles this by calling play() with the last resource.
+    if (playbackStatus === 'ended') {
+      playbackEngine.togglePlay()
+      return
+    }
     playbackEngine.togglePlay()
   }
 
@@ -84,13 +100,38 @@ export function TransportControls() {
     playbackEngine.prev()
   }
 
-  function onSeek(e: React.MouseEvent<HTMLDivElement>) {
+  const calculateSeek = useCallback(
+    (clientX: number) => {
+      if (!duration || !progressRef.current) return
+      const rect = progressRef.current.getBoundingClientRect()
+      const x = clientX - rect.left
+      const pct = Math.max(0, Math.min(1, x / rect.width))
+      playbackEngine.seek(pct * duration)
+    },
+    [duration],
+  )
+
+  function onSeekMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     if (!duration) return
-    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const pct = Math.max(0, Math.min(1, x / rect.width))
-    playbackEngine.seek(pct * duration)
+    isDraggingRef.current = true
+    calculateSeek(e.clientX)
   }
+
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      if (!isDraggingRef.current) return
+      calculateSeek(e.clientX)
+    }
+    function onMouseUp() {
+      isDraggingRef.current = false
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [calculateSeek])
 
   function onVolume(e: React.ChangeEvent<HTMLInputElement>) {
     const v = Number(e.target.value)
@@ -98,6 +139,14 @@ export function TransportControls() {
   }
 
   const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
+
+  // Source indicator emoji
+  const sourceIcon =
+    activeSource === 'local'
+      ? '💻'
+      : activeSource === 'spotify-sdk'
+        ? '🟢'
+        : '🔗'
 
   return (
     <div className="transport pixel-panel">
@@ -110,25 +159,24 @@ export function TransportControls() {
           title={t('transport.prev.title')}
         >
           {t('transport.prev')}
-        </button>
-        <button
-          className="pixel-button pixel-button--primary transport__btn"
-          onClick={togglePlay}
-          disabled={!hasCurrent}
-          aria-label={isPlaying ? t('transport.pause.aria') : t('transport.play.aria')}
-          title={isPlaying ? t('transport.pause.title') : t('transport.play.title')}
-        >
-          {isPlaying ? t('transport.pause') : t('transport.play')}
-        </button>
-        <button
-          className="pixel-button pixel-button--stop transport__btn"
-          onClick={doStop}
-          disabled={!hasCurrent}
-          aria-label={t('transport.stop.aria')}
-          title={t('transport.stop.title')}
-        >
-          {t('transport.stop')}
-        </button>
+        </button>          <button
+            className="pixel-button pixel-button--primary transport__btn"
+            onClick={togglePlay}
+            disabled={!hasCurrent}
+            aria-label={isPlaying ? t('transport.pause.aria') : t('transport.play.aria')}
+            title={isPlaying ? t('transport.pause.title') : t('transport.play.title')}
+          >
+            {isPlaying ? t('transport.pause') : t('transport.play')}
+          </button>
+          <button
+            className="pixel-button pixel-button--stop transport__btn"
+            onClick={doStop}
+            disabled={!hasCurrent || playbackStatus === 'ended'}
+            aria-label={t('transport.stop.aria')}
+            title={t('transport.stop.title')}
+          >
+            {t('transport.stop')}
+          </button>
         <button
           className="pixel-button transport__btn"
           onClick={doNext}
@@ -143,8 +191,9 @@ export function TransportControls() {
       <div className="transport__time-info">
         <span className="transport__time-current">{fmtTime(currentTime)}</span>
         <div
-          className="transport__progress"
-          onClick={onSeek}
+          ref={progressRef}
+          className={`transport__progress ${isDraggingRef.current ? 'is-dragging' : ''}`}
+          onMouseDown={onSeekMouseDown}
           role="slider"
           aria-label={t('transport.progress.aria')}
           aria-valuemin={0}
@@ -176,9 +225,7 @@ export function TransportControls() {
           className="transport__volume-slider"
         />
         <span className="transport__volume-num">{Math.round(volume * 100)}</span>
-        <span className="transport__source">
-          {playbackEngine.source === 'local' ? '💻' : playbackEngine.source === 'spotify-sdk' ? '🟢' : '🔗'}
-        </span>
+        <span className="transport__source">{sourceIcon}</span>
       </div>
     </div>
   )

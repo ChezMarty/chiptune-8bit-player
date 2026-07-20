@@ -54,6 +54,8 @@
   "recordPlayer.artistEmpty": "—",
   "recordPlayer.aria.play": "Lire",
   "recordPlayer.aria.pause": "Pause",
+  "recordPlayer.aria.loading": "Chargement…",
+  "recordPlayer.aria.error": "Erreur de lecture",
   "recordPlayer.aria.noTrack": "Aucune piste",
 
   "nowPlaying.empty": "RIEN EN COURS",

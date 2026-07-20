@@ -233,9 +233,12 @@ function ThemeRow({
   t: (key: string, params?: Record<string, any>) => string
 }) {
   return (
-    <button
+    <div
       className={`theme-picker__row ${active ? 'is-active' : ''}`}
       onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect() } }}
+      role="button"
+      tabIndex={0}
       title={t(def.descriptionKey as any)}
       aria-pressed={active}
     >
@@ -265,6 +268,6 @@ function ThemeRow({
       >
         {isFavorite ? '★' : '☆'}
       </button>
-    </button>
+    </div>
   )
 }

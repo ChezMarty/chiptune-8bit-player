@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { revealItemInDir } from '@tauri-apps/plugin-opener'
 import { usePlayerStore, type Track } from '../state/usePlayerStore'
-import { audioController } from '../lib/audio'
+import { playbackEngine } from '../lib/playback/engine'
 import { addAudioFiles } from '../lib/addAudioFiles'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { ContextMenu } from './ContextMenu'
@@ -77,8 +77,7 @@ export function Library({ activeTab, onTabChange }: LibraryProps) {
     setCurrent(idx)
     const t = usePlayerStore.getState().tracks[idx]
     if (!t) return
-    audioController.load(t.path)
-    void audioController.play()
+    void playbackEngine.play(t.path)
   }
 
   function onRowContextMenu(e: React.MouseEvent, idx: number) {
@@ -141,21 +140,16 @@ export function Library({ activeTab, onTabChange }: LibraryProps) {
     infoDialog ? (tracks.find((t) => t.id === infoDialog.trackId) ?? null) : null
 
   function handleMenuPlay(track: Track, isCurrent: boolean) {
-    if (isCurrent) {
-      void audioController.play()
-    } else {
+    if (!isCurrent) {
       const idx = tracks.findIndex((t) => t.id === track.id)
-      if (idx >= 0) {
-        setCurrent(idx)
-        audioController.load(track.path)
-        void audioController.play()
-      }
+      if (idx >= 0) setCurrent(idx)
     }
+    void playbackEngine.play(track.path)
     closeMenu()
   }
 
   function handleMenuPause() {
-    audioController.pause()
+    void playbackEngine.pause()
     closeMenu()
   }
 

@@ -7,14 +7,26 @@ import type {
   TrackEndedCallback,
   TrackChangedCallback,
   ErrorCallback,
+  AudioDataCallback,
   NowPlayingMeta,
 } from './types'
 
 /**
  * Wraps the existing HTMLAudioElement-based playback as a PlaybackProvider.
  *
- * Owns a single <audio> element and syncs everything to usePlayerStore
- * so the UI works identically to before.
+ * Owns a single <audio> element and drives the store entirely through
+ * progress callbacks (progressCbs → engine.onProgress → store).
+ * The HTMLAudioElement is the source of truth for local file playback;
+ * its native events provide smooth position/duration/status updates at
+ * ~4–15 Hz (browser-dependent).
+ *
+ * ── Architecture ──
+ *
+ * Direct store writes are NOT used for playback state (currentTime,
+ * duration, isPlaying). Instead, the HTMLAudioElement events fire
+ * emitProgress() which sends a PlaybackProgress through progressCbs.
+ * The engine's wireActiveProvider → onProgress callback writes these
+ * values to the store, making the callback chain the single path.
  */
 export class LocalPlaybackProvider implements PlaybackProvider {
   readonly id: PlaybackSource = 'local'
@@ -25,6 +37,7 @@ export class LocalPlaybackProvider implements PlaybackProvider {
   private endedCbs: TrackEndedCallback[] = []
   private trackCbs: TrackChangedCallback[] = []
   private errorCbs: ErrorCallback[] = []
+  private audioDataCbs: AudioDataCallback[] = []
 
   constructor() {
     this.audio = new Audio()
@@ -32,29 +45,32 @@ export class LocalPlaybackProvider implements PlaybackProvider {
     this.audio.volume = usePlayerStore.getState().volume
 
     this.audio.addEventListener('play', () => {
-      usePlayerStore.getState().setPlaying(true)
+      if (usePlayerStore.getState().activeSource !== 'local') return
+      this.emitProgress()
     })
     this.audio.addEventListener('pause', () => {
-      usePlayerStore.getState().setPlaying(false)
+      if (usePlayerStore.getState().activeSource !== 'local') return
+      this.emitProgress()
     })
     this.audio.addEventListener('timeupdate', () => {
-      usePlayerStore.getState().setCurrentTime(this.audio.currentTime)
+      if (usePlayerStore.getState().activeSource !== 'local') return
       this.emitProgress()
     })
     this.audio.addEventListener('loadedmetadata', () => {
-      usePlayerStore.getState().setDuration(this.audio.duration || 0)
+      if (usePlayerStore.getState().activeSource !== 'local') return
       this.emitProgress()
     })
     this.audio.addEventListener('durationchange', () => {
-      const d = this.audio.duration
-      if (Number.isFinite(d)) usePlayerStore.getState().setDuration(d)
+      if (usePlayerStore.getState().activeSource !== 'local') return
       this.emitProgress()
     })
     this.audio.addEventListener('ended', () => {
+      if (usePlayerStore.getState().activeSource !== 'local') return
       this.handleEnded()
     })
     this.audio.addEventListener('error', (e) => {
-      console.error('[local] audio error event', e)
+      if (usePlayerStore.getState().activeSource !== 'local') return
+      console.error('[LOCAL] audio error event — calling store.setPlaying(false)', e)
       usePlayerStore.getState().setPlaying(false)
       this.errorCbs.forEach((cb) => cb('Audio playback error'))
     })
@@ -112,14 +128,27 @@ export class LocalPlaybackProvider implements PlaybackProvider {
   }
 
   async stop(): Promise<void> {
+    console.log('[LOCAL] stop() called — resetting position and pausing')
     try {
+      // Reset audio.currentTime to 0 BEFORE pausing.
+      // The HTMLAudioElement fires 'pause' and 'timeupdate' events after
+      // pause(). If we don't reset first, those events will emit the
+      // real position via emitProgress() → onProgress → store.setCurrentTime(),
+      // overwriting the engine's optimistic currentTime=0.
+      //
+      // Note: this always resets the audio position on stop regardless of the
+      // stopRewinds preference. The engine's stop() already sets
+      // store.setCurrentTime(0) unconditionally, so the store always shows 0
+      // on stop. The stopRewinds pref controlled whether the DOM audio element
+      // kept its position for resume-on-play — but that caused a race where
+      // the pause event would overwrite the store with the real position.
+      this.audio.currentTime = 0
       this.audio.pause()
-      if (usePlayerStore.getState().stopRewinds) {
-        this.audio.currentTime = 0
-        usePlayerStore.getState().setCurrentTime(0)
-      }
+      // Sync the store to 0 in case the pause event already fired and
+      // overwrote the engine's optimistic update.
+      usePlayerStore.getState().setCurrentTime(0)
     } catch (err) {
-      console.error('[local] stop failed', err)
+      console.error('[LOCAL] stop failed', err)
     }
   }
 
@@ -128,7 +157,8 @@ export class LocalPlaybackProvider implements PlaybackProvider {
     if (s.tracks.length === 0) return
     const nextIdx = (s.currentIndex + 1) % s.tracks.length
     s.setCurrent(nextIdx)
-    // Load is handled by a useEffect in TransportControls watching currentIndex.
+    const nextTrack = s.tracks[nextIdx]
+    if (nextTrack) await this.play(nextTrack.path)
   }
 
   async prev(): Promise<void> {
@@ -136,10 +166,13 @@ export class LocalPlaybackProvider implements PlaybackProvider {
     if (s.tracks.length === 0) return
     const prevIdx = (s.currentIndex - 1 + s.tracks.length) % s.tracks.length
     s.setCurrent(prevIdx)
+    const prevTrack = s.tracks[prevIdx]
+    if (prevTrack) await this.play(prevTrack.path)
   }
 
   async seek(seconds: number): Promise<void> {
     const target = Math.max(0, seconds)
+    console.log('[LOCAL] seek(', seconds, ') — setting audio.currentTime =', target)
     this.audio.currentTime = target
     usePlayerStore.getState().setCurrentTime(target)
   }
@@ -158,22 +191,30 @@ export class LocalPlaybackProvider implements PlaybackProvider {
   onTrackEnded(cb: TrackEndedCallback): void { this.endedCbs.push(cb) }
   onTrackChanged(cb: TrackChangedCallback): void { this.trackCbs.push(cb) }
   onError(cb: ErrorCallback): void { this.errorCbs.push(cb) }
+  onAudioData(cb: AudioDataCallback): void { this.audioDataCbs.push(cb) }
 
   removeAllListeners(): void {
     this.progressCbs = []
     this.endedCbs = []
     this.trackCbs = []
     this.errorCbs = []
+    this.audioDataCbs = []
   }
 
   // ── internal ──────────────────────────────────────────────
 
+  /**
+   * Emit progress from the HTMLAudioElement's current state.
+   * This is the single path for writing playback state to the store
+   * (via progressCbs → engine.onProgress → store.setCurrentTime/setDuration/setPlaying).
+   */
   private emitProgress(): void {
     const p = {
       currentTimeSec: this.audio.currentTime,
       durationSec: this.audio.duration || 0,
       isPlaying: !this.audio.paused,
     }
+    console.log('[LOCAL] emitProgress() → firing', this.progressCbs.length, 'callbacks with currentTimeSec=', p.currentTimeSec, 'isPlaying=', p.isPlaying)
     this.progressCbs.forEach((cb) => cb(p))
   }
 
