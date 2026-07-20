@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import './App.css'
-import { Library } from './components/Library'
+import { Library, type LibraryTab } from './components/Library'
+import { LibrespotWarningDialog } from './components/LibrespotWarningDialog'
+import { SpotifyPanel } from './components/SpotifyPanel'
 import { RecordPlayer } from './components/RecordPlayer'
 import { TransportControls } from './components/TransportControls'
 import { usePlayerStore, type ThemeId } from './state/usePlayerStore'
+import { useSpotifyStore } from './state/useSpotifyStore'
 import { setupPersistenceSubscription } from './lib/libraryPersistence'
-import { audioController } from './lib/audio'
+import { playbackEngine } from './lib/playback/engine'
 import { addAudioFiles } from './lib/addAudioFiles'
 import { AppContextMenu } from './components/AppContextMenu'
 import { KeyboardShortcutsDialog } from './components/KeyboardShortcutsDialog'
@@ -34,15 +37,49 @@ function App() {
   const tracks = usePlayerStore((s) => s.tracks)
   const currentIndex = usePlayerStore((s) => s.currentIndex)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
-  const next = usePlayerStore((s) => s.next)
-  const prev = usePlayerStore((s) => s.prev)
   const shuffleUpcoming = usePlayerStore((s) => s.shuffleUpcoming)
   const clearUpcoming = usePlayerStore((s) => s.clearUpcoming)
+  const spotifyConnected = useSpotifyStore((s) => s.account?.connected ?? false)
+  const librespotWarningDismissed = useSpotifyStore((s) => s.librespotWarningDismissed)
+  const librespotShowWarning = useSpotifyStore((s) => s.librespotShowWarning)
+  const setWarningDismissed = useSpotifyStore((s) => s.setLibrespotWarningDismissed)
+
+  // Pending Spotify track to play after warning is accepted.
+  const [showLibrespotWarning, setShowLibrespotWarning] = useState(false)
+  const pendingTrackRef = useRef<(() => void) | null>(null)
+
+  // When the user clicks a Spotify track, check if warning is needed.
+  const handlePlaySpotifyTrack = useCallback(
+    (playFn: () => void) => {
+      if (librespotShowWarning || !librespotWarningDismissed) {
+        // Show the warning dialog first.
+        pendingTrackRef.current = playFn
+        setShowLibrespotWarning(true)
+      } else {
+        playFn()
+      }
+    },
+    [librespotShowWarning, librespotWarningDismissed],
+  )
+
+  const handleWarningAccept = useCallback(() => {
+    setShowLibrespotWarning(false)
+    setWarningDismissed(true)
+    // Execute the pending play.
+    pendingTrackRef.current?.()
+    pendingTrackRef.current = null
+  }, [setWarningDismissed])
+
+  const handleWarningClose = useCallback(() => {
+    setShowLibrespotWarning(false)
+    pendingTrackRef.current = null
+  }, [])
 
   const [appMenu, setAppMenu] = useState<AppMenuState | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>('local')
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
 
   // Capture the initial theme once. Comparing against this (rather than
@@ -84,6 +121,22 @@ function App() {
     return setupPersistenceSubscription()
   }, [])
 
+  // Initialize the playback engine on mount (loads Spotify SDK, etc.).
+  useEffect(() => {
+    playbackEngine.initialize()
+  }, [])
+
+  // Auto-switch to Spotify tab if connected on mount.
+  useEffect(() => {
+    if (spotifyConnected && libraryTab === 'local') {
+      // Only auto-switch if the local library is empty.
+      if (tracks.length === 0) {
+        setLibraryTab('spotify')
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spotifyConnected])
+
   const hasTracks = tracks.length > 0
   const hasCurrent = currentIndex >= 0 && tracks[currentIndex] !== undefined
   // Number of tracks scheduled to play after the current one.
@@ -123,19 +176,19 @@ function App() {
 
   function onPlayPause() {
     if (!hasCurrent) return
-    audioController.togglePlay()
+    playbackEngine.togglePlay()
   }
   function onStop() {
     if (!hasCurrent) return
-    audioController.stop()
+    playbackEngine.stop()
   }
   function onNext() {
     if (!hasTracks) return
-    next()
+    playbackEngine.next()
   }
   function onPrev() {
     if (!hasTracks) return
-    prev()
+    playbackEngine.prev()
   }
   function onAddFiles() {
     void addAudioFiles()
@@ -158,7 +211,24 @@ function App() {
     <I18nProvider>
       <div className="app-root" onContextMenu={onAppContextMenu}>
         <TitleBar />
-        <Library />
+        {libraryTab === 'local' ? (
+          <Library activeTab={libraryTab} onTabChange={setLibraryTab} />
+        ) : (
+          <div className="library pixel-panel">
+            <div className="library__tabs">
+              <button
+                className="library__tab"
+                onClick={() => setLibraryTab('local')}
+              >
+                💻 LOCAL
+              </button>
+              <button className="library__tab is-active">
+                🟢 SPOTIFY
+              </button>
+            </div>
+            <SpotifyPanel onPlayTrack={handlePlaySpotifyTrack} />
+          </div>
+        )}
         <main className="app-main">
           <SettingsButton
             ref={settingsButtonRef}
@@ -204,6 +274,13 @@ function App() {
           onClose={closeSettings}
           returnFocusRef={{ current: settingsButtonRef.current }}
         />
+
+        {showLibrespotWarning && (
+          <LibrespotWarningDialog
+            onAccept={handleWarningAccept}
+            onClose={handleWarningClose}
+          />
+        )}
       </div>
     </I18nProvider>
   )

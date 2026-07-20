@@ -314,3 +314,51 @@
   outline: 3px dashed var(--accent-tertiary);
   outline-offset: 2px;
 }
+
+/* ---------- Text input inside a row ---------- */
+.settings-row__input {
+  width: 100%;
+  flex: 1;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 2px solid var(--border);
+  padding: 6px 8px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  outline: none;
+  letter-spacing: 0.5px;
+}
+
+.settings-row__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.settings-row__input:focus {
+  border-color: var(--accent-secondary);
+}
+
+.settings-row__input:disabled {
+  opacity: 0.4;
+}
+
+/* ---------- Status value variants ---------- */
+.settings-row__value--ok {
+  color: var(--accent-positive);
+}
+
+.settings-row__value--warn {
+  color: var(--accent-tertiary);
+}
+
+/* ---------- Button row ---------- */
+.settings-row--buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  padding-top: 8px;
+}
+
+.settings-row--buttons .pixel-button {
+  font-size: 9px;
+  padding: 6px 12px;
+}

@@ -43,7 +43,14 @@ async function copyToClipboard(text: string): Promise<void> {
   }
 }
 
-export function Library() {
+export type LibraryTab = 'local' | 'spotify'
+
+interface LibraryProps {
+  activeTab: LibraryTab
+  onTabChange: (tab: LibraryTab) => void
+}
+
+export function Library({ activeTab, onTabChange }: LibraryProps) {
   const tracks = usePlayerStore((s) => s.tracks)
   const currentIndex = usePlayerStore((s) => s.currentIndex)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
@@ -195,6 +202,21 @@ export function Library() {
 
   return (
     <aside className="library pixel-panel">
+      <div className="library__tabs">
+        <button
+          className={`library__tab ${activeTab === 'local' ? 'is-active' : ''}`}
+          onClick={() => onTabChange('local')}
+        >
+          💻 {t('library.tab.local')}
+        </button>
+        <button
+          className={`library__tab ${activeTab === 'spotify' ? 'is-active' : ''}`}
+          onClick={() => onTabChange('spotify')}
+        >
+          🟢 {t('library.tab.spotify')}
+        </button>
+      </div>
+
       <div className="library__header">
         <span className="library__title">{t('header.library')}</span>          <button
             className="library__add pixel-button"

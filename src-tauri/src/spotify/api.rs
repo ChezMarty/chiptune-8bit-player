@@ -1,0 +1,476 @@
+use super::models::*;
+
+/// Spotify Web API client.
+///
+/// All methods require a valid access token. Token refresh is handled
+/// by the `SpotifyService` layer before calling into this client.
+pub struct SpotifyApiClient {
+    http: reqwest::Client,
+}
+
+const BASE_URL: &str = "https://api.spotify.com/v1";
+
+impl SpotifyApiClient {
+    pub fn new() -> Self {
+        SpotifyApiClient {
+            http: reqwest::Client::new(),
+        }
+    }
+
+    // ── User ───────────────────────────────────────────────────
+
+    pub async fn get_me(&self, token: &str) -> Result<SpotifyUser, String> {
+        let url = format!("{BASE_URL}/me");
+        self.get(&url, token).await
+    }
+
+    // ── Library: Liked Songs ───────────────────────────────────
+
+    pub async fn get_liked_songs(
+        &self,
+        token: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<PaginatedSpotifyTracks, String> {
+        let url = format!("{BASE_URL}/me/tracks?limit={limit}&offset={offset}");
+        let paging: PagingSavedTrack = self.get(&url, token).await?;
+        Ok(PaginatedSpotifyTracks {
+            items: paging.items.iter().map(|s| (&s.track).into()).collect(),
+            total: paging.total,
+            offset: paging.offset,
+            has_more: paging.next.is_some(),
+        })
+    }
+
+    // ── Playlists ──────────────────────────────────────────────
+
+    pub async fn get_my_playlists(
+        &self,
+        token: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<(Vec<SpotifyPlaylistInfo>, u64, bool), String> {
+        let url = format!("{BASE_URL}/me/playlists?limit={limit}&offset={offset}");
+        let paging: PagingPlaylist = self.get(&url, token).await?;
+        let items: Vec<SpotifyPlaylistInfo> =
+            paging.items.iter().map(|p| p.into()).collect();
+        Ok((items, paging.total, paging.next.is_some()))
+    }
+
+    pub async fn get_playlist_tracks(
+        &self,
+        token: &str,
+        playlist_id: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<PaginatedSpotifyTracks, String> {
+        let url = format!(
+            "{BASE_URL}/playlists/{playlist_id}/tracks?limit={limit}&offset={offset}"
+        );
+        #[derive(serde::Deserialize)]
+        struct PlaylistTrackPage {
+            #[serde(default)]
+            items: Vec<PlaylistTrackItem>,
+            total: u64,
+            offset: u64,
+            next: Option<String>,
+        }
+        #[derive(serde::Deserialize)]
+        struct PlaylistTrackItem {
+            track: Option<SpotifyTrack>,
+        }
+        let paging: PlaylistTrackPage = self.get(&url, token).await?;
+        let items: Vec<SpotifyTrackInfo> = paging
+            .items
+            .iter()
+            .filter_map(|i| i.track.as_ref().map(|t| t.into()))
+            .collect();
+        Ok(PaginatedSpotifyTracks {
+            items,
+            total: paging.total,
+            offset: paging.offset,
+            has_more: paging.next.is_some(),
+        })
+    }
+
+    // ── Albums ─────────────────────────────────────────────────
+
+    pub async fn get_my_albums(
+        &self,
+        token: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<(Vec<SpotifyAlbumInfo>, u64, bool), String> {
+        let url = format!("{BASE_URL}/me/albums?limit={limit}&offset={offset}");
+        #[derive(serde::Deserialize)]
+        struct SavedAlbumPage {
+            #[serde(default)]
+            items: Vec<SavedAlbumItem>,
+            total: u64,
+            offset: u64,
+            next: Option<String>,
+        }
+        #[derive(serde::Deserialize)]
+        struct SavedAlbumItem {
+            album: SpotifyAlbum,
+        }
+        let paging: SavedAlbumPage = self.get(&url, token).await?;
+        let items: Vec<SpotifyAlbumInfo> =
+            paging.items.iter().map(|i| (&i.album).into()).collect();
+        Ok((items, paging.total, paging.next.is_some()))
+    }
+
+    pub async fn get_album_tracks(
+        &self,
+        token: &str,
+        album_id: &str,
+    ) -> Result<PaginatedSpotifyTracks, String> {
+        let url = format!("{BASE_URL}/albums/{album_id}/tracks?limit=50");
+        #[derive(serde::Deserialize)]
+        struct AlbumTracksPage {
+            #[serde(default)]
+            items: Vec<AlbumTrackItem>,
+            total: u64,
+            offset: u64,
+            next: Option<String>,
+        }
+        #[derive(serde::Deserialize)]
+        struct AlbumTrackItem {
+            id: String,
+            name: String,
+            duration_ms: u64,
+            #[serde(default)]
+            artists: Vec<SpotifyArtist>,
+            track_number: Option<u32>,
+            uri: Option<String>,
+        }
+        let paging: AlbumTracksPage = self.get(&url, token).await?;
+        let items: Vec<SpotifyTrackInfo> = paging
+            .items
+            .iter()
+            .map(|t| SpotifyTrackInfo {
+                id: t.id.clone(),
+                title: t.name.clone(),
+                artist: t.artists.first().map(|a| a.name.clone()).unwrap_or_default(),
+                album: None,
+                album_id: Some(album_id.to_string()),
+                duration_ms: t.duration_ms,
+                image_url: None,
+                uri: t.uri.clone(),
+                explicit: None,
+                popularity: None,
+                track_number: t.track_number,
+            })
+            .collect();
+        Ok(PaginatedSpotifyTracks {
+            items,
+            total: paging.total,
+            offset: paging.offset,
+            has_more: paging.next.is_some(),
+        })
+    }
+
+    // ── Artists ────────────────────────────────────────────────
+
+    pub async fn get_followed_artists(
+        &self,
+        token: &str,
+        after: Option<&str>,
+        limit: u64,
+    ) -> Result<(Vec<SpotifyArtistInfo>, Option<String>), String> {
+        let mut url = format!("{BASE_URL}/me/following?type=artist&limit={limit}");
+        if let Some(a) = after {
+            url.push_str(&format!("&after={a}"));
+        }
+        #[derive(serde::Deserialize)]
+        struct FollowedArtists {
+            artists: CursorPagingArtist,
+        }
+        #[derive(serde::Deserialize)]
+        struct CursorPagingArtist {
+            #[serde(default)]
+            items: Vec<SpotifyArtist>,
+            cursors: Option<Cursor>,
+        }
+        #[derive(serde::Deserialize)]
+        struct Cursor {
+            after: Option<String>,
+        }
+        let result: FollowedArtists = self.get(&url, token).await?;
+        let items: Vec<SpotifyArtistInfo> =
+            result.artists.items.iter().map(|a| a.into()).collect();
+        let next_cursor = result
+            .artists
+            .cursors
+            .and_then(|c| c.after);
+        Ok((items, next_cursor))
+    }
+
+    // ── Recently Played ────────────────────────────────────────
+
+    pub async fn get_recently_played(
+        &self,
+        token: &str,
+        limit: u64,
+    ) -> Result<Vec<SpotifyTrackInfo>, String> {
+        let url = format!("{BASE_URL}/me/player/recently-played?limit={limit}");
+        let result: RecentlyPlayedResponse = self.get(&url, token).await?;
+        let items: Vec<SpotifyTrackInfo> =
+            result.items.iter().map(|h| (&h.track).into()).collect();
+        Ok(items)
+    }
+
+    // ── Search ─────────────────────────────────────────────────
+
+    pub async fn search(
+        &self,
+        token: &str,
+        query: &str,
+        types: &[&str],
+        limit: u64,
+    ) -> Result<SpotifySearchResults, String> {
+        let encoded = urlencoding(query);
+        let types_str = types.join(",");
+        let url = format!(
+            "{BASE_URL}/search?q={encoded}&type={types_str}&limit={limit}"
+        );
+        let result: SearchResponse = self.get(&url, token).await?;
+        Ok(SpotifySearchResults {
+            tracks: result
+                .tracks
+                .map(|p| p.items.iter().map(|t| t.into()).collect())
+                .unwrap_or_default(),
+            albums: result
+                .albums
+                .map(|p| p.items.iter().map(|a| a.into()).collect())
+                .unwrap_or_default(),
+            artists: result
+                .artists
+                .map(|p| p.items.iter().map(|a| a.into()).collect())
+                .unwrap_or_default(),
+            playlists: result
+                .playlists
+                .map(|p| p.items.iter().map(|p| p.into()).collect())
+                .unwrap_or_default(),
+        })
+    }
+
+    // ── Top Tracks ─────────────────────────────────────────────
+
+    pub async fn get_top_tracks(
+        &self,
+        token: &str,
+        offset: u64,
+        limit: u64,
+    ) -> Result<PaginatedSpotifyTracks, String> {
+        let url = format!(
+            "{BASE_URL}/me/top/tracks?limit={limit}&offset={offset}&time_range=medium_term"
+        );
+        let paging: PagingTrack = self.get(&url, token).await?;
+        Ok(PaginatedSpotifyTracks {
+            items: paging.items.iter().map(|t| t.into()).collect(),
+            total: paging.total,
+            offset: paging.offset,
+            has_more: paging.next.is_some(),
+        })
+    }
+
+    // ── Playback ──────────────────────────────────────────────
+
+    /// Start/resume playback with one or more track URIs.
+    pub async fn play_uris(
+        &self,
+        token: &str,
+        uris: &[String],
+        device_id: Option<&str>,
+    ) -> Result<(), String> {
+        let mut url = format!("{BASE_URL}/me/player/play");
+        if let Some(did) = device_id {
+            url.push_str(&format!("?device_id={did}"));
+        }
+
+        let body = serde_json::json!({"uris": uris});
+        eprintln!("[spotify] PUT {url} body={body}");
+
+        let resp = self
+            .http
+            .put(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Play request failed: {e}"))?;
+
+        let status = resp.status();
+        if status == 204 {
+            eprintln!("[spotify] Playback started successfully (204)");
+            return Ok(());
+        }
+        if status == 401 {
+            return Err("TOKEN_EXPIRED".to_string());
+        }
+        let body = resp.text().await.unwrap_or_default();
+        eprintln!("[spotify] Play failed: HTTP {status}: {body}");
+        Err(format!("Playback failed (HTTP {status}): {body}"))
+    }
+
+    /// Resume playback (empty body).
+    pub async fn resume_playback(&self, token: &str, device_id: Option<&str>) -> Result<(), String> {
+        let mut url = format!("{BASE_URL}/me/player/play");
+        if let Some(did) = device_id {
+            url.push_str(&format!("?device_id={did}"));
+        }
+        eprintln!("[spotify] PUT {url} (resume)");
+
+        let resp = self
+            .http
+            .put(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await
+            .map_err(|e| format!("Resume request failed: {e}"))?;
+
+        let status = resp.status();
+        if status == 204 {
+            return Ok(());
+        }
+        if status == 401 {
+            return Err("TOKEN_EXPIRED".to_string());
+        }
+        let body = resp.text().await.unwrap_or_default();
+        Err(format!("Resume failed (HTTP {status}): {body}"))
+    }
+
+    /// Pause playback.
+    pub async fn pause_playback(&self, token: &str) -> Result<(), String> {
+        let url = format!("{BASE_URL}/me/player/pause");
+        eprintln!("[spotify] PUT {url}");
+
+        let resp = self
+            .http
+            .put(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await
+            .map_err(|e| format!("Pause request failed: {e}"))?;
+
+        let status = resp.status();
+        if status == 204 {
+            return Ok(());
+        }
+        if status == 401 {
+            return Err("TOKEN_EXPIRED".to_string());
+        }
+        let body = resp.text().await.unwrap_or_default();
+        Err(format!("Pause failed (HTTP {status}): {body}"))
+    }
+
+    /// Skip to next track.
+    pub async fn next_track(&self, token: &str) -> Result<(), String> {
+        let url = format!("{BASE_URL}/me/player/next");
+        eprintln!("[spotify] POST {url}");
+
+        let resp = self
+            .http
+            .post(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await
+            .map_err(|e| format!("Next request failed: {e}"))?;
+
+        let status = resp.status();
+        if status == 204 {
+            return Ok(());
+        }
+        if status == 401 {
+            return Err("TOKEN_EXPIRED".to_string());
+        }
+        let body = resp.text().await.unwrap_or_default();
+        Err(format!("Next failed (HTTP {status}): {body}"))
+    }
+
+    /// Skip to previous track.
+    pub async fn prev_track(&self, token: &str) -> Result<(), String> {
+        let url = format!("{BASE_URL}/me/player/previous");
+        eprintln!("[spotify] POST {url}");
+
+        let resp = self
+            .http
+            .post(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await
+            .map_err(|e| format!("Prev request failed: {e}"))?;
+
+        let status = resp.status();
+        if status == 204 {
+            return Ok(());
+        }
+        if status == 401 {
+            return Err("TOKEN_EXPIRED".to_string());
+        }
+        let body = resp.text().await.unwrap_or_default();
+        Err(format!("Prev failed (HTTP {status}): {body}"))
+    }
+
+    /// Get available Spotify Connect devices.
+    pub async fn get_devices(&self, token: &str) -> Result<Vec<SpotifyDevice>, String> {
+        let url = format!("{BASE_URL}/me/player/devices");
+        #[derive(serde::Deserialize)]
+        struct DeviceList {
+            devices: Vec<SpotifyDevice>,
+        }
+        let result: DeviceList = self.get(&url, token).await?;
+        eprintln!(
+            "[spotify] Available devices: {}",
+            result
+                .devices
+                .iter()
+                .map(|d| format!("{} (id={} active={})", d.name, d.id.as_deref().unwrap_or("<none>"), d.is_active))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        Ok(result.devices)
+    }
+
+    // ── Internal helpers ───────────────────────────────────────
+
+    async fn get<T: serde::de::DeserializeOwned>(
+        &self,
+        url: &str,
+        token: &str,
+    ) -> Result<T, String> {
+        let resp = self
+            .http
+            .get(url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await
+            .map_err(|e| format!("HTTP GET {url}: {e}"))?;
+
+        if resp.status() == 401 {
+            return Err("TOKEN_EXPIRED".to_string());
+        }
+        if resp.status() == 429 {
+            // Rate limited — extract Retry-After if present.
+            let retry_after = resp
+                .headers()
+                .get("Retry-After")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok());
+            return Err(format!("RATE_LIMITED:{}", retry_after.unwrap_or(1)));
+        }
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("HTTP {status}: {body}"));
+        }
+
+        resp.json().await.map_err(|e| format!("JSON parse: {e}"))
+    }
+}
+
+fn urlencoding(s: &str) -> String {
+    url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
+}

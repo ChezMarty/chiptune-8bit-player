@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { useT } from '../i18n/useT'
 import {
   usePlayerStore,
   type LocaleChoice,
   LOCALE_CHOICES,
 } from '../state/usePlayerStore'
+import { useSpotifyStore } from '../state/useSpotifyStore'
 
 export interface SettingsDrawerProps {
   open: boolean
@@ -14,19 +15,10 @@ export interface SettingsDrawerProps {
 }
 
 /**
- * The right-side slide-in settings panel. Hosts three sections:
- * LANGUAGE (segmented EN / FR / OS), PLAYBACK
- * (starting volume, auto-play, stop behavior, shuffle on import),
- * DISPLAY (always-on-top toggle).
+ * The right-side slide-in settings panel.
  *
- * Closes on:
- *   - the ✕ button in the header
- *   - the "FERMER" / "CLOSE" button at the foot
- *   - the backdrop click
- *   - the Escape key
- *
- * Focus is moved into the drawer on open and restored to
- * `returnFocusRef.current` on close.
+ * Sections: LANGUAGE, PLAYBACK, SPOTIFY (with experimental Librespot status),
+ * DISPLAY.
  */
 export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawerProps) {
   const { t } = useT()
@@ -43,16 +35,60 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
   const alwaysOnTop = usePlayerStore((s) => s.alwaysOnTop)
   const setAlwaysOnTop = usePlayerStore((s) => s.setAlwaysOnTop)
 
+  // Spotify state
+  const spotifyConfigured = useSpotifyStore((s) => s.isConfigured)
+  const spotifyConfigLoading = useSpotifyStore((s) => s.configLoading)
+  const spotifyAccount = useSpotifyStore((s) => s.account)
+  const loadSpotifyConfig = useSpotifyStore((s) => s.loadConfig)
+  const saveSpotifyClientId = useSpotifyStore((s) => s.saveClientId)
+  const spotifyBeginLogin = useSpotifyStore((s) => s.beginLogin)
+  const spotifyDoLogout = useSpotifyStore((s) => s.doLogout)
+
+  // Librespot state
+  const librespotVersion = useSpotifyStore((s) => s.librespotVersion)
+  const librespotVersionLoading = useSpotifyStore((s) => s.librespotVersionLoading)
+  const loadLibrespotVersion = useSpotifyStore((s) => s.loadLibrespotVersion)
+  const librespotShowWarning = useSpotifyStore((s) => s.librespotShowWarning)
+  const setLibrespotShowWarning = useSpotifyStore((s) => s.setLibrespotShowWarning)
+
   const panelRef = useRef<HTMLDivElement>(null)
   const closeBtnRef = useRef<HTMLButtonElement>(null)
+  const [clientIdInput, setClientIdInput] = useState('')
+  const [spotifySaving, setSpotifySaving] = useState(false)
+  const [spotifyConnecting, setSpotifyConnecting] = useState(false)
 
-  // Focus management. On open, capture the previously-focused element
-  // and move focus into the drawer. On close, restore focus.
+  // Load Spotify config and librespot version when settings open.
+  useEffect(() => {
+    if (open) {
+      loadSpotifyConfig().then(() => {
+        setClientIdInput(useSpotifyStore.getState().clientId)
+      })
+      loadLibrespotVersion()
+    }
+  }, [open, loadSpotifyConfig, loadLibrespotVersion])
+
+  const handleSaveClientId = useCallback(async () => {
+    setSpotifySaving(true)
+    await saveSpotifyClientId(clientIdInput)
+    setSpotifySaving(false)
+  }, [clientIdInput, saveSpotifyClientId])
+
+  const handleSpotifyConnect = useCallback(async () => {
+    setSpotifyConnecting(true)
+    onClose()
+    await spotifyBeginLogin()
+    setSpotifyConnecting(false)
+  }, [spotifyBeginLogin, onClose])
+
+  const handleSpotifyDisconnect = useCallback(async () => {
+    await spotifyDoLogout()
+    await loadSpotifyConfig()
+  }, [spotifyDoLogout, loadSpotifyConfig])
+
+  // Move focus into the drawer on open, restore on close.
   useEffect(() => {
     if (!open) return
     const previouslyFocused = returnFocusRef.current ?? (document.activeElement as HTMLElement | null)
-    // Move focus into the drawer. The close button is the safest target
-    // because it is always present and visually clear.
     const focusTarget = closeBtnRef.current ?? panelRef.current
     focusTarget?.focus()
     return () => {
@@ -60,10 +96,7 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
     }
   }, [open, returnFocusRef])
 
-  // Esc-to-close. The drawer's panel itself is focusable, so a keydown
-  // listener attached to the panel is sufficient — but we use a global
-  // listener so Escape works even when no element inside the drawer is
-  // focused (e.g. when focus drifted back to the settings button).
+  // Esc-to-close.
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -104,8 +137,6 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
         role="dialog"
         aria-modal="true"
         aria-labelledby={t('settings.title.id')}
-        // Make the panel focusable so screen readers can announce it
-        // even if focus drifts off an internal control.
         tabIndex={-1}
       >
         <header className="settings-drawer__header">
@@ -230,6 +261,138 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
                 </SegmentButton>
               </SegmentedRow>
             </div>
+          </Section>
+
+          <Section title={t('settings.section.spotify')}>
+            {/* Experimental badge */}
+            <div
+              className="settings-row"
+              style={{ marginBottom: 8 }}
+            >
+              <span className="settings-row__label">
+                {t('settings.spotify.engine')}
+              </span>
+              <span
+                className="settings-row__value"
+                style={{
+                  background: 'rgba(255, 200, 0, 0.2)',
+                  border: '1px solid rgba(255, 200, 0, 0.5)',
+                  borderRadius: 3,
+                  padding: '2px 8px',
+                  fontSize: '0.75em',
+                  fontWeight: 'bold',
+                }}
+              >
+                ⚗️ {t('settings.spotify.experimental')}
+              </span>
+            </div>
+
+            {/* Librespot version */}
+            <div className="settings-row">
+              <span className="settings-row__label">
+                {t('settings.spotify.librespotVersion')}
+              </span>
+              <span className="settings-row__value">
+                {librespotVersionLoading
+                  ? '...'
+                  : librespotVersion
+                    ? `librespot v${librespotVersion}`
+                    : t('settings.spotify.notAvailable')}
+              </span>
+            </div>
+
+            <div className="settings-row">
+              <span className="settings-row__label">
+                {t('settings.spotify.clientId')}
+              </span>
+              <div className="settings-row__control">
+                <input
+                  type="text"
+                  className="settings-row__input"
+                  placeholder={t('settings.spotify.clientIdPlaceholder')}
+                  value={clientIdInput}
+                  onChange={(e) => setClientIdInput(e.target.value)}
+                  disabled={spotifyConfigLoading || spotifySaving}
+                />
+              </div>
+            </div>
+            <p className="settings-section__hint">{t('settings.spotify.clientIdHint')}</p>
+
+            <div className="settings-row">
+              <span className="settings-row__label">
+                {t('settings.spotify.status')}
+              </span>
+              <span
+                className={`settings-row__value ${spotifyConfigured ? 'settings-row__value--ok' : 'settings-row__value--warn'}`}
+              >
+                {spotifyAccount?.connected
+                  ? t('settings.spotify.statusConnected', { name: spotifyAccount.display_name ?? '?' })
+                  : spotifyConfigured
+                    ? t('settings.spotify.statusConfigured')
+                    : t('settings.spotify.statusNotConfigured')}
+              </span>
+            </div>
+
+            <div className="settings-row settings-row--buttons">
+              <button
+                className="pixel-button"
+                onClick={handleSaveClientId}
+                disabled={spotifyConfigLoading || spotifySaving}
+              >
+                {spotifySaving ? '...' : t('settings.spotify.save')}
+              </button>
+            </div>
+
+            {spotifyConfigured && (
+              <div className="settings-row settings-row--buttons">
+                {spotifyAccount?.connected ? (
+                  <button
+                    className="pixel-button pixel-button--stop"
+                    onClick={handleSpotifyDisconnect}
+                  >
+                    {t('settings.spotify.disconnect')}
+                  </button>
+                ) : (
+                  <button
+                    className="pixel-button spotify-panel__login-btn"
+                    onClick={handleSpotifyConnect}
+                    disabled={spotifyConnecting}
+                  >
+                    {spotifyConnecting ? t('settings.spotify.connecting') : t('settings.spotify.connect')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Show warning again toggle */}
+            <div className="settings-row">
+              <span className="settings-row__label">
+                {t('settings.spotify.showWarning')}
+              </span>
+              <SegmentedRow compact>
+                <SegmentButton
+                  active={!librespotShowWarning}
+                  onClick={() => setLibrespotShowWarning(false)}
+                  aria-label={t('settings.spotify.showWarning') + ' ' + t('settings.off')}
+                >
+                  {t('settings.off')}
+                </SegmentButton>
+                <SegmentButton
+                  active={librespotShowWarning}
+                  onClick={() => {
+                    setLibrespotShowWarning(true)
+                    // Also reset the dismissed flag so the warning shows next time.
+                    useSpotifyStore.getState().setLibrespotWarningDismissed(false)
+                  }}
+                  aria-label={t('settings.spotify.showWarning') + ' ' + t('settings.on')}
+                >
+                  {t('settings.on')}
+                </SegmentButton>
+              </SegmentedRow>
+            </div>
+            <p className="settings-section__hint">
+              {t('settings.spotify.showWarningHint')}
+            </p>
           </Section>
 
           <Section title={t('settings.section.display')}>

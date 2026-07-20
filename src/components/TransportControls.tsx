@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { usePlayerStore } from '../state/usePlayerStore'
-import { audioController } from '../lib/audio'
+import { playbackEngine } from '../lib/playback/engine'
 import { useT } from '../i18n/useT'
 
 export function TransportControls() {
@@ -10,9 +10,6 @@ export function TransportControls() {
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
   const volume = usePlayerStore((s) => s.volume)
-  const setVolume = usePlayerStore((s) => s.setVolume)
-  const next = usePlayerStore((s) => s.next)
-  const prev = usePlayerStore((s) => s.prev)
   const { t } = useT()
 
   const hasTracks = tracks.length > 0
@@ -31,26 +28,24 @@ export function TransportControls() {
       switch (e.code) {
         case 'Space':
           e.preventDefault()
-          audioController.togglePlay()
+          playbackEngine.togglePlay()
           break
         case 'ArrowRight':
-          if (e.shiftKey) s().next()
-          else audioController.seek(s().currentTime + 5)
+          if (e.shiftKey) playbackEngine.next()
+          else playbackEngine.seek(s().currentTime + 5)
           break
         case 'ArrowLeft':
-          if (e.shiftKey) s().prev()
-          else audioController.seek(Math.max(0, s().currentTime - 5))
+          if (e.shiftKey) playbackEngine.prev()
+          else playbackEngine.seek(Math.max(0, s().currentTime - 5))
           break
         case 'ArrowUp': {
           const v = Math.min(1, s().volume + 0.05)
-          s().setVolume(v)
-          audioController.setVolume(v)
+          playbackEngine.setVolume(v)
           break
         }
         case 'ArrowDown': {
           const v = Math.max(0, s().volume - 0.05)
-          s().setVolume(v)
-          audioController.setVolume(v)
+          playbackEngine.setVolume(v)
           break
         }
       }
@@ -63,27 +58,30 @@ export function TransportControls() {
     if (currentIndex < 0) return
     const t = usePlayerStore.getState().tracks[currentIndex]
     if (!t) return
-    audioController.load(t.path)
+    // Only auto-load local files; Spotify tracks are handled by the engine.
+    if (playbackEngine.isLocal) {
+      playbackEngine.play(t.path)
+    }
   }, [currentIndex])
 
   function togglePlay() {
     if (!hasCurrent) return
-    audioController.togglePlay()
+    playbackEngine.togglePlay()
   }
 
   function doStop() {
     if (!hasCurrent) return
-    audioController.stop()
+    playbackEngine.stop()
   }
 
   function doNext() {
     if (!hasTracks) return
-    next()
+    playbackEngine.next()
   }
 
   function doPrev() {
     if (!hasTracks) return
-    prev()
+    playbackEngine.prev()
   }
 
   function onSeek(e: React.MouseEvent<HTMLDivElement>) {
@@ -91,13 +89,12 @@ export function TransportControls() {
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
     const x = e.clientX - rect.left
     const pct = Math.max(0, Math.min(1, x / rect.width))
-    audioController.seek(pct * duration)
+    playbackEngine.seek(pct * duration)
   }
 
   function onVolume(e: React.ChangeEvent<HTMLInputElement>) {
     const v = Number(e.target.value)
-    setVolume(v)
-    audioController.setVolume(v)
+    playbackEngine.setVolume(v)
   }
 
   const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
@@ -179,6 +176,9 @@ export function TransportControls() {
           className="transport__volume-slider"
         />
         <span className="transport__volume-num">{Math.round(volume * 100)}</span>
+        <span className="transport__source">
+          {playbackEngine.source === 'local' ? '💻' : playbackEngine.source === 'spotify-sdk' ? '🟢' : '🔗'}
+        </span>
       </div>
     </div>
   )

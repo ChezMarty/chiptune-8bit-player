@@ -16,6 +16,9 @@ import {
 
 export type { ThemeId, ThemeSortMode } from '../themes/types'
 
+/** Which playback engine is driving the audio output right now. */
+export type PlaybackSource = 'local' | 'spotify-sdk' | 'spotify-librespot'
+
 export interface Track {
   id: string
   path: string
@@ -77,6 +80,9 @@ interface PlayerState {
   stopRewinds: boolean
   shuffleOnImport: boolean
 
+  // Active playback source (which engine is driving audio)
+  activeSource: PlaybackSource
+
   // Actions
   addTracks: (tracks: Track[]) => void
   removeTrack: (id: string) => void
@@ -114,6 +120,8 @@ interface PlayerState {
   shuffleUpcoming: () => void
   /** Remove all tracks after the current track. No-op if already empty. */
   clearUpcoming: () => void
+  /** Set the active playback source (local, spotify-sdk, spotify-librespot). */
+  setActiveSource: (source: PlaybackSource) => void
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -133,6 +141,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   autoPlayOnImport: false,
   stopRewinds: false,
   shuffleOnImport: false,
+
+  activeSource: 'local',
 
   addTracks: (tracks) =>
     set((s) => ({ tracks: [...s.tracks, ...tracks] })),
@@ -349,4 +359,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (head.length === s.tracks.length) return s
       return { tracks: head }
     }),
+
+  setActiveSource: (source) => set({ activeSource: source }),
 }))

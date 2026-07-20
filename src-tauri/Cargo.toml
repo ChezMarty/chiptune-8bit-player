@@ -23,6 +23,10 @@ crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+# Pin vergen to 9.0.6 to match the version expected by vergen-gitcl 1.0.x
+# (transitively used by librespot-core's build script).
+# See https://github.com/rustyhorde/vergen/issues/478
+vergen = "=9.0.6"
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
@@ -31,4 +35,22 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+url = "2"
+tokio = { version = "1", features = ["net", "io-util"] }
+keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
+
+# Rustls CryptoProvider — must be installed before any TLS code runs.
+# Both reqwest (rustls-tls) and librespot (via its HTTP client deps) use
+# rustls 0.23+, which no longer auto-selects a crypto provider at runtime.
+# We explicitly use the `ring` provider.
+rustls = { version = "0.23", features = ["ring"] }
+
+# Librespot for direct Spotify audio streaming
+librespot-core = { version = "0.5", default-features = false }
+librespot-playback = { version = "0.5", default-features = false }
+librespot-oauth = { version = "0.5", default-features = false }
 

@@ -1,0 +1,638 @@
+/* =========================================================
+ * Spotify Panel — 8-bit retro themed sidebar section
+ * Matches the existing library panel design.
+ * ========================================================= */
+
+.spotify-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+.spotify-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 4px solid var(--bg-elevated);
+}
+
+.spotify-panel__title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 13px;
+  color: #1DB954;
+  letter-spacing: 2px;
+}
+
+.spotify-panel__logout {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 2px solid var(--bg-elevated);
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.spotify-panel__logout:hover {
+  background: var(--accent);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* ── Login screen ──────────────────────────────────── */
+
+.spotify-panel__login {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.spotify-panel__login-icon {
+  font-size: 48px;
+}
+
+.spotify-panel__login-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+}
+
+.spotify-panel__login-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  background: #1DB954;
+  color: #000;
+  border: 3px solid #168D40;
+  padding: 10px 18px;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+
+.spotify-panel__login-btn:hover:not(:disabled) {
+  background: #1ED760;
+}
+
+.spotify-panel__login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── OAuth flow ─────────────────────────────────────── */
+
+.spotify-panel__oauth-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.spotify-panel__oauth-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--bg-elevated);
+  border-top-color: #1DB954;
+  animation: spotify-spin 0.8s linear infinite;
+}
+
+@keyframes spotify-spin {
+  to { transform: rotate(360deg); }
+}
+
+.spotify-panel__oauth-waiting p {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.spotify-panel__oauth-manual {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  padding: 6px 10px;
+}
+
+.spotify-panel__oauth-code {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.spotify-panel__oauth-hint {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.spotify-panel__code-input {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 8px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 3px solid var(--border);
+  outline: none;
+  width: 100%;
+}
+
+.spotify-panel__code-input:focus {
+  border-color: #1DB954;
+}
+
+.spotify-panel__code-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.spotify-panel__code-buttons .pixel-button {
+  font-size: 9px;
+  padding: 6px 10px;
+  flex: 1;
+}
+
+/* ── Error ──────────────────────────────────────────── */
+
+.spotify-panel__error {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: 6px 8px;
+  margin: 4px 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* ── Account info ───────────────────────────────────── */
+
+.spotify-panel__account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: var(--bg-panel);
+  border: 2px solid var(--bg-elevated);
+}
+
+.spotify-panel__avatar {
+  width: 36px;
+  height: 36px;
+  border: 2px solid #1DB954;
+  flex-shrink: 0;
+}
+
+.spotify-panel__account-info {
+  min-width: 0;
+}
+
+.spotify-panel__account-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.spotify-panel__account-plan {
+  font-family: 'VT323', monospace;
+  font-size: 15px;
+  color: #1DB954;
+}
+
+/* ── Section tabs ───────────────────────────────────── */
+
+.spotify-panel__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.spotify-panel__tab {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  padding: 5px 7px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.spotify-panel__tab:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.spotify-panel__tab.is-active {
+  background: #1DB954;
+  color: #000;
+  border-color: #168D40;
+}
+
+/* ── Content area ───────────────────────────────────── */
+
+.spotify-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.spotify-panel__section {
+  display: flex;
+  flex-direction: column;
+}
+
+.spotify-panel__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px 4px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--accent-secondary);
+  letter-spacing: 1px;
+  border-bottom: 2px solid var(--bg-elevated);
+  margin-bottom: 4px;
+}
+
+.spotify-panel__count {
+  font-size: 8px;
+  color: var(--text-tertiary);
+}
+
+.spotify-panel__back-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--accent-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.spotify-panel__back-btn:hover {
+  color: #1DB954;
+}
+
+.spotify-panel__loading {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 20px;
+  animation: spotify-blink 1s step-end infinite;
+}
+
+@keyframes spotify-blink {
+  50% { opacity: 0; }
+}
+
+.spotify-panel__empty {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 20px;
+  border: 2px dashed var(--bg-elevated);
+}
+
+/* ── Track list ─────────────────────────────────────── */
+
+.spotify-panel__track-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.spotify-panel__track-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 4px;
+  border-bottom: 2px solid var(--bg-elevated);
+  cursor: default;
+}
+
+.spotify-panel__track-row:hover {
+  background: rgba(29, 185, 84, 0.1);
+}
+
+.spotify-panel__track-art {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.spotify-panel__track-art--placeholder {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.spotify-panel__track-info {
+  min-width: 0;
+}
+
+.spotify-panel__track-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.spotify-panel__track-artist {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spotify-panel__track-time {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: var(--text-tertiary);
+}
+
+/* ── Item list (playlists / albums / artists) ───────── */
+
+.spotify-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.spotify-panel__item-btn {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 2px solid var(--bg-elevated);
+  font-family: inherit;
+}
+
+.spotify-panel__item-btn:hover {
+  background: rgba(29, 185, 84, 0.1);
+}
+
+.spotify-panel__item-art {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+}
+
+.spotify-panel__item-art--circle {
+  border-radius: 50%;
+}
+
+.spotify-panel__item-art--placeholder {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.spotify-panel__item-info {
+  min-width: 0;
+}
+
+.spotify-panel__item-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.spotify-panel__item-sub {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Load more button ───────────────────────────────── */
+
+.spotify-panel__load-more {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  border: 2px solid var(--bg-elevated);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  cursor: pointer;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.spotify-panel__load-more:hover:not(:disabled) {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+  border-color: #1DB954;
+}
+
+.spotify-panel__load-more:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Search ─────────────────────────────────────────── */
+
+.spotify-panel__search-wrap {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.spotify-panel__search-input {
+  width: 100%;
+  padding: 8px 30px 8px 8px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 2px solid var(--border);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  outline: none;
+}
+
+.spotify-panel__search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.spotify-panel__search-input:focus {
+  border-color: #1DB954;
+}
+
+.spotify-panel__search-spinner {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  animation: spotify-spin 0.8s linear infinite;
+}
+
+.spotify-panel__search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spotify-panel__result-header {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: #1DB954;
+  letter-spacing: 1px;
+  padding: 6px 4px 2px;
+  border-bottom: 2px solid var(--bg-elevated);
+  margin-top: 4px;
+}
+
+/* ── Footer ─────────────────────────────────────────── */
+
+.spotify-panel__footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 2px solid var(--bg-elevated);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.spotify-panel__footer-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--text-tertiary);
+  letter-spacing: 1px;
+}
+
+/* ── Librespot Warning Dialog ───────────────────────── */
+
+.librespot-warning__section {
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.librespot-warning__section p {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.librespot-warning__section ul {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 2;
+}
+
+.librespot-warning__section li {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.librespot-warning__section li strong {
+  color: var(--accent);
+}
+
+.librespot-warning__experimental {
+  background: rgba(255, 200, 0, 0.15);
+  border: 2px solid rgba(255, 200, 0, 0.4);
+  border-radius: 2px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #ffcc00;
+  line-height: 1.5;
+}
+
+.librespot-warning__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ── Library tabs (Local / Spotify) ─────────────────── */
+
+.library__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 4px solid var(--bg-elevated);
+}
+
+.library__tab {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  padding: 7px 4px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.library__tab:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.library__tab.is-active {
+  background: var(--accent-secondary);
+  color: var(--bg-app);
+  border-color: var(--accent-secondary);
+}

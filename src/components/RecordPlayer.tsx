@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { usePlayerStore } from '../state/usePlayerStore'
-import { audioController } from '../lib/audio'
+import { playbackEngine } from '../lib/playback/engine'
 import { useT } from '../i18n/useT'
 
 interface RecordPlayerProps {
@@ -36,7 +36,7 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
 
   function onVinylClick() {
     if (!hasTrack) return
-    audioController.togglePlay()
+    playbackEngine.togglePlay()
   }
 
   useEffect(() => {
