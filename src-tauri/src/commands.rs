@@ -151,42 +151,6 @@ pub async fn spotify_playlist_tracks(
 }
 
 #[tauri::command]
-pub async fn spotify_albums(
-    service: State<'_, SpotifyService>,
-    offset: u64,
-    limit: u64,
-) -> Result<AlbumListResponse, String> {
-    let (items, total, has_more) = service.get_my_albums(offset, limit).await?;
-    Ok(AlbumListResponse { items, total, has_more })
-}
-
-#[tauri::command]
-pub async fn spotify_album_tracks(
-    service: State<'_, SpotifyService>,
-    album_id: String,
-) -> Result<PaginatedSpotifyTracks, String> {
-    service.get_album_tracks(&album_id).await
-}
-
-#[tauri::command]
-pub async fn spotify_artists(
-    service: State<'_, SpotifyService>,
-    after: Option<String>,
-    limit: u64,
-) -> Result<ArtistListResponse, String> {
-    let (items, next_after) = service.get_followed_artists(after, limit).await?;
-    Ok(ArtistListResponse { items, next_after })
-}
-
-#[tauri::command]
-pub async fn spotify_recently_played(
-    service: State<'_, SpotifyService>,
-    limit: u64,
-) -> Result<Vec<SpotifyTrackInfo>, String> {
-    service.get_recently_played(limit).await
-}
-
-#[tauri::command]
 pub async fn spotify_top_tracks(
     service: State<'_, SpotifyService>,
     offset: u64,
@@ -235,19 +199,6 @@ pub struct PlaylistListResponse {
     pub items: Vec<SpotifyPlaylistInfo>,
     pub total: u64,
     pub has_more: bool,
-}
-
-#[derive(serde::Serialize, Clone)]
-pub struct AlbumListResponse {
-    pub items: Vec<SpotifyAlbumInfo>,
-    pub total: u64,
-    pub has_more: bool,
-}
-
-#[derive(serde::Serialize, Clone)]
-pub struct ArtistListResponse {
-    pub items: Vec<SpotifyArtistInfo>,
-    pub next_after: Option<String>,
 }
 
 // ── Token access for Web Playback SDK ────────────────────────────

@@ -1,15 +1,12 @@
 import { useEffect, useState, useRef, useCallback, useLayoutEffect } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { useSpotifyStore, type SpotifySection } from '../state/useSpotifyStore'
-import type { SpotifyTrackInfo, SpotifyPlaylistInfo, SpotifyAlbumInfo, SpotifyAccountStatus } from '../lib/spotify'
+import type { SpotifyTrackInfo, SpotifyPlaylistInfo, SpotifyAccountStatus } from '../lib/spotify'
 import { useT } from '../i18n/useT'
 
 const SECTION_TABS: { key: SpotifySection; labelKey: string }[] = [
   { key: 'liked', labelKey: 'spotify.section.liked' },
   { key: 'playlists', labelKey: 'spotify.section.playlists' },
-  { key: 'albums', labelKey: 'spotify.section.albums' },
-  { key: 'artists', labelKey: 'spotify.section.artists' },
-  { key: 'recent', labelKey: 'spotify.section.recent' },
   { key: 'top', labelKey: 'spotify.section.top' },
   { key: 'search', labelKey: 'spotify.section.search' },
 ]
@@ -279,11 +276,6 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
           <TrackListSection title={t('spotify.section.liked')} loadMoreKey="liked" onPlayTrack={wrappedPlayTrack} />
         )}
         {activeSection === 'playlists' && <PlaylistSection onPlayTrack={wrappedPlayTrack} />}
-        {activeSection === 'albums' && <AlbumSection onPlayTrack={wrappedPlayTrack} />}
-        {activeSection === 'artists' && <ArtistSection />}
-        {activeSection === 'recent' && (
-          <TrackListSection title={t('spotify.section.recent')} loadMoreKey="recent" onPlayTrack={wrappedPlayTrack} />
-        )}
         {activeSection === 'top' && (
           <TrackListSection title={t('spotify.section.top')} loadMoreKey="top" onPlayTrack={wrappedPlayTrack} />
         )}
@@ -307,27 +299,23 @@ function TrackListSection({
   onPlayTrack,
 }: {
   title: string
-  loadMoreKey: 'liked' | 'recent' | 'top'
+  loadMoreKey: 'liked' | 'top'
   onPlayTrack?: (track: SpotifyTrackInfo) => void
 }) {
   const tracks = useSpotifyStore((s) => {
     if (loadMoreKey === 'liked') return s.likedSongs
-    if (loadMoreKey === 'recent') return s.recentlyPlayed
     return s.topTracks
   })
   const loading = useSpotifyStore((s) => {
     if (loadMoreKey === 'liked') return s.loadingLiked
-    if (loadMoreKey === 'recent') return s.loadingRecent
     return s.loadingTop
   })
   const hasMore = useSpotifyStore((s) => {
     if (loadMoreKey === 'liked') return s.likedHasMore
-    if (loadMoreKey === 'recent') return false
     return true
   })
   const loadFn = useSpotifyStore((s) => {
     if (loadMoreKey === 'liked') return s.loadLikedSongs
-    if (loadMoreKey === 'recent') return s.loadRecentlyPlayed
     return s.loadTopTracks
   })
   const error = useSpotifyStore((s) => s.error)
@@ -353,7 +341,7 @@ function TrackListSection({
           {tracks.map((track) => (
             <TrackRow key={track.id} track={track} onPlay={playTrackFn} />
           ))}
-          {hasMore && loadMoreKey !== 'recent' && (
+          {hasMore && (
             <li>
               <button
                 className="spotify-panel__load-more"
@@ -465,139 +453,6 @@ function PlaylistSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackIn
                   </div>
                 </div>
               </button>
-            </li>
-          ))}
-          {hasMore && (
-            <li>
-              <button className="spotify-panel__load-more" onClick={() => loadMore(true)} disabled={loading}>
-                Load more...
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-function AlbumSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackInfo) => void }) {
-  const albums = useSpotifyStore((s) => s.albums)
-  const loading = useSpotifyStore((s) => s.loadingAlbums)
-  const hasMore = useSpotifyStore((s) => s.albumHasMore)
-  const loadMore = useSpotifyStore((s) => s.loadAlbums)
-  const error = useSpotifyStore((s) => s.error)
-  const loadAlbumTracks = useSpotifyStore((s) => s.loadAlbumTracks)
-  const [expanded, setExpanded] = useState<SpotifyAlbumInfo | null>(null)
-  const [tracks, setTracks] = useState<SpotifyTrackInfo[]>([])
-  const [loadingTracks, setLoadingTracks] = useState(false)
-
-  const handleExpand = async (a: SpotifyAlbumInfo) => {
-    setExpanded(a)
-    setLoadingTracks(true)
-    const result = await loadAlbumTracks(a.id)
-    setTracks(result)
-    setLoadingTracks(false)
-  }
-
-  const playTrackFromStore = useSpotifyStore((s) => s.playTrack)
-  const playTrack = onPlayTrack ?? playTrackFromStore
-  const playbackError = useSpotifyStore((s) => s.playbackError)
-
-  if (expanded) {
-    return (
-      <div className="spotify-panel__section">
-        <div className="spotify-panel__section-header">
-          <button className="spotify-panel__back-btn" onClick={() => setExpanded(null)}>◀ BACK</button>
-          <span>{expanded.name}</span>
-        </div>
-        {playbackError && <div className="spotify-panel__error">{playbackError}</div>}
-        {loadingTracks ? (
-          <div className="spotify-panel__loading">Loading...</div>
-        ) : (
-          <ul className="spotify-panel__track-list">
-            {tracks.map((t) => (
-              <TrackRow key={t.id} track={{ ...t, image_url: t.image_url ?? expanded.image_url }} onPlay={playTrack} />
-            ))}
-          </ul>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div className="spotify-panel__section">
-      <div className="spotify-panel__section-header">
-        <span>Albums</span>
-        <span className="spotify-panel__count">{albums.length}</span>
-      </div>
-      {loading && albums.length === 0 ? (
-        <div className="spotify-panel__loading">Loading...</div>
-      ) : error ? (
-        <div className="spotify-panel__error">{error}</div>
-      ) : (
-        <ul className="spotify-panel__list">
-          {albums.map((a) => (
-            <li key={a.id}>
-              <button className="spotify-panel__item-btn" onClick={() => handleExpand(a)}>
-                {a.image_url ? (
-                  <img className="spotify-panel__item-art" src={a.image_url} alt="" style={{ imageRendering: 'pixelated' }} />
-                ) : (
-                  <span className="spotify-panel__item-art--placeholder">💿</span>
-                )}
-                <div className="spotify-panel__item-info">
-                  <div className="spotify-panel__item-name">{a.name}</div>
-                  <div className="spotify-panel__item-sub">
-                    {a.artist}{a.release_date ? ` · ${a.release_date.slice(0, 4)}` : ''}
-                  </div>
-                </div>
-              </button>
-            </li>
-          ))}
-          {hasMore && (
-            <li>
-              <button className="spotify-panel__load-more" onClick={() => loadMore(true)} disabled={loading}>
-                Load more...
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-function ArtistSection() {
-  const artists = useSpotifyStore((s) => s.artists)
-  const loading = useSpotifyStore((s) => s.loadingArtists)
-  const hasMore = useSpotifyStore((s) => s.artistHasMore)
-  const loadMore = useSpotifyStore((s) => s.loadArtists)
-  const error = useSpotifyStore((s) => s.error)
-
-  return (
-    <div className="spotify-panel__section">
-      <div className="spotify-panel__section-header">
-        <span>Artists</span>
-        <span className="spotify-panel__count">{artists.length}</span>
-      </div>
-      {loading && artists.length === 0 ? (
-        <div className="spotify-panel__loading">Loading...</div>
-      ) : error ? (
-        <div className="spotify-panel__error">{error}</div>
-      ) : (
-        <ul className="spotify-panel__list">
-          {artists.map((a) => (
-            <li key={a.id}>
-              <div className="spotify-panel__item-btn">
-                {a.image_url ? (
-                  <img className="spotify-panel__item-art spotify-panel__item-art--circle" src={a.image_url} alt="" style={{ imageRendering: 'pixelated' }} />
-                ) : (
-                  <span className="spotify-panel__item-art--placeholder spotify-panel__item-art--circle">🎤</span>
-                )}
-                <div className="spotify-panel__item-info">
-                  <div className="spotify-panel__item-name">{a.name}</div>
-                  <div className="spotify-panel__item-sub">Artist</div>
-                </div>
-              </div>
             </li>
           ))}
           {hasMore && (

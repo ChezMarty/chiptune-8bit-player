@@ -40,9 +40,6 @@
   "spotify.logout": "Disconnect Spotify",
   "spotify.section.liked": "LIKED",
   "spotify.section.playlists": "PLAYLISTS",
-  "spotify.section.albums": "ALBUMS",
-  "spotify.section.artists": "ARTISTS",
-  "spotify.section.recent": "RECENT",
   "spotify.section.top": "TOP",
   "spotify.section.search": "SEARCH",
 

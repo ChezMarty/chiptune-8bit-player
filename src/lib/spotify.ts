@@ -72,17 +72,6 @@ export interface PlaylistListResponse {
   has_more: boolean
 }
 
-export interface AlbumListResponse {
-  items: SpotifyAlbumInfo[]
-  total: number
-  has_more: boolean
-}
-
-export interface ArtistListResponse {
-  items: SpotifyArtistInfo[]
-  next_after?: string
-}
-
 export interface LoginStartResponse {
   auth_url: string
   verifier: string
@@ -139,18 +128,6 @@ export const spotifyService = {
       offset,
       limit,
     }),
-
-  albums: (offset: number, limit: number) =>
-    invoke<AlbumListResponse>('spotify_albums', { offset, limit }),
-
-  albumTracks: (albumId: string) =>
-    invoke<PaginatedSpotifyTracks>('spotify_album_tracks', { albumId }),
-
-  artists: (after: string | null, limit: number) =>
-    invoke<ArtistListResponse>('spotify_artists', { after, limit }),
-
-  recentlyPlayed: (limit: number) =>
-    invoke<SpotifyTrackInfo[]>('spotify_recently_played', { limit }),
 
   topTracks: (offset: number, limit: number) =>
     invoke<PaginatedSpotifyTracks>('spotify_top_tracks', { offset, limit }),

@@ -88,6 +88,8 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
               .rp-vinyl-label-border { fill: none; stroke: color-mix(in srgb, var(--vinyl-label) 50%, black); stroke-width: 1.5; }
               .rp-vinyl-spindle { fill: var(--vinyl-black); }
               .rp-vinyl-fallback-note { fill: var(--vinyl-black); }
+              .rp-album-border { fill: none; stroke: var(--accent); stroke-width: 5; }
+              .rp-album-glow { fill: none; stroke: var(--accent); stroke-width: 3; opacity: 0.2; }
             `}</style>
             <defs>
               <radialGradient id="rp-vinyl-shine" cx="50%" cy="50%" r="55%">
@@ -95,6 +97,9 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
                 <stop offset="60%" style={{ stopColor: 'var(--vinyl-black)' }} />
                 <stop offset="100%" style={{ stopColor: 'var(--vinyl-black)' }} />
               </radialGradient>
+              <clipPath id="rp-album-clip">
+                <circle cx="200" cy="200" r="49" />
+              </clipPath>
             </defs>
             <g className="record-player__disc">
               <circle className="rp-vinyl-body" cx="200" cy="200" r="195" />
@@ -115,15 +120,17 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
               <circle className="rp-vinyl-label-fill" cx="200" cy="200" r="62" />
               <circle className="rp-vinyl-label-border" cx="200" cy="200" r="62" />
               {displayArtUrl ? (
-                <image
-                  href={displayArtUrl}
-                  x="170"
-                  y="170"
-                  width="60"
-                  height="60"
-                  preserveAspectRatio="xMidYMid slice"
-                  style={{ imageRendering: 'pixelated' }}
-                />
+                <g clipPath="url(#rp-album-clip)">
+                  <image
+                    href={displayArtUrl}
+                    x="151"
+                    y="151"
+                    width="98"
+                    height="98"
+                    preserveAspectRatio="xMidYMid slice"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                </g>
               ) : (
                 <text
                   className="rp-vinyl-fallback-note"
@@ -135,6 +142,12 @@ export function RecordPlayer({ className = '' }: RecordPlayerProps) {
                 >
                   ♪
                 </text>
+              )}
+              {displayArtUrl && (
+                <>
+                  <circle className="rp-album-glow" cx="200" cy="200" r="50" />
+                  <circle className="rp-album-border" cx="200" cy="200" r="49" />
+                </>
               )}
               <circle className="rp-vinyl-spindle" cx="200" cy="200" r="6" />
             </g>

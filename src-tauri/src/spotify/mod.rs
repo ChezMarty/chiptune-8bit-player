@@ -292,26 +292,6 @@ impl SpotifyService {
         self.core.api_client.get_playlist_tracks(&token, playlist_id, offset, limit).await
     }
 
-    pub async fn get_my_albums(&self, offset: u64, limit: u64) -> Result<(Vec<SpotifyAlbumInfo>, u64, bool), String> {
-        let token = self.get_valid_token().await?;
-        self.core.api_client.get_my_albums(&token, offset, limit).await
-    }
-
-    pub async fn get_album_tracks(&self, album_id: &str) -> Result<PaginatedSpotifyTracks, String> {
-        let token = self.get_valid_token().await?;
-        self.core.api_client.get_album_tracks(&token, album_id).await
-    }
-
-    pub async fn get_followed_artists(&self, after: Option<String>, limit: u64) -> Result<(Vec<SpotifyArtistInfo>, Option<String>), String> {
-        let token = self.get_valid_token().await?;
-        self.core.api_client.get_followed_artists(&token, after.as_deref(), limit).await
-    }
-
-    pub async fn get_recently_played(&self, limit: u64) -> Result<Vec<SpotifyTrackInfo>, String> {
-        let token = self.get_valid_token().await?;
-        self.core.api_client.get_recently_played(&token, limit).await
-    }
-
     pub async fn get_top_tracks(&self, offset: u64, limit: u64) -> Result<PaginatedSpotifyTracks, String> {
         let token = self.get_valid_token().await?;
         self.core.api_client.get_top_tracks(&token, offset, limit).await

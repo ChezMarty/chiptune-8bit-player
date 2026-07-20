@@ -78,10 +78,6 @@ pub fn run() {
             commands::spotify_liked_songs,
             commands::spotify_playlists,
             commands::spotify_playlist_tracks,
-            commands::spotify_albums,
-            commands::spotify_album_tracks,
-            commands::spotify_artists,
-            commands::spotify_recently_played,
             commands::spotify_top_tracks,
             commands::spotify_search,
             // Spotify token access (SDK)

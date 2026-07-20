@@ -168,20 +168,6 @@ pub struct PagingArtist {
     pub next: Option<String>,
 }
 
-/// Recently played response.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RecentlyPlayedResponse {
-    #[serde(default)]
-    pub items: Vec<PlayHistoryItem>,
-    pub next: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlayHistoryItem {
-    pub track: SpotifyTrack,
-    pub played_at: Option<String>,
-}
-
 /// Search response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse {

@@ -4,8 +4,6 @@ import {
   type SpotifyAccountStatus,
   type SpotifyTrackInfo,
   type SpotifyPlaylistInfo,
-  type SpotifyAlbumInfo,
-  type SpotifyArtistInfo,
   type SpotifySearchResults,
   type SpotifyDevice,
 } from '../lib/spotify'
@@ -16,9 +14,6 @@ import { readBoolPref, writeBoolPref } from '../lib/preferences'
 export type SpotifySection =
   | 'liked'
   | 'playlists'
-  | 'albums'
-  | 'artists'
-  | 'recent'
   | 'top'
   | 'search'
 
@@ -43,18 +38,12 @@ interface SpotifyState {
   // Library data
   likedSongs: SpotifyTrackInfo[]
   playlists: SpotifyPlaylistInfo[]
-  albums: SpotifyAlbumInfo[]
-  artists: SpotifyArtistInfo[]
-  recentlyPlayed: SpotifyTrackInfo[]
   topTracks: SpotifyTrackInfo[]
   searchResults: SpotifySearchResults | null
 
   // Loading flags
   loadingLiked: boolean
   loadingPlaylists: boolean
-  loadingAlbums: boolean
-  loadingArtists: boolean
-  loadingRecent: boolean
   loadingTop: boolean
   loadingSearch: boolean
 
@@ -63,10 +52,6 @@ interface SpotifyState {
   likedHasMore: boolean
   playlistOffset: number
   playlistHasMore: boolean
-  albumOffset: number
-  albumHasMore: boolean
-  artistAfter: string | null
-  artistHasMore: boolean
 
   // Errors
   error: string | null
@@ -97,14 +82,10 @@ interface SpotifyState {
   setActiveSection: (section: SpotifySection) => void
   loadLikedSongs: (loadMore?: boolean) => Promise<void>
   loadPlaylists: (loadMore?: boolean) => Promise<void>
-  loadAlbums: (loadMore?: boolean) => Promise<void>
-  loadArtists: (loadMore?: boolean) => Promise<void>
-  loadRecentlyPlayed: () => Promise<void>
   loadTopTracks: () => Promise<void>
   doSearch: (query: string) => Promise<void>
   clearError: () => void
   loadPlaylistTracks: (playlistId: string) => Promise<SpotifyTrackInfo[]>
-  loadAlbumTracks: (albumId: string) => Promise<SpotifyTrackInfo[]>
 
   // Playback actions
   playTrack: (track: SpotifyTrackInfo) => Promise<void>
@@ -133,26 +114,16 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
   activeSection: 'liked',
   likedSongs: [],
   playlists: [],
-  albums: [],
-  artists: [],
-  recentlyPlayed: [],
   topTracks: [],
   searchResults: null,
   loadingLiked: false,
   loadingPlaylists: false,
-  loadingAlbums: false,
-  loadingArtists: false,
-  loadingRecent: false,
   loadingTop: false,
   loadingSearch: false,
   likedOffset: 0,
   likedHasMore: true,
   playlistOffset: 0,
   playlistHasMore: true,
-  albumOffset: 0,
-  albumHasMore: true,
-  artistAfter: null,
-  artistHasMore: true,
   error: null,
 
   isPlaying: false,
@@ -239,9 +210,6 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
         account: { connected: false },
         likedSongs: [],
         playlists: [],
-        albums: [],
-        artists: [],
-        recentlyPlayed: [],
         topTracks: [],
         searchResults: null,
         loginLoading: false,
@@ -262,15 +230,6 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
         break
       case 'playlists':
         if (s.playlists.length === 0) s.loadPlaylists()
-        break
-      case 'albums':
-        if (s.albums.length === 0) s.loadAlbums()
-        break
-      case 'artists':
-        if (s.artists.length === 0) s.loadArtists()
-        break
-      case 'recent':
-        if (s.recentlyPlayed.length === 0) s.loadRecentlyPlayed()
         break
       case 'top':
         if (s.topTracks.length === 0) s.loadTopTracks()
@@ -311,69 +270,6 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
       })
     } catch (e) {
       set({ error: String(e), loadingPlaylists: false })
-    }
-  },
-
-  loadAlbums: async (loadMore = false) => {
-    const s = get()
-    if (s.loadingAlbums) return
-    const offset = loadMore ? s.albumOffset + PAGE_SIZE : 0
-    set({ loadingAlbums: true, error: null })
-    try {
-      const result = await spotifyService.albums(offset, PAGE_SIZE)
-      set({
-        albums: loadMore ? [...s.albums, ...result.items] : result.items,
-        albumOffset: offset,
-        albumHasMore: result.has_more,
-        loadingAlbums: false,
-      })
-    } catch (e) {
-      set({ error: String(e), loadingAlbums: false })
-    }
-  },
-
-  loadArtists: async (loadMore = false) => {
-    const s = get()
-    if (s.loadingArtists) return
-    if (loadMore && !s.artistHasMore) return
-    set({ loadingArtists: true, error: null })
-    try {
-      const after = loadMore ? s.artistAfter : null
-      const result = await spotifyService.artists(after, PAGE_SIZE)
-      set({
-        artists: loadMore ? [...s.artists, ...result.items] : result.items,
-        artistAfter: result.next_after ?? null,
-        artistHasMore: !!result.next_after,
-        loadingArtists: false,
-      })
-    } catch (e) {
-      set({ error: String(e), loadingArtists: false })
-    }
-  },
-
-  loadRecentlyPlayed: async () => {
-    set({ loadingRecent: true, error: null })
-    try {
-      const result = await spotifyService.recentlyPlayed(20)
-      // The Spotify "Recently Played" API returns play-history entries, not
-      // unique tracks. A track played twice appears twice with the same id.
-      // Deduplicate by track.id so React doesn't see duplicate keys.
-      const seen = new Set<string>()
-      const duplicateIds: string[] = []
-      const unique = result.filter((t) => {
-        if (seen.has(t.id)) {
-          duplicateIds.push(t.id)
-          return false
-        }
-        seen.add(t.id)
-        return true
-      })
-      if (unique.length !== result.length) {
-        console.log('[spotify] Deduplicated recentlyPlayed:', result.length, '→', unique.length, 'duplicate IDs:', [...new Set(duplicateIds)])
-      }
-      set({ recentlyPlayed: unique, loadingRecent: false })
-    } catch (e) {
-      set({ error: String(e), loadingRecent: false })
     }
   },
 
@@ -448,15 +344,6 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
   loadPlaylistTracks: async (playlistId) => {
     try {
       const result = await spotifyService.playlistTracks(playlistId, 0, 50)
-      return result.items
-    } catch {
-      return []
-    }
-  },
-
-  loadAlbumTracks: async (albumId) => {
-    try {
-      const result = await spotifyService.albumTracks(albumId)
       return result.items
     } catch {
       return []
