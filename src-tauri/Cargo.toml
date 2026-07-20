@@ -49,8 +49,10 @@ keyring = { version = "3", features = ["windows-native", "apple-native", "sync-s
 # We explicitly use the `ring` provider.
 rustls = { version = "0.23", features = ["ring"] }
 
+# Logging — capture librespot's internal log messages (error!, warn!, debug!)
+log = "0.4"
+
 # Librespot for direct Spotify audio streaming
-librespot-core = { version = "0.5", default-features = false }
-librespot-playback = { version = "0.5", default-features = false }
-librespot-oauth = { version = "0.5", default-features = false }
+librespot-core = { version = "0.8", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-playback = { version = "0.8", default-features = false, features = ["rustls-tls-webpki-roots"] }
 

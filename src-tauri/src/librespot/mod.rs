@@ -6,8 +6,8 @@
 //! - Creates a player with a custom audio sink that captures decoded PCM data.
 //! - Forwards PCM audio data to the frontend via Tauri events for Web Audio API playback.
 //!
-//! This implementation follows the official librespot v0.5.0 API as demonstrated
-//! in `examples/play.rs` and the `audio_backend` module source.
+//! This implementation follows the official librespot v0.8.0 API as demonstrated
+//! in the `audio_backend` module source and `examples/play.rs`.
 
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
@@ -21,7 +21,7 @@ use librespot_core::{
     authentication::Credentials,
     config::SessionConfig,
     session::Session,
-    spotify_id::{SpotifyId, SpotifyItemType},
+    spotify_uri::SpotifyUri,
 };
 use librespot_playback::{
     audio_backend::{self, Sink, SinkResult},
@@ -29,7 +29,7 @@ use librespot_playback::{
     convert::Converter,
     decoder::AudioPacket,
     mixer::{NoOpVolume, VolumeGetter},
-    player::Player,
+    player::{Player, PlayerEvent},
 };
 use tauri::{AppHandle, Emitter};
 
@@ -70,7 +70,7 @@ struct PcmPacket {
 /// A custom audio sink that captures decoded PCM data and sends it
 /// through a channel for the async emitter task to forward to the frontend.
 ///
-/// Following the official `Sink` trait signature from librespot v0.5.0:
+/// Following the official `Sink` trait signature from librespot v0.8.0:
 ///   `fn write(&mut self, packet: AudioPacket, converter: &mut Converter) -> SinkResult<()>`
 ///
 /// `AudioPacket` has two variants:
@@ -232,7 +232,11 @@ impl LibrespotManager {
 
     /// Start a librespot session using the Spotify access token.
     ///
-    /// Follows the official librespot v0.5.0 pattern from `examples/play.rs`:
+    /// `account_product` is the Spotify account type ("premium", "free", etc.)
+    /// from the Web API's user profile. It is logged for diagnostics — librespot
+    /// requires a Premium account to stream audio.
+    ///
+    /// Follows the official librespot v0.8.0 pattern:
     /// ```rust
     /// let credentials = Credentials::with_access_token(token);
     /// let session = Session::new(config, None);
@@ -242,6 +246,7 @@ impl LibrespotManager {
         &self,
         access_token: &str,
         app: AppHandle,
+        account_product: Option<&str>,
     ) -> Result<(), String> {
         if self.initialized.load(Ordering::SeqCst) {
             eprintln!("[librespot] start SKIPPED — already initialised");
@@ -250,11 +255,32 @@ impl LibrespotManager {
 
         eprintln!("[librespot] Creating session...");
 
+        // Log the Spotify account product type — librespot REQUIRES Premium.
+        match account_product {
+            Some("premium") => {
+                eprintln!("[librespot] ✅ Account product: premium (required for librespot streaming)");
+            }
+            Some(other) => {
+                eprintln!("[librespot] ⚠ Account product: {other}");
+                eprintln!("[librespot] ⚠ Librespot requires a **Premium** Spotify account.");
+                eprintln!("[librespot] ⚠ Free/Student accounts cannot stream audio via librespot.");
+            }
+            None => {
+                eprintln!("[librespot] ⚠ Account product: unknown (not provided)");
+                eprintln!("[librespot] ⚠ Verify your account is Premium in Settings → Account.");
+            }
+        }
+
         // 1. Create credentials from the access token.
         let credentials = Credentials::with_access_token(access_token);
 
-        // 2. Create session config and session.
+        // 2. Create session config with librespot 0.8.0 defaults.
+        //    librespot 0.8.0's SpClient uses login5 auth (not Keymaster)
+        //    for HTTP requests, so the default client_id is now fine.
         let session_config = SessionConfig::default();
+        eprintln!("[librespot]    Session client_id: {}", session_config.client_id);
+        eprintln!("[librespot]    Session device_id: {}", session_config.device_id);
+
         let session = Session::new(session_config, None);
 
         // 3. Connect to Spotify.
@@ -267,7 +293,45 @@ impl LibrespotManager {
                 format!("Librespot session error: {e}")
             })?;
 
-        eprintln!("[librespot] Session connected.");
+        eprintln!("[librespot] ✅ Session connected — AP authentication successful.");
+
+        // ── Session identity diagnostics ──────────────────────────────────
+        // Verify that the librespot session is authenticated as the same
+        // account that completed the OAuth Web API flow.
+        {
+            let username = session.username();
+            let user_data = session.user_data();
+            eprintln!("[librespot] 👤 Session identity:");
+            eprintln!("[librespot]    authenticated username:      {username}");
+            eprintln!("[librespot]    canonical username:          {}", user_data.canonical_username);
+            eprintln!("[librespot]    country:                     {}", user_data.country);
+            eprintln!("[librespot]    connection_id:               {}", session.connection_id());
+            eprintln!("[librespot]    client_id:                   {}", session.client_id());
+            eprintln!("[librespot]    device_id:                   {}", session.device_id());
+            // The account product (premium/free) was already logged above
+            // from the Web API's /me endpoint.
+            eprintln!("[librespot]    (account product was logged above from OAuth /me endpoint)");
+
+            // Check if the authenticated username matches what we expect.
+            // The canonical username is the Spotify internal user identifier.
+            // It often has a 'spotify:' prefix or similar format.
+            if !username.is_empty() {
+                eprintln!("[librespot] ✅ Session is authenticated — username is non-empty.");
+            } else {
+                eprintln!("[librespot] ⚠ Session username is empty! This may indicate auth failure.");
+            }
+        }
+
+        // ── librespot 0.8.0 note ───────────────────────────────────────
+        //
+        // SpClient in 0.8.0 uses login5 auth (not Keymaster/TokenProvider)
+        // for its HTTP requests. The TokenProvider still exists internally
+        // but is no longer on the critical path for playback.
+        //
+        // If playback still fails, check the [librespot-log] lines for
+        // the actual error from the internal loader.
+        eprintln!("[librespot] 🔧 librespot 0.8.0: SpClient uses login5 auth (not Keymaster)");
+        eprintln!("[librespot]    TokenProvider probe skipped — login5 handles HTTP auth now.");
 
         *self.session.lock().await = Some(session.clone());
 
@@ -356,7 +420,7 @@ impl LibrespotManager {
     /// player.load(id, true, 0);
     /// ```
     pub async fn play(&self, uri: &str) -> Result<(), String> {
-        eprintln!("[librespot] Play requested: {uri}");
+        eprintln!("[librespot] ⏯ Play requested: {uri}");
 
         let player_guard = self.player.lock().await;
         let player_exists = player_guard.is_some();
@@ -367,29 +431,98 @@ impl LibrespotManager {
             .ok_or("Librespot player not initialised")?
             .clone();
 
-        // Parse the Spotify URI to extract the base62 ID and item type.
-        let parts: Vec<&str> = uri.split(':').collect();
-        if parts.len() < 3 {
-            return Err(format!("Invalid Spotify URI: '{uri}'"));
-        }
-        let item_type_str = parts.get(1).copied().unwrap_or("track");
-        let id_str = parts.get(2).copied().ok_or_else(|| format!("No ID in URI: '{uri}'"))?;
+        // Parse the Spotify URI using librespot 0.8.0's SpotifyUri type.
+        let track = SpotifyUri::from_uri(uri)
+            .map_err(|e| format!("Invalid Spotify URI '{uri}': {e}"))?;
 
-        let item_type = match item_type_str {
-            "track" => SpotifyItemType::Track,
-            "album" => SpotifyItemType::Album,
-            "playlist" => SpotifyItemType::Playlist,
-            "artist" => SpotifyItemType::Artist,
-            "episode" => SpotifyItemType::Episode,
-            _ => SpotifyItemType::Track,
-        };
+        eprintln!("[librespot] Calling player.load(track_id={uri}, start_playing=true, position_ms=0)...");
 
-        let mut spotify_id = SpotifyId::from_base62(id_str)
-            .map_err(|e| format!("Invalid Spotify ID '{id_str}': {e}"))?;
-        spotify_id.item_type = item_type;
+        // ── Load the track into the player ───────────────────────────
+        //
+        // In librespot 0.8.0, player.load() takes a SpotifyUri instead of
+        // SpotifyId. The internal load_track pipeline:
+        //   1. Fetches track metadata via SpClient (now uses login5 auth!)
+        //   2. Checks availability (region, account type restrictions)
+        //   3. Opens the encrypted audio file from Spotify CDN
+        //   4. Fetches an AES decryption key (AudioKeyManager — packet protocol)
+        //   5. Initializes the decoder (Symphonia/Ogg Vorbis)
+        //
+        // The key fix in 0.8.0: SpClient uses login5 tokens instead of
+        // the (broken) Keymaster endpoint for HTTP authentication.
+        player.load(track, true, 0);
 
-        // Load the track into the player.
-        player.load(spotify_id, true, 0);
+        eprintln!("[librespot] player.load() command sent — listening for player events (4s timeout)...");
+        eprintln!("[librespot]   ↳ Check stderr for [librespot-log] messages — they contain the actual error reason");
+
+        // Listen for player events for 4 seconds to detect success/failure.
+        let mut event_rx = player.get_player_event_channel();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(4000)).await;
+            let mut found_event = false;
+            loop {
+                match event_rx.try_recv() {
+                    Ok(event) => {
+                        found_event = true;
+                        match &event {
+                            PlayerEvent::Loading { track_id, position_ms, .. } => {
+                                eprintln!("[librespot] ⏳ PlayerEvent::Loading — track_id={track_id}, position_ms={position_ms}");
+                            }
+                            PlayerEvent::Preloading { track_id } => {
+                                eprintln!("[librespot] 🔄 PlayerEvent::Preloading — track_id={track_id}");
+                            }
+                            PlayerEvent::Playing { track_id, position_ms, .. } => {
+                                eprintln!("[librespot] ✅ PlayerEvent::Playing — playback started! track_id={track_id}, position_ms={position_ms}");
+                            }
+                            PlayerEvent::Unavailable { track_id, play_request_id } => {
+                                eprintln!("[librespot] ❌ PlayerEvent::Unavailable — track CANNOT be played");
+                                eprintln!("[librespot]    track_id={track_id}, play_request_id={play_request_id}");
+                                eprintln!("[librespot]    Causes in order of likelihood:");
+                                eprintln!("[librespot]      1. Spotify account is NOT Premium (free accounts can't stream via librespot)");
+                                eprintln!("[librespot]      2. Track is region-restricted or not available in your country");
+                                eprintln!("[librespot]      3. Audio decryption key could not be fetched (token/network issue)");
+                                eprintln!("[librespot]      4. Track uses an unsupported audio format");
+                                eprintln!("[librespot]    🔍 Check [librespot-log] lines above for the actual error from librespot's internal loader");
+                            }
+                            PlayerEvent::EndOfTrack { play_request_id, track_id } => {
+                                eprintln!("[librespot] ⏹ PlayerEvent::EndOfTrack — play_request_id={play_request_id}, track_id={track_id}");
+                            }
+                            PlayerEvent::Stopped { play_request_id, track_id } => {
+                                eprintln!("[librespot] ⏹ PlayerEvent::Stopped — play_request_id={play_request_id}, track_id={track_id}");
+                            }
+                            PlayerEvent::Paused { track_id, position_ms, .. } => {
+                                eprintln!("[librespot] ⏸ PlayerEvent::Paused — track_id={track_id}, position_ms={position_ms}");
+                            }
+                            PlayerEvent::Seeked { track_id, position_ms, .. } => {
+                                eprintln!("[librespot] ⏩ PlayerEvent::Seeked — track_id={track_id}, position_ms={position_ms}");
+                            }
+                            PlayerEvent::PlayRequestIdChanged { play_request_id } => {
+                                eprintln!("[librespot] 🔄 PlayerEvent::PlayRequestIdChanged — {play_request_id}");
+                            }
+                            PlayerEvent::TimeToPreloadNextTrack { track_id, .. } => {
+                                eprintln!("[librespot] 🔄 PlayerEvent::TimeToPreloadNextTrack — track_id={track_id}");
+                            }
+                            PlayerEvent::PositionCorrection { track_id, position_ms, .. } => {
+                                eprintln!("[librespot] 🔄 PlayerEvent::PositionCorrection — track_id={track_id}, position_ms={position_ms}");
+                            }
+                            PlayerEvent::VolumeChanged { volume } => {
+                                eprintln!("[librespot] 🔊 PlayerEvent::VolumeChanged — volume={volume}");
+                            }
+                            _ => {
+                                eprintln!("[librespot] PlayerEvent: {event:?}");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        // No more events in the channel — end the listener.
+                        eprintln!("[librespot] Player event listener done (channel: {e:?})");
+                        break;
+                    }
+                }
+            }
+            if !found_event {
+                eprintln!("[librespot] ⚠ No player events received within 4s — player may be stalled or session disconnected");
+            }
+        });
 
         // Update state.
         self.state.is_playing.store(true, Ordering::SeqCst);

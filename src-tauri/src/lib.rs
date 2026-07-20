@@ -3,11 +3,33 @@ mod librespot;
 mod spotify;
 
 use librespot::LibrespotManager;
+use log::LevelFilter;
 use spotify::SpotifyService;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {name}! You've been greeted from Rust!")
+}
+
+/// Custom logger that forwards `log` crate output (used by librespot internally)
+/// to stderr with a `[librespot-log]` prefix so the user can see the actual
+/// error details that librespot's `error!()` / `warn!()` / `debug!()` macros emit.
+struct LibrespotLogRedirector;
+
+impl log::Log for LibrespotLogRedirector {
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
+        true
+    }
+
+    fn log(&self, record: &log::Record) {
+        // Only forward librespot's own log messages so we don't flood stderr
+        // with noise from other crates.
+        if record.target().starts_with("librespot") {
+            eprintln!("[librespot-log][{}] {}", record.level(), record.args());
+        }
+    }
+
+    fn flush(&self) {}
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -18,6 +40,18 @@ pub fn run() {
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("failed to install rustls CryptoProvider");
+
+    // Initialise a custom logger to capture librespot's internal log output.
+    // librespot uses the `log` crate (error!, warn!, debug! macros) for its
+    // internal diagnostics, but without a logger these messages are silently
+    // discarded. By capturing them we can see the actual reason for errors
+    // like `PlayerEvent::Unavailable`.
+    static LOGGER: LibrespotLogRedirector = LibrespotLogRedirector;
+    log::set_logger(&LOGGER)
+        .map(|()| log::set_max_level(LevelFilter::Debug))
+        .unwrap_or_else(|_| {
+            // Logger already set — ignore (e.g. if running tests).
+        });
 
     let spotify_service = SpotifyService::new();
     spotify_service.init();

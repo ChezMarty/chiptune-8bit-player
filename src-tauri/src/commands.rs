@@ -262,15 +262,20 @@ pub fn librespot_version() -> String {
 }
 
 /// Start a librespot session.
-/// `auth_data` is the authentication data (stored credentials blob or
-/// access token) used to authenticate with the Spotify streaming protocol.
+/// `auth_data` is the authentication data (access token) used to authenticate
+/// with the Spotify streaming protocol.
+/// `account_product` is optional — pass "premium", "free", etc. from the
+/// Spotify Web API user profile for helpful diagnostics.
 #[tauri::command]
 pub async fn librespot_start(
     app: AppHandle,
     manager: State<'_, LibrespotManager>,
     auth_data: String,
+    account_product: Option<String>,
 ) -> Result<(), String> {
-    manager.start(&auth_data, app).await
+    manager
+        .start(&auth_data, app, account_product.as_deref())
+        .await
 }
 
 /// Stop the librespot session.

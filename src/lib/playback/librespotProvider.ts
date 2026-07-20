@@ -314,12 +314,26 @@ export class LibrespotProvider implements PlaybackProvider {
     this.sessionStartPromise = (async () => {
       console.log('[librespot] Creating session...')
       try {
-        // Get the Spotify access token from the backend.
+        // Get the Spotify access token and account info from the backend.
         const { spotifyService } = await import('../spotify')
         const token = await spotifyService.getAccessToken()
+
+        // Fetch the account product type (premium/free) for diagnostic logging.
+        let accountProduct: string | null = null
+        try {
+          const status = await spotifyService.accountStatus()
+          accountProduct = status.product ?? null
+          console.log('[librespot] Account product:', accountProduct)
+        } catch {
+          console.warn('[librespot] Could not fetch account product')
+        }
+
         console.log('[librespot] Got access token, starting session...')
 
-        await invoke('librespot_start', { authData: token })
+        await invoke('librespot_start', {
+          authData: token,
+          accountProduct: accountProduct,
+        })
         console.log('[librespot] Session connected.')
 
         this.sessionStarted = true
