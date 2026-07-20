@@ -148,6 +148,9 @@ export class LibrespotProvider implements PlaybackProvider {
   /** Real-time (Date.now()) when EndOfTrack was received. */
   private endOfTrackTime = 0
 
+  /** Promise-based gate to serialize play() calls and prevent races on rapid double-click. */
+  private activePlayPromise: Promise<void> | null = null
+
   /** Whether the provider has been initialised and is ready for playback. */
   isAvailable(): boolean {
     return this.initialised && this.audioCtx !== null
@@ -393,15 +396,72 @@ export class LibrespotProvider implements PlaybackProvider {
   }
 
   async play(resource: string): Promise<void> {
-    console.log('[librespot] Play requested:', resource)
+    console.log('[PLAY] Play requested:', resource)
 
-    // Clear the stale-audio guard — new playback should produce sound.
-    this.cleared = false
+    // ── Serialization gate ────────────────────────────────────────
+    // If a previous play() call is still in progress (e.g., in its
+    // stop/drain timeout), wait for it to complete before starting.
+    // This prevents races when the user rapidly clicks multiple tracks.
+    if (this.activePlayPromise) {
+      console.log('[PLAY] Previous play still in progress — waiting...')
+      await this.activePlayPromise
+      console.log('[PLAY] Previous play completed — proceeding.')
+    }
+
+    // Create the gate promise that subsequent calls will await.
+    this.activePlayPromise = this.executePlay(resource).finally(() => {
+      this.activePlayPromise = null
+    })
+    return this.activePlayPromise
+  }
+
+  /** Internal play implementation wrapped by the serialization gate. */
+  private async executePlay(resource: string): Promise<void> {
+    console.log('[PLAY] Executing play for:', resource)
+
+    // ═══════════════════════════════════════════════════════════════
+    // CRITICAL: Stop any existing playback BEFORE loading a new track.
+    // This guarantees that only ONE playback session is ever active.
+    //
+    // The sequence is:
+    //   1. Flush the frontend Web Audio queue (stop all active sources)
+    //   2. Discard all incoming audio packets from the old track
+    //   3. Stop the Rust decoder and drain its sync_channel
+    //   4. Wait for the emitter to drain remaining old packets
+    //   5. Reset all state flags for the new track
+    // ═══════════════════════════════════════════════════════════════
+    console.log('[PLAY] Stopping current playback...')
+    this.flushAudioQueue()
+    this.cleared = true
+    this.scheduledEndTime = 0
     this.endOfTrackPending = false
-    this.pendingSeek = false
-
-    // Stop the progress timer — it will be restarted once playback actually starts.
     this.stopProgressTimer()
+
+    // Stop the Rust decoder — this emits librespot-audio-clear
+    // which triggers another flushAudioQueue() via the event listener.
+    try {
+      await invoke('librespot_stop_playback')
+      console.log('[PLAY] Current playback stopped.')
+    } catch (e) {
+      // Silently ignore if nothing was playing.
+      console.log('[PLAY] stop_playback (before new track):', e)
+    }
+
+    console.log('[PLAY] Audio queue flushed.')
+
+    // Wait for the emitter to drain any remaining old packets from the
+    // sync_channel (emitter ticks every 100ms, 200ms guarantees at least
+    // two drain ticks to flush the 20-packet buffer fully).
+    // Without this, old audio packets still in the channel would be
+    // accepted once we set cleared=false below.
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    console.log('[PLAY] Player is idle.')
+
+    // ── Now set up for the NEW track ──────────────────────────────
+    // Clear the stale-audio guard — new playback should produce sound.
+    console.log('[PLAY] Loading new track...')
+    this.cleared = false
+    this.pendingSeek = false
 
     // Ensure audio context is resumed (user gesture requirement).
     if (this.audioCtx?.state === 'suspended') {
@@ -409,7 +469,6 @@ export class LibrespotProvider implements PlaybackProvider {
     }
 
     // Lazily start the librespot session on the first play call.
-    console.log('[librespot] Ensuring session started...')
     try {
       await this.ensureSessionStarted()
     } catch (e) {
@@ -423,9 +482,10 @@ export class LibrespotProvider implements PlaybackProvider {
     this.scheduledEndTime = 0
 
     try {
-      console.log('[librespot] Sending play command to backend...')
+      console.log('[PLAY] Sending play command to backend...')
       await invoke('librespot_play', { uri: resource })
-      console.log('[librespot] Play command succeeded.')
+      console.log('[PLAY] Play command succeeded.')
+      console.log('[PLAY] New playback started.')
 
       // Reset interpolation state before starting the timer.
       // Without this, lastRustUpdateAt=0 would produce a huge position
@@ -437,7 +497,7 @@ export class LibrespotProvider implements PlaybackProvider {
       this.startProgressTimer()
     } catch (e) {
       const msg = String(e)
-      console.error('[librespot] Play command failed:', msg)
+      console.error('[PLAY] Play command failed:', msg)
       this.errorCbs.forEach((cb) => cb(msg))
     }
   }

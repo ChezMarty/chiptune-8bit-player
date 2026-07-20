@@ -209,6 +209,24 @@ class PlaybackEngine {
       // Spotify URI — use Librespot (direct streaming) if available,
       // or fall back to the Web Playback SDK.
       if (this.librespot.isAvailable()) {
+        // ═══════════════════════════════════════════════════════════
+        // CRITICAL: Stop any existing Spotify playback before
+        // starting a new one. This prevents two Spotify tracks from
+        // playing simultaneously.
+        //
+        // setSource() returns early when the source hasn't changed,
+        // so we must explicitly stop the current playback here.
+        // ═══════════════════════════════════════════════════════════
+        const status = store.playbackStatus
+        if (status === 'playing' || status === 'paused' || status === 'loading') {
+          console.log('[PLAY] Existing playback detected. Stopping current track...')
+          await this.active.stop()
+          console.log('[PLAY] Current track stopped.')
+          // Wait briefly for the backend to fully flush its audio channel.
+          await new Promise(resolve => setTimeout(resolve, 100))
+          console.log('[PLAY] Audio queue flushed. Player is idle.')
+        }
+
         this.setSource('spotify-librespot')
         console.log('[state] Loading ← engine.play (Spotify URI)')
         // Set provided metadata immediately (UI shows track info right away).
@@ -218,7 +236,9 @@ class PlaybackEngine {
           store.setDuration(meta.durationSec)
         }
         store.setPlaybackStatus('loading')
+        console.log('[PLAY] Loading new track...')
         await this.active.play(resource)
+        console.log('[PLAY] New playback started.')
       } else if (this.spotifySdk.isAvailable()) {
         this.setSource('spotify-sdk')
         store.setPlaybackStatus('loading')

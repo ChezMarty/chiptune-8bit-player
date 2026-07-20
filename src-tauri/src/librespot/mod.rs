@@ -582,9 +582,21 @@ impl LibrespotManager {
     pub async fn play(&self, uri: &str) -> Result<(), String> {
         eprintln!("[librespot] ⏯ Play requested: {uri}");
 
+        // ═══════════════════════════════════════════════════════════════
+        // CRITICAL: Stop any existing playback BEFORE loading a new track.
+        // Without this, the old decoder continues producing audio packets
+        // into the sync_channel while the new decoder also produces packets,
+        // resulting in both tracks playing simultaneously on the frontend.
+        // ═══════════════════════════════════════════════════════════════
+        eprintln!("[PLAY] Existing playback detected. Stopping current decoder...");
+        if let Some(player) = self.player.lock().await.as_ref() {
+            player.stop();
+            eprintln!("[PLAY] player.stop() called — decoder stopped.");
+        }
+
         let player_guard = self.player.lock().await;
         let player_exists = player_guard.is_some();
-        eprintln!("[librespot] Player exists = {player_exists}");
+        eprintln!("[PLAY] Player exists = {player_exists}");
 
         let player = player_guard
             .as_ref()
@@ -595,7 +607,7 @@ impl LibrespotManager {
         let track = SpotifyUri::from_uri(uri)
             .map_err(|e| format!("Invalid Spotify URI '{uri}': {e}"))?;
 
-        eprintln!("[librespot] Calling player.load(track_id={uri}, start_playing=true, position_ms=0)...");
+        eprintln!("[PLAY] Calling player.load(track_id={uri}, start_playing=true, position_ms=0)...");
 
         // ── Load the track into the player ───────────────────────────
         //
