@@ -91,6 +91,10 @@ interface PlayerState {
   // Active playback source (which engine is driving audio)
   activeSource: PlaybackSource
 
+  // Drag state — when true, progress callbacks must NOT write currentTime
+  // (the UI handles position updates during drag).
+  isDragging: boolean
+
   // Actions
   setNowPlaying: (meta: NowPlayingMeta | null) => void
   setPlaybackStatus: (status: PlaybackStatus) => void
@@ -132,6 +136,8 @@ interface PlayerState {
   clearUpcoming: () => void
   /** Set the active playback source (local, spotify-sdk, spotify-librespot). */
   setActiveSource: (source: PlaybackSource) => void
+  /** GATE progress callbacks during user drag — UI writes to currentTime exclusively. */
+  setDragging: (v: boolean) => void
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -155,6 +161,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   shuffleOnImport: false,
 
   activeSource: 'local',
+  isDragging: false,
 
   addTracks: (tracks) =>
     set((s) => ({ tracks: [...s.tracks, ...tracks] })),
@@ -382,6 +389,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }),
 
   setActiveSource: (source) => set({ activeSource: source }),
+  setDragging: (v: boolean) => set({ isDragging: v }),
 
   setNowPlaying: (meta) => set({ nowPlaying: meta }),
 

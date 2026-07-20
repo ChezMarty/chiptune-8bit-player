@@ -120,7 +120,18 @@ class PlaybackEngine {
       if (currentSource !== this.active.id) return
       console.log('[ENGINE] onProgress fired from provider', this.active.id, '→ currentTimeSec=', p.currentTimeSec, 'durationSec=', p.durationSec, 'isPlaying=', p.isPlaying)
       const store = usePlayerStore.getState()
-      store.setCurrentTime(p.currentTimeSec)
+
+      // ── Single authoritative source of currentTime ──────────────
+      // During a user-initiated drag, ONLY the UI (TransportControls)
+      // writes currentTime — skip progress callbacks entirely so they
+      // never fight the drag position or cause snap-back.
+      // Once the drag ends (mouseup), the engine issues one final
+      // seek() and the next progress callback from the backend
+      // confirms the real position.
+      if (!store.isDragging) {
+        store.setCurrentTime(p.currentTimeSec)
+      }
+
       // Only overwrite duration if the provider reports a non-zero value.
       // This preserves the duration set from track metadata (e.g., librespot
       // which sends 0 from Rust until the backend tracks it properly).
@@ -306,14 +317,37 @@ class PlaybackEngine {
   }
 
   async seek(seconds: number): Promise<void> {
+    // ── TRACE: engine seek ─────────────────────────────────────
+    performance.mark('seek-engine-enter')
+    performance.measure(
+      '⏱️ [C.1] mouseup → engine.seek() (synchronous before store update)',
+      'seek-mouseup',
+      'seek-engine-enter',
+    )
+
     // Optimistic UI: update position immediately,
     // then send the seek command to the backend.
     const store = usePlayerStore.getState()
     console.log('[ENGINE] seek(', seconds, ') — optimistic store update')
     store.setCurrentTime(seconds)
+
+    performance.mark('seek-engine-calling-active')
+    performance.measure(
+      '⏱️ [C.2] engine.seek() optimistic store update done',
+      'seek-engine-enter',
+      'seek-engine-calling-active',
+    )
+
     console.log('[ENGINE] seek() — calling active.seek()')
 
     await this.active.seek(seconds)
+
+    performance.mark('seek-active-done')
+    performance.measure(
+      '⏱️ [C.3] engine → active.seek() completed (total engine round-trip)',
+      'seek-engine-enter',
+      'seek-active-done',
+    )
     console.log('[ENGINE] seek() — active.seek() completed')
   }
 

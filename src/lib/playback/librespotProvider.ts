@@ -48,6 +48,40 @@ interface AudioChunkPayload {
  *
  * It does NOT maintain its own copy of playback state, eliminating the
  * synchronization problems caused by multiple state writers.
+ *
+ * ── Seek Architecture ──
+ *
+ * The seek pipeline has been carefully designed to handle two critical
+ * issues that caused the progress bar to be unreliable:
+ *
+ * ISSUE 1: Stale Rust state events overwriting seek targets
+ * ─────────────────────────────────────────────────────
+ * The Rust backend sends state events every 250ms via a polling loop.
+ * When we send a seek command via invoke('librespot_seek'), the Rust
+ * backend processes it asynchronously. But the state polling loop
+ * continues sending events with the OLD position until the seek
+ * actually completes. These stale events would previously clear
+ * `pendingSeek` and overwrite the store with the old position,
+ * causing the slider to snap back.
+ *
+ * FIX: track `seekTargetMs` and `preSeekPositionMs`. In the state
+ * listener, only clear `pendingSeek` when the Rust position has
+ * actually CROSSED or REACHED the seek target (within tolerance).
+ * Until then, the emitProgress timer (200ms) returns the seek target
+ * and keeps the slider at the correct position.
+ *
+ * ISSUE 2: Stale audio playing after seek
+ * ──────────────────────────────────────
+ * When seeking, the old audio packets in the Rust sync_channel buffer
+ * (up to ~2 seconds of audio) continue to be sent and played. This
+ * creates a delay between clicking and hearing the seeked position.
+ *
+ * FIX: call flushAudioQueue() immediately on seek to stop ALL
+ * currently-scheduled AudioBufferSourceNodes. Set `cleared = true`
+ * to discard stale incoming packets. The Rust backend emits
+ * `librespot-seek-ready` when PlayerEvent::Seeked fires (the
+ * decoder has actually produced audio at the new position). At that
+ * point, set `cleared = false` to accept new audio.
  */
 export class LibrespotProvider implements PlaybackProvider {
   readonly id: PlaybackSource = 'spotify-librespot'
@@ -80,6 +114,9 @@ export class LibrespotProvider implements PlaybackProvider {
   private unlistenAudio: (() => void) | null = null
   private unlistenTrackEnded: (() => void) | null = null
   private unlistenAudioClear: (() => void) | null = null
+  /** Fired by Rust when PlayerEvent::Seeked arrives — decoder has produced
+   *  audio at the seeked position. Signals seek completion. */
+  private unlistenSeekReady: (() => void) | null = null
 
   // Progress interval — drives smooth position updates between Rust polls
   private progressInterval: ReturnType<typeof setInterval> | null = null
@@ -92,8 +129,15 @@ export class LibrespotProvider implements PlaybackProvider {
 
   /** Set after seek() to prevent the progress timer from estimating forward
    *  past the seek target before the Rust state loop confirms the new position.
-   *  Cleared when the next librespot-state-changed event arrives. */
+   *  NOT cleared by stale Rust state events — only cleared when the Rust
+   *  position has actually crossed or reached the seek target. */
   private pendingSeek = false
+  /** The target position (ms) of the most recent seek. Used to detect when
+   *  the Rust backend has actually processed our seek by comparing against
+   *  the reported position in state events. */
+  private seekTargetMs = 0
+  /** The Rust position before seeking — captures direction for cross-detection. */
+  private preSeekPositionMs = 0
 
   // EndOfTrack delay — the Rust decoder emits EndOfTrack when decoding finishes,
   // but ~1.8s of audio may still be buffered in the mpsc channel + emitter + Web Audio.
@@ -132,11 +176,84 @@ export class LibrespotProvider implements PlaybackProvider {
           // position — the EOT path in emitProgress() handles this.
           if (!this.endOfTrackPending) {
             const store = usePlayerStore.getState()
-            // Rust has confirmed the actual position — clear the pending-seek
-            // guard so emitProgress resumes normal estimation from this position.
-            this.pendingSeek = false
-            console.log('[LIBRESPOT] state event → writing to store (pendingSeek=false)')
-            store.setCurrentTime(state.position_ms / 1000)
+
+            // ═══════════════════════════════════════════════════════
+            // ISSUE 1 FIX: Guard against stale Rust state events
+            // ═══════════════════════════════════════════════════════
+            // The Rust backend sends position updates every 250ms via a
+            // polling loop. After we send a seek command, the next few
+            // state events will still report the OLD position (the seek
+            // hasn't been processed yet).
+            //
+            // Previously, we cleared `pendingSeek` on EVERY state event,
+            // causing stale positions to overwrite our seek target. This
+            // created the "snap-back" behavior where the slider jumps to
+            // the old position and stays there for 4-15 seconds.
+            //
+            // FIX: Only clear `pendingSeek` when the Rust position has
+            // actually CROSSED or REACHED our seek target (within tolerance).
+            // The emitProgress timer (200ms) maintains the seek target
+            // position while we wait.
+            if (this.pendingSeek) {
+              const crossed = this.hasSeekTargetBeenReached(state.position_ms)
+
+              if (crossed) {
+                // ── TRACE: Rust state confirm ───────────────────
+                performance.mark('seek-rust-confirm')
+                performance.measure(
+                  '⏱️ [G] seek-invoke-done → first Rust state confirm (backend seek latency)',
+                  'seek-invoke-done',
+                  'seek-rust-confirm',
+                )
+
+                // ── Log summary of ALL seek pipeline measurements ──
+                console.group('⏱️ Seek pipeline timing');
+                console.log(`  ⏱️ [A] user click: 0 ms (baseline)`);
+                const measures = performance.getEntriesByType('measure')
+                  .filter(m => m.name.startsWith('⏱️'))
+                measures.forEach(m =>
+                  console.log(`  ${m.name}: ${m.duration.toFixed(1)} ms`)
+                )
+                const first = performance.getEntriesByName('seek-mousedown', 'mark')[0]
+                const last = performance.getEntriesByName('seek-rust-confirm', 'mark')[0]
+                if (first && last) {
+                  console.log(`  ─────────────────────────────────────────`)
+                  console.log(`  ⏱️ TOTAL click → Rust confirm: ${(last.startTime - first.startTime).toFixed(1)} ms`)
+                }
+                console.groupEnd();
+
+                // Seek confirmed — clear pendingSeek so emitProgress
+                // resumes normal interpolation from this confirmed position.
+                console.log('[SEEK] Rust position CROSSED target — seek confirmed')
+                this.pendingSeek = false
+
+                // Write the confirmed position to the store
+                // (only if not dragging — the UI handles that).
+                if (!store.isDragging) {
+                  store.setCurrentTime(state.position_ms / 1000)
+                }
+              } else {
+                // Rust position is still stale — don't touch currentTime.
+                // The emitProgress timer keeps the slider at the seek target.
+                console.log(
+                  '[SEEK] Rust state stale:',
+                  'position_ms=', state.position_ms,
+                  'target=', this.seekTargetMs,
+                  'preSeek=', this.preSeekPositionMs,
+                  '— KEEPING pendingSeek=true, SKIPPING store write',
+                )
+              }
+            } else {
+              // ── Normal (non-seek) state update ───────────────────
+              // No seek in progress — write the Rust position directly.
+              if (!store.isDragging) {
+                console.log('[LIBRESPOT] state event → writing to store (normal)')
+                store.setCurrentTime(state.position_ms / 1000)
+              } else {
+                console.log('[LIBRESPOT] state event → SKIPPED setCurrentTime (isDragging=true)')
+              }
+            }
+
             store.setPlaying(state.is_playing)
             if (state.duration_ms > 0) {
               store.setDuration(state.duration_ms / 1000)
@@ -207,6 +324,26 @@ export class LibrespotProvider implements PlaybackProvider {
       console.warn('[librespot] Failed to listen for audio-clear events', e)
     }
 
+    // Listen for seek-ready events — Rust emits this when PlayerEvent::Seeked
+    // fires, meaning the decoder has produced audio at the seeked position.
+    // At this point we can accept new audio packets (cleared = false).
+    try {
+      this.unlistenSeekReady = await listen<null>(
+        'librespot-seek-ready',
+        () => {
+          if (this.destroyed) return
+          console.log('[SEEK] librespot-seek-ready received — decoder has produced seeked audio')
+          // Accept incoming audio chunks from the new position.
+          this.cleared = false
+          // Reset scheduling so new audio starts immediately at the current
+          // AudioContext time (not queued after stale packets).
+          this.scheduledEndTime = 0
+        },
+      )
+    } catch (e) {
+      console.warn('[librespot] Failed to listen for seek-ready events', e)
+    }
+
     // Initialise Web Audio API context (must be done after user gesture).
     try {
       this.audioCtx = new AudioContext()
@@ -233,6 +370,8 @@ export class LibrespotProvider implements PlaybackProvider {
     this.unlistenTrackEnded = null
     this.unlistenAudioClear?.()
     this.unlistenAudioClear = null
+    this.unlistenSeekReady?.()
+    this.unlistenSeekReady = null
 
     // Stop progress interval.
     if (this.progressInterval) {
@@ -379,16 +518,68 @@ export class LibrespotProvider implements PlaybackProvider {
   }
 
   async seek(seconds: number): Promise<void> {
-    console.log('[LIBRESPOT] seek(', seconds, ') — pendingSeek=true, invoking backend')
-    // The engine has already done the optimistic store update.
-    // We only need to tell the backend.
+    console.log('[SEEK] requested=', seconds, 's (', Math.round(seconds * 1000), 'ms )')
+
+    // ═══════════════════════════════════════════════════════════
+    // ISSUE 2 FIX: Flush stale audio immediately
+    // ═══════════════════════════════════════════════════════════
+    // When seeking, the old audio packets in the Rust sync_channel
+    // (up to ~2s of buffered PCM) and our Web Audio scheduled queue
+    // continue to play. This creates latency between clicking and
+    // hearing the new position.
+    //
+    // Fix: flush our entire audio queue immediately, and discard
+    // incoming stale packets until the Rust decoder produces audio
+    // at the new position (signalled by librespot-seek-ready).
+    // Clear the EndOfTrack tail flag if set — the seek overrides it.
+    this.endOfTrackPending = false
+
+    this.flushAudioQueue()
+    this.cleared = true
+    console.log('[SEEK] flushed audio queue + discarded incoming packets (cleared=true)')
+
+    // ── Safety timeout ───────────────────────────────────────────
+    // If librespot-seek-ready never fires (e.g., seek fails, player
+    // error), cleared stays true and audio goes permanently silent.
+    // Reset after 10 seconds as a fallback.
+    setTimeout(() => {
+      if (this.cleared) {
+        console.warn('[SEEK] Fallback: cleared still true after 10s — forcing re-enable')
+        this.cleared = false
+        this.scheduledEndTime = 0
+      }
+    }, 10000)
+
     const ms = Math.round(seconds * 1000)
+
+    // ── TRACE: provider seek ───────────────────────────────────
+    performance.mark('seek-provider-enter')
+    performance.measure(
+      '⏱️ [E.1] engine → librespotProvider.seek() enter (before invoke)',
+      'seek-engine-calling-active',
+      'seek-provider-enter',
+    )
+
+    // ── Track seek target for cross-detection ──────────────────
+    this.preSeekPositionMs = this.lastRustPositionMs
+    this.seekTargetMs = ms
     this.lastRustPositionMs = ms
     this.lastRustUpdateAt = Date.now()
     this.pendingSeek = true
+    console.log('[SEEK] preSeekPositionMs=', this.preSeekPositionMs, 'seekTargetMs=', this.seekTargetMs)
+
+    console.log('[RUST] seek command sent')
     try {
       await invoke('librespot_seek', { positionMs: ms })
-      console.log('[LIBRESPOT] seek() — backend completed')
+
+      performance.mark('seek-invoke-done')
+      performance.measure(
+        '⏱️ [E.2] Tauri invoke → Rust librespot_seek completed (IPC round-trip)',
+        'seek-provider-enter',
+        'seek-invoke-done',
+      )
+
+      console.log('[RUST] seek command accepted — waiting for backend confirmation...')
     } catch (e) {
       console.error('[LIBRESPOT] seek() failed:', e)
     }
@@ -439,6 +630,28 @@ export class LibrespotProvider implements PlaybackProvider {
   }
 
   // ── Internal ──────────────────────────────────────────────
+
+  /**
+   * Detect whether the Rust backend has processed our seek by checking
+   * if the reported position has CROSSED or REACHED the seek target.
+   *
+   * For forward seeks (target > pre-seek position): wait until
+   * the reported position >= target - tolerance.
+   *
+   * For backward seeks (target < pre-seek position): wait until
+   * the reported position <= target + tolerance.
+   */
+  private hasSeekTargetBeenReached(reportedMs: number): boolean {
+    const toleranceMs = 1000 // 1 second tolerance
+
+    if (this.seekTargetMs >= this.preSeekPositionMs) {
+      // Forward seek: position should increase from preSeek → target
+      return reportedMs >= this.seekTargetMs - toleranceMs
+    } else {
+      // Backward seek: position should decrease from preSeek → target
+      return reportedMs <= this.seekTargetMs + toleranceMs
+    }
+  }
 
   /**
    * Start the progress timer for smooth position interpolation.
@@ -498,6 +711,27 @@ export class LibrespotProvider implements PlaybackProvider {
         // from racing ahead and then jumping back when Rust confirms.
         currentTimeSec = this.lastRustPositionMs / 1000
         sourceTag = 'seek-pending'
+
+        // ── TRACE: emitProgress during seek-pending ────────────
+        // This fires every 200ms while waiting for Rust confirmation.
+        // Measures time from invoke-done to first emitProgress after seek.
+        // Guards against missing start mark (invoke may not have completed yet).
+        const measure = performance.getEntriesByName(
+          '⏱️ seek-pending emitProgress',
+          'measure',
+        )
+        if (
+          measure.length === 0 &&
+          this.lastRustPositionMs > 0 &&
+          performance.getEntriesByName('seek-invoke-done', 'mark').length > 0
+        ) {
+          performance.mark('seek-pending-emit')
+          performance.measure(
+            '⏱️ [F] invoke-done → first seek-pending emitProgress (Rust confirmation delay)',
+            'seek-invoke-done',
+            'seek-pending-emit',
+          )
+        }
       } else {
         // Between Rust state updates, estimate position from the last known
         // Rust position + elapsed real time. This provides smooth interpolation.

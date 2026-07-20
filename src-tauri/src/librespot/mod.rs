@@ -663,6 +663,11 @@ impl LibrespotManager {
                             PlayerEvent::Seeked { track_id, position_ms, .. } => {
                                 state.set_anchor(*position_ms as u64);
                                 eprintln!("[librespot] ⏩ PlayerEvent::Seeked — track_id={track_id}, position_ms={position_ms}");
+                                // Signal to the frontend that new audio from the
+                                // seeked position is now available.
+                                if let Some(ref app) = app_for_events {
+                                    let _ = app.emit("librespot-seek-ready", ());
+                                }
                             }
                             PlayerEvent::PositionCorrection { track_id, position_ms, .. } => {
                                 state.set_anchor(*position_ms as u64);

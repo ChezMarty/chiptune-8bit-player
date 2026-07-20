@@ -16,7 +16,10 @@ export function TransportControls() {
   const { t } = useT()
 
   // Drag state for seek bar
+  // We use BOTH a local ref (for the mousemove/mouseup event handlers)
+  // AND the store's isDragging (to gate progress callbacks).
   const isDraggingRef = useRef(false)
+  const dragPositionRef = useRef(0)
   const progressRef = useRef<HTMLDivElement | null>(null)
 
   const isSpotify = activeSource === 'spotify-librespot' || activeSource === 'spotify-sdk'
@@ -100,38 +103,103 @@ export function TransportControls() {
     playbackEngine.prev()
   }
 
-  const calculateSeek = useCallback(
-    (clientX: number) => {
-      if (!duration || !progressRef.current) return
+  /**
+   * Calculate the time position from a mouse clientX.
+   * Returns seconds, clamped to [0, duration].
+   */
+  const positionFromClientX = useCallback(
+    (clientX: number): number => {
+      if (!duration || !progressRef.current) return 0
       const rect = progressRef.current.getBoundingClientRect()
       const x = clientX - rect.left
       const pct = Math.max(0, Math.min(1, x / rect.width))
-      playbackEngine.seek(pct * duration)
+      return pct * duration
     },
     [duration],
   )
 
   function onSeekMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     if (!duration) return
+    e.preventDefault()
+    const store = usePlayerStore.getState()
+
+    // ── TRACE: seek start ──────────────────────────────────────
+    // Mark the exact moment the user clicked the progress bar.
+    // Clear any stale marks from previous seeks so the total-time
+    // calculation in the Rust confirm handler pairs correctly.
+    performance.clearMarks('seek-mousedown')
+    performance.clearMarks('seek-rust-confirm')
+    performance.mark('seek-mousedown')
+
+    // Set dragging flag — this GATES progress callbacks from overwriting
+    // currentTime while the user is dragging. Only the UI writes position
+    // during drag.
+    store.setDragging(true)
     isDraggingRef.current = true
-    calculateSeek(e.clientX)
+
+    // Update position OPTIMISTICALLY — no backend seek yet.
+    const pos = positionFromClientX(e.clientX)
+    dragPositionRef.current = pos
+    store.setCurrentTime(pos)
   }
 
   useEffect(() => {
     function onMouseMove(e: MouseEvent) {
-      if (!isDraggingRef.current) return
-      calculateSeek(e.clientX)
+      if (!isDraggingRef.current || !duration) return
+
+      // Update position OPTIMISTICALLY during drag.
+      // NO backend seek call — we batch it all into one on mouseup.
+      const pos = positionFromClientX(e.clientX)
+      dragPositionRef.current = pos
+      usePlayerStore.getState().setCurrentTime(pos)
     }
+
     function onMouseUp() {
+      if (!isDraggingRef.current) return
+
       isDraggingRef.current = false
+
+      // ── TRACE: mouseup → engine.seek() ───────────────────────
+      performance.mark('seek-mouseup')
+      performance.measure(
+        '⏱️ [B] mousedown → mouseup (click duration)',
+        'seek-mousedown',
+        'seek-mouseup',
+      )
+
+      // Issue ONE seek to the backend with the final drag position.
+      // The engine will optimistically update the store (to the same
+      // value we already set), then call the provider's seek().
+      const finalPos = dragPositionRef.current
+      playbackEngine.seek(finalPos).then(() => {
+        performance.mark('seek-engine-done')
+        performance.measure(
+          '⏱️ [D] engine.seek() → active.seek() completed',
+          'seek-mouseup',
+          'seek-engine-done',
+        )
+      })
+
+      // Clear dragging AFTER the engine seek so progress callbacks
+      // remain gated during the async seek round-trip.
+      usePlayerStore.getState().setDragging(false)
     }
+
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
     return () => {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onMouseUp)
+      // Clean up: if the component unmounts while dragging, ensure
+      // the store is unblocked so progress callbacks resume normally.
+      isDraggingRef.current = false
+      usePlayerStore.getState().setDragging(false)
     }
-  }, [calculateSeek])
+    // NOTE: positionFromClientX already captures duration via its own
+    // useCallback dependency array. Adding duration here would be
+    // redundant AND dangerous — if duration changed mid-drag, the effect
+    // cleanup would prematurely end the drag by resetting isDragging.
+  }, [positionFromClientX])
 
   function onVolume(e: React.ChangeEvent<HTMLInputElement>) {
     const v = Number(e.target.value)

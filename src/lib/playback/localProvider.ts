@@ -139,14 +139,9 @@ export class LocalPlaybackProvider implements PlaybackProvider {
       // Note: this always resets the audio position on stop regardless of the
       // stopRewinds preference. The engine's stop() already sets
       // store.setCurrentTime(0) unconditionally, so the store always shows 0
-      // on stop. The stopRewinds pref controlled whether the DOM audio element
-      // kept its position for resume-on-play — but that caused a race where
-      // the pause event would overwrite the store with the real position.
+      // on stop.
       this.audio.currentTime = 0
       this.audio.pause()
-      // Sync the store to 0 in case the pause event already fired and
-      // overwrote the engine's optimistic update.
-      usePlayerStore.getState().setCurrentTime(0)
     } catch (err) {
       console.error('[LOCAL] stop failed', err)
     }
@@ -174,7 +169,11 @@ export class LocalPlaybackProvider implements PlaybackProvider {
     const target = Math.max(0, seconds)
     console.log('[LOCAL] seek(', seconds, ') — setting audio.currentTime =', target)
     this.audio.currentTime = target
-    usePlayerStore.getState().setCurrentTime(target)
+    // NOTE: engine.seek() already performs the optimistic store update.
+    // We only need to set the DOM audio element's position.
+    // The HTMLAudioElement's 'timeupdate' event will fire and emitProgress()
+    // → onProgress → store.setCurrentTime() will confirm the real position,
+    // but if the user is dragging, isDragging gates that write.
   }
 
   async setVolume(v: number): Promise<void> {
