@@ -24,11 +24,11 @@ use librespot_core::{
     spotify_uri::SpotifyUri,
 };
 use librespot_playback::{
-    audio_backend::{self, Sink, SinkResult},
+    audio_backend::{self, SinkResult},
     config::PlayerConfig,
     convert::Converter,
     decoder::AudioPacket,
-    mixer::{NoOpVolume, VolumeGetter},
+    mixer::NoOpVolume,
     player::{Player, PlayerEvent},
 };
 use tauri::{AppHandle, Emitter};
@@ -149,7 +149,7 @@ impl audio_backend::Sink for AppAudioSink {
                 // the float data as raw little-endian bytes without an extra copy.
                 let float_data: Vec<f32> = converter.f64_to_f32(&samples);
                 let byte_len = float_data.len() * 4;
-                let (ptr, len, cap) = (
+                let (ptr, _len, cap) = (
                     float_data.as_ptr() as *mut u8,
                     float_data.len(),
                     float_data.capacity(),

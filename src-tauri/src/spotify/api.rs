@@ -53,7 +53,7 @@ impl SpotifyApiClient {
         let url = format!("{BASE_URL}/me/playlists?limit={limit}&offset={offset}");
         let paging: PagingPlaylist = self.get(&url, token).await?;
         let items: Vec<SpotifyPlaylistInfo> =
-            paging.items.iter().map(|p| p.into()).collect();
+            paging.items.iter().filter_map(|p| p.as_ref().map(|p| p.into())).collect();
         Ok((items, paging.total, paging.next.is_some()))
     }
 
@@ -229,28 +229,102 @@ impl SpotifyApiClient {
         types: &[&str],
         limit: u64,
     ) -> Result<SpotifySearchResults, String> {
+        // ════════════════════════════════════════════════════════════
+        // NOTE: Spotify Search API 'limit' range is 0–10 (not 0–50!)
+        // https://developer.spotify.com/documentation/web-api/reference/search
+        // ════════════════════════════════════════════════════════════
+
+        // ── Clamp limit to Search API's max (1..=10) ─────────
+        let clamped = limit.clamp(1, 10);
+        if clamped != limit {
+            eprintln!("[SEARCH] WARNING: limit was {limit}, clamped to {clamped} (Search API max is 10)");
+        }
+
         let encoded = urlencoding(query);
         let types_str = types.join(",");
         let url = format!(
-            "{BASE_URL}/search?q={encoded}&type={types_str}&limit={limit}"
+            "{BASE_URL}/search?q={encoded}&type={types_str}&limit={clamped}"
         );
-        let result: SearchResponse = self.get(&url, token).await?;
+        eprintln!("[SEARCH] Search URL: GET {url}");
+
+        // ── DIAGNOSTIC: Get raw JSON text, log it, THEN parse ──
+        let token_prefix: String = token.chars().take(20).collect();
+        eprintln!("[SEARCH] Token prefix: {token_prefix}...");
+
+        let resp = self
+            .http
+            .get(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await
+            .map_err(|e| format!("HTTP GET failed: {e}"))?;
+
+        if resp.status() == 401 {
+            return Err("TOKEN_EXPIRED".to_string());
+        }
+        if resp.status() == 429 {
+            let retry_after = resp
+                .headers()
+                .get("Retry-After")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok());
+            return Err(format!("RATE_LIMITED:{}", retry_after.unwrap_or(1)));
+        }
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("HTTP {status}: {body}"));
+        }
+
+        // ── Get raw JSON text ─────────────────────────────────
+        let raw_json = resp.text().await.map_err(|e| format!("Read response body: {e}"))?;
+
+        // Truncate for logging if very large (search results can be big).
+        let preview: String = raw_json.chars().take(2000).collect();
+        eprintln!("[SEARCH] ╔══ RAW JSON RESPONSE (first 2000 chars) ═══╗");
+        for line in preview.lines() {
+            eprintln!("[SEARCH]   {line}");
+        }
+        if raw_json.len() > 2000 {
+            eprintln!("[SEARCH]   ... ({} total chars, truncated at 2000)", raw_json.len());
+        }
+        eprintln!("[SEARCH] ╚══════════════════════════════════════════════╝");
+
+        // ── Parse JSON ────────────────────────────────────────
+        let result: SearchResponse = match serde_json::from_str(&raw_json) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("[SEARCH] ❌ JSON PARSE FAILED");
+                eprintln!("[SEARCH]    serde error: {e}");
+                eprintln!("[SEARCH]    error class: {:?}", e.classify());
+                eprintln!("[SEARCH]    line: {}, column: {}", e.line(), e.column());
+                return Err(format!("JSON parse: {e}"));
+            }
+        };
+
+        let tracks_count = result.tracks.as_ref().map(|p| p.items.len()).unwrap_or(0);
+        let albums_count = result.albums.as_ref().map(|p| p.items.len()).unwrap_or(0);
+        let artists_count = result.artists.as_ref().map(|p| p.items.len()).unwrap_or(0);
+        let playlists_count = result.playlists.as_ref().map(|p| p.items.len()).unwrap_or(0);
+        eprintln!("[SEARCH] ✅ Parsed: {} tracks, {} albums, {} artists, {} playlists",
+            tracks_count, albums_count, artists_count, playlists_count);
+
         Ok(SpotifySearchResults {
             tracks: result
                 .tracks
-                .map(|p| p.items.iter().map(|t| t.into()).collect())
+                .map(|p| p.items.iter().filter_map(|t| t.as_ref().map(|t| t.into())).collect())
                 .unwrap_or_default(),
             albums: result
                 .albums
-                .map(|p| p.items.iter().map(|a| a.into()).collect())
+                .map(|p| p.items.iter().filter_map(|a| a.as_ref().map(|a| a.into())).collect())
                 .unwrap_or_default(),
             artists: result
                 .artists
-                .map(|p| p.items.iter().map(|a| a.into()).collect())
+                .map(|p| p.items.iter().filter_map(|a| a.as_ref().map(|a| a.into())).collect())
                 .unwrap_or_default(),
             playlists: result
                 .playlists
-                .map(|p| p.items.iter().map(|p| p.into()).collect())
+                .map(|p| p.items.iter().filter_map(|p| p.as_ref().map(|p| p.into())).collect())
                 .unwrap_or_default(),
         })
     }
@@ -268,7 +342,7 @@ impl SpotifyApiClient {
         );
         let paging: PagingTrack = self.get(&url, token).await?;
         Ok(PaginatedSpotifyTracks {
-            items: paging.items.iter().map(|t| t.into()).collect(),
+            items: paging.items.iter().filter_map(|t| t.as_ref().map(|t| t.into())).collect(),
             total: paging.total,
             offset: paging.offset,
             has_more: paging.next.is_some(),
@@ -441,6 +515,9 @@ impl SpotifyApiClient {
         url: &str,
         token: &str,
     ) -> Result<T, String> {
+        let token_prefix: String = token.chars().take(20).collect();
+        eprintln!("[TOKEN] Endpoint GET {url} using token: {token_prefix}...");
+
         let resp = self
             .http
             .get(url)

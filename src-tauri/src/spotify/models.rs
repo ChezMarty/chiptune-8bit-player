@@ -122,10 +122,13 @@ pub struct SavedTrackItem {
 }
 
 /// Paging object for playlists.
+///
+/// Spotify can return `null` elements inside `items[]` (unavailable playlists).
+/// Each item is `Option<SpotifyPlaylist>` to handle that gracefully.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PagingPlaylist {
     #[serde(default)]
-    pub items: Vec<SpotifyPlaylist>,
+    pub items: Vec<Option<SpotifyPlaylist>>,
     pub total: u64,
     pub limit: u64,
     pub offset: u64,
@@ -136,7 +139,7 @@ pub struct PagingPlaylist {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PagingAlbum {
     #[serde(default)]
-    pub items: Vec<SpotifyAlbum>,
+    pub items: Vec<Option<SpotifyAlbum>>,
     pub total: u64,
     pub limit: u64,
     pub offset: u64,
@@ -147,7 +150,7 @@ pub struct PagingAlbum {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PagingTrack {
     #[serde(default)]
-    pub items: Vec<SpotifyTrack>,
+    pub items: Vec<Option<SpotifyTrack>>,
     pub total: u64,
     pub limit: u64,
     pub offset: u64,
@@ -158,7 +161,7 @@ pub struct PagingTrack {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PagingArtist {
     #[serde(default)]
-    pub items: Vec<SpotifyArtist>,
+    pub items: Vec<Option<SpotifyArtist>>,
     pub total: u64,
     pub limit: u64,
     pub offset: u64,

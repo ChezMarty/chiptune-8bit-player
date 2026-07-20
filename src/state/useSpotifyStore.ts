@@ -389,18 +389,56 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
 
   doSearch: async (query) => {
     if (!query.trim()) {
+      console.log('[SEARCH] Empty query — clearing results')
       set({ searchResults: null })
       return
     }
+    console.log('[SEARCH] doSearch called with query:', JSON.stringify(query))
     set({ loadingSearch: true, error: null })
     try {
+      // Clamp limit to Spotify's allowed range (1..=50).
+      const rawLimit = 20
+      const limit = Math.max(1, Math.min(50, rawLimit))
+      if (limit !== rawLimit) {
+        console.warn('[SEARCH] limit clamped from', rawLimit, 'to', limit)
+      }
+      // ── Log the EXACT params being sent to Tauri ───────────
+      const params = {
+        query: query,
+        types: ['track', 'album', 'artist', 'playlist'],
+        limit: limit,
+      }
+      console.log('[SEARCH] ================================')
+      console.log('[SEARCH]   Search query:', JSON.stringify(params.query))
+      console.log('[SEARCH]   limit:', params.limit, '(type:', typeof params.limit, ') IsFinite:', Number.isFinite(params.limit), 'IsInt:', Number.isInteger(params.limit), 'InRange(1-50):', params.limit >= 1 && params.limit <= 50)
+      console.log('[SEARCH]   offset: (not sent)')
+      console.log('[SEARCH]   type:', params.types)
+      console.log('[SEARCH]   market: (not sent)')
+      console.log('[SEARCH]   params object:', params)
+      console.log('[SEARCH]   Final URL: (see Rust terminal output and error message below — the URL is included in the error response)')
+      console.log('[SEARCH] ================================')
+
+      const searchTimerLabel = `[SEARCH] search-request-${Date.now()}`
+      console.time(searchTimerLabel)
       const result = await spotifyService.search(
-        query,
-        ['track', 'album', 'artist', 'playlist'],
-        20,
+        params.query,
+        params.types,
+        params.limit,
       )
+      console.timeEnd(searchTimerLabel)
+      console.log('[SEARCH] Response received:', JSON.stringify({
+        tracks: result.tracks.length,
+        albums: result.albums.length,
+        artists: result.artists.length,
+        playlists: result.playlists.length,
+      }))
       set({ searchResults: result, loadingSearch: false })
+      console.log('[SEARCH] store.searchResults updated — React should re-render', {
+        hasResults: !!get().searchResults,
+        trackCount: get().searchResults?.tracks.length,
+      })
     } catch (e) {
+      console.error('[SEARCH] Request failed:', e)
       set({ error: String(e), loadingSearch: false })
     }
   },

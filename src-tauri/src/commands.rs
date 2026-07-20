@@ -202,7 +202,23 @@ pub async fn spotify_search(
     types: Vec<String>,
     limit: u64,
 ) -> Result<SpotifySearchResults, String> {
-    service.search(&query, types, limit).await
+    eprintln!("[SEARCH] Tauri command spotify_search called: query={query:?}, types={types:?}, limit={limit} (type: u64)");
+    // Clamp and validate limit before passing to service.
+    let clamped_limit = limit.clamp(1, 50);
+    if clamped_limit != limit {
+        eprintln!("[SEARCH] WARNING: limit {limit} clamped to {clamped_limit}");
+    }
+    let result = service.search(&query, types, clamped_limit).await;
+    match &result {
+        Ok(ref results) => {
+            eprintln!("[SEARCH] Command succeeded: {} tracks, {} albums, {} artists, {} playlists",
+                results.tracks.len(), results.albums.len(), results.artists.len(), results.playlists.len());
+        }
+        Err(e) => {
+            eprintln!("[SEARCH] Command FAILED: {e}");
+        }
+    }
+    result
 }
 
 // ── Response wrappers ────────────────────────────────────────────

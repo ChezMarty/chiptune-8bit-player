@@ -56,7 +56,8 @@ pub fn build_authorize_url(
 
     let state = generate_state();
 
-    let mut url = Url::parse("https://accounts.spotify.com/authorize").unwrap();
+    let auth_endpoint = "https://accounts.spotify.com/authorize";
+    let mut url = Url::parse(auth_endpoint).unwrap();
     {
         let mut q = url.query_pairs_mut();
         q.append_pair("client_id", client_id);
@@ -67,7 +68,20 @@ pub fn build_authorize_url(
         q.append_pair("scope", &scopes);
         q.append_pair("state", &state);
     }
-    url.to_string()
+    let final_url = url.to_string();
+
+    eprintln!("[OAUTH] ─── OAuth Configuration ───");
+    eprintln!("[OAUTH]   client_id: {client_id}");
+    eprintln!("[OAUTH]   redirect_uri: {redirect_uri}");
+    eprintln!("[OAUTH]   authorization_endpoint: {auth_endpoint}");
+    eprintln!("[OAUTH]   token_endpoint: https://accounts.spotify.com/api/token");
+    eprintln!("[OAUTH]   response_type: code (PKCE)");
+    eprintln!("[OAUTH]   code_challenge_method: S256");
+    eprintln!("[OAUTH]   scopes: {scopes}");
+    eprintln!("[OAUTH]   full authorize URL: {final_url}");
+    eprintln!("[OAUTH]   ──────────────────────────");
+
+    final_url
 }
 
 fn generate_state() -> String {
@@ -83,6 +97,7 @@ pub async fn exchange_code(
     code: &str,
     code_verifier: &str,
 ) -> Result<AuthResult, String> {
+    let token_endpoint = "https://accounts.spotify.com/api/token";
     let client = reqwest::Client::new();
 
     let params = [
@@ -93,15 +108,24 @@ pub async fn exchange_code(
         ("code_verifier", code_verifier),
     ];
 
+    eprintln!("[OAUTH] Exchanging code at {token_endpoint}");
+    eprintln!("[OAUTH]   POST {token_endpoint}");
+    eprintln!("[OAUTH]   grant_type: authorization_code");
+    eprintln!("[OAUTH]   client_id: {client_id}");
+    eprintln!("[OAUTH]   redirect_uri: {redirect_uri}");
+    eprintln!("[OAUTH]   code_verifier: {}... ({} chars)", &code_verifier[..code_verifier.len().min(10)], code_verifier.len());
+
     let resp = client
-        .post("https://accounts.spotify.com/api/token")
+        .post(token_endpoint)
         .form(&params)
         .send()
         .await
         .map_err(|e| format!("Token request failed: {e}"))?;
 
     if !resp.status().is_success() {
+        let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
+        eprintln!("[OAUTH] Token exchange FAILED: HTTP {status} {body}");
         return Err(format!("Token exchange failed: {body}"));
     }
 

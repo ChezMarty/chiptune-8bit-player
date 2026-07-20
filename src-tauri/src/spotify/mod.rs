@@ -232,23 +232,45 @@ impl SpotifyService {
         };
 
         if needs_refresh {
+            eprintln!("[TOKEN] Token expired — refreshing...");
             let refresh_token = refresh_token_opt.unwrap();
             let client_id = self.client_id();
             let new_tokens = auth::refresh_access_token(&client_id, &refresh_token).await?;
+            // Extract values BEFORE moving new_tokens
+            let prefix: String = new_tokens.access_token.chars().take(20).collect();
+            let scope = new_tokens.scope.clone();
+            let expires_at = new_tokens.expires_at;
+            let access_token = new_tokens.access_token.clone();
+
             self.core
                 .token_store
                 .save(&new_tokens)
                 .map_err(|e| format!("Failed to save refreshed tokens: {e}"))?;
-            let access_token = new_tokens.access_token.clone();
             if let Ok(mut guard) = self.core.tokens.lock() {
                 *guard = Some(new_tokens);
             }
+            eprintln!("[TOKEN] Refreshed: prefix={prefix}..., scope={scope}, expires_at={expires_at}");
             return Ok(access_token);
         }
 
         let guard = self.core.tokens.lock().unwrap_or_else(|e| e.into_inner());
         match &*guard {
-            Some(t) => Ok(t.access_token.clone()),
+            Some(t) => {
+                let prefix: String = t.access_token.chars().take(20).collect();
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                let expires_in_secs = t.expires_at.saturating_sub(now);
+                eprintln!("[TOKEN] ─── Token details ───");
+                eprintln!("[TOKEN]   prefix: {prefix}...");
+                eprintln!("[TOKEN]   token_type: Bearer (from Spotify OAuth Token endpoint)");
+                eprintln!("[TOKEN]   expires_in: {expires_in_secs}s (at unix ts {})", t.expires_at);
+                eprintln!("[TOKEN]   scope: {}", t.scope);
+                eprintln!("[TOKEN]   source: PKCE OAuth (authorization_code grant, refresh_token flow)");
+                eprintln!("[TOKEN]   ─────────────────────");
+                Ok(t.access_token.clone())
+            }
             None => Err("Not authenticated".to_string()),
         }
     }
@@ -296,9 +318,23 @@ impl SpotifyService {
     }
 
     pub async fn search(&self, query: &str, types: Vec<String>, limit: u64) -> Result<SpotifySearchResults, String> {
+        // Double-check limit is valid.
+        let limit = limit.clamp(1, 50);
+        eprintln!("[SEARCH] SpotifyService.search: query={query:?}, types={types:?}, limit={limit} (type: u64)");
         let token = self.get_valid_token().await?;
+        eprintln!("[SEARCH] Token obtained ({} chars), calling API client...", token.len());
         let type_refs: Vec<&str> = types.iter().map(|s| s.as_str()).collect();
-        self.core.api_client.search(&token, query, &type_refs, limit).await
+        let result = self.core.api_client.search(&token, query, &type_refs, limit).await;
+        match &result {
+            Ok(ref results) => {
+                eprintln!("[SEARCH] API client returned: {} tracks, {} albums, {} artists, {} playlists",
+                    results.tracks.len(), results.albums.len(), results.artists.len(), results.playlists.len());
+            }
+            Err(e) => {
+                eprintln!("[SEARCH] API client FAILED: {e}");
+            }
+        }
+        result
     }
 
     // ── Playback methods ───────────────────────────────────────

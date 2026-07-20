@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useLayoutEffect } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { useSpotifyStore, type SpotifySection } from '../state/useSpotifyStore'
 import type { SpotifyTrackInfo, SpotifyPlaylistInfo, SpotifyAlbumInfo, SpotifyAccountStatus } from '../lib/spotify'
@@ -617,6 +617,7 @@ function SearchSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackInfo
   const searchResults = useSpotifyStore((s) => s.searchResults)
   const loadingSearch = useSpotifyStore((s) => s.loadingSearch)
   const doSearch = useSpotifyStore((s) => s.doSearch)
+  const storeError = useSpotifyStore((s) => s.error)
   const playTrackFromStore = useSpotifyStore((s) => s.playTrack)
   const playTrack = onPlayTrack ?? playTrackFromStore
   const playbackError = useSpotifyStore((s) => s.playbackError)
@@ -625,9 +626,29 @@ function SearchSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackInfo
 
   const handleChange = (value: string) => {
     setQuery(value)
+    console.log('[SEARCH] Query typed:', JSON.stringify(value))
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => { doSearch(value) }, 400)
+    debounceRef.current = setTimeout(() => {
+      console.log('[SEARCH] Debounce fired — calling doSearch with:', JSON.stringify(value))
+      doSearch(value)
+    }, 400)
   }
+
+  // Log when search results are committed to the DOM.
+  useLayoutEffect(() => {
+    if (searchResults) {
+      const total =
+        searchResults.tracks.length +
+        searchResults.albums.length +
+        searchResults.artists.length +
+        searchResults.playlists.length;
+      console.log('[SEARCH] React rendered', total, 'rows total (',
+        searchResults.tracks.length, 'tracks,',
+        searchResults.albums.length, 'albums,',
+        searchResults.artists.length, 'artists,',
+        searchResults.playlists.length, 'playlists )');
+    }
+  }, [searchResults]);
 
   return (
     <div className="spotify-panel__section">
@@ -643,6 +664,7 @@ function SearchSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackInfo
         {loadingSearch && <span className="spotify-panel__search-spinner">⏳</span>}
       </div>
 
+      {storeError && <div className="spotify-panel__error">[SEARCH] {storeError}</div>}
       {playbackError && <div className="spotify-panel__error">{playbackError}</div>}
 
       {searchResults && (
