@@ -129,6 +129,7 @@ class PlaybackEngine {
       // seek() and the next progress callback from the backend
       // confirms the real position.
       if (!store.isDragging) {
+        console.log('[SRC:engine/onProgress] store.setCurrentTime(', p.currentTimeSec.toFixed(3), ') via progress callback from', this.active.id)
         store.setCurrentTime(p.currentTimeSec)
       }
 
@@ -321,6 +322,7 @@ class PlaybackEngine {
     console.log('[ENGINE] stop() called — optimistic store update started')
     store.setPlaybackStatus('stopped')
     store.setPlaying(false)
+    console.log('[SRC:engine/stop] store.setCurrentTime(0) optimistic')
     store.setCurrentTime(0)
     console.log('[ENGINE] stop() — optimistic store update done, calling active.stop()')
 
@@ -349,6 +351,7 @@ class PlaybackEngine {
     // then send the seek command to the backend.
     const store = usePlayerStore.getState()
     console.log('[ENGINE] seek(', seconds, ') — optimistic store update')
+    console.log('[SRC:engine/seek] store.setCurrentTime(', seconds, ') optimistic')
     store.setCurrentTime(seconds)
 
     performance.mark('seek-engine-calling-active')

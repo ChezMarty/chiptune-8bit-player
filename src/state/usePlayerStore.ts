@@ -191,7 +191,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ isPlaying: v })
   },
   setCurrentTime: (t) => {
-    console.log('[STORE] setCurrentTime(', t, ') ←', new Error().stack?.split('\n').slice(2).join('\n'))
+    const s = get()
+    // Extract just the first caller line from the stack for brevity
+    const stackLines = new Error().stack?.split('\n').slice(3) ?? []
+    const callerLine = stackLines.find(l => !l.includes('node_modules') && !l.includes('usePlayerStore')) ?? stackLines[0] ?? 'unknown'
+    console.log(
+      '[STORE] setCurrentTime(', t.toFixed(3),
+      ') isPlaying=', s.isPlaying,
+      'status=', s.playbackStatus,
+      'caller=', callerLine.trim(),
+    )
     set({ currentTime: t })
   },
   setDuration: (d) => {

@@ -139,6 +139,28 @@ export class LibrespotProvider implements PlaybackProvider {
   /** The Rust position before seeking — captures direction for cross-detection. */
   private preSeekPositionMs = 0
 
+  /**
+   * Guards against stale state events overwriting the store after a pause/resume command.
+   *
+   * The Rust backend sends state events every 250ms via a polling loop. When we send a
+   * pause or resume command via invoke(), the Rust backend processes it asynchronously,
+   * but the polling loop continues sending stale events until the command takes effect.
+   *
+   * Without this guard, a stale state event arriving between the optimistic store update
+   * and the Rust command confirmation would:
+   *   1. Flip isPlaying back to the old value (e.g., true after pause)
+   *   2. Write an advancing currentTime from the Rust position
+   *   3. Fire emitProgress() → engine.onProgress → setPlaybackStatus('playing')
+   *
+   * This completely undoes the pause and makes the button unreliable.
+   *
+   * FIX: While commandGuard is set, stale state events are skipped entirely — the event
+   * is not processed, lastRustPositionMs is not updated, and emitProgress() is not called.
+   * When Rust finally confirms the new state (is_playing matches our command's expected
+   * direction), the guard is cleared and normal processing resumes.
+   */
+  private commandGuard: 'idle' | 'pause' | 'resume' = 'idle'
+
   // EndOfTrack delay — the Rust decoder emits EndOfTrack when decoding finishes,
   // but ~1.8s of audio may still be buffered in the mpsc channel + emitter + Web Audio.
   // We delay the 'ended' state until the Web Audio queue is actually empty.
@@ -167,7 +189,7 @@ export class LibrespotProvider implements PlaybackProvider {
         (event) => {
           if (this.destroyed) return
           const state = event.payload
-          console.log('[LIBRESPOT] state event: position_ms=', state.position_ms, 'is_playing=', state.is_playing, 'duration_ms=', state.duration_ms, 'endOfTrackPending=', this.endOfTrackPending)
+          console.log('[LIBRESPOT] state event: position_ms=', state.position_ms, 'is_playing=', state.is_playing, 'duration_ms=', state.duration_ms, 'endOfTrackPending=', this.endOfTrackPending, 'commandGuard=', this.commandGuard)
 
           // Remember the last Rust position + timestamp so the progress
           // timer can interpolate smoothly between state updates.
@@ -179,6 +201,53 @@ export class LibrespotProvider implements PlaybackProvider {
           // position — the EOT path in emitProgress() handles this.
           if (!this.endOfTrackPending) {
             const store = usePlayerStore.getState()
+
+            // ═══════════════════════════════════════════════════════
+            // PAUSE/RESUME GUARD: Check BEFORE any store writes.
+            // ═══════════════════════════════════════════════════════
+            // The Rust polling loop (250ms) continues sending events
+            // after we issue pause/resume via invoke(). If a stale event
+            // arrives before Rust confirms the command, it must be
+            // rejected IMMEDIATELY — before writing currentTime.
+            //
+            // The code below this block writes `state.position_ms / 1000`
+            // to the store. If that fires for a stale event, the timer
+            // jumps by however much the Rust position has advanced
+            // (anchor + elapsed real-time).
+            //
+            // FIX: Check the guard FIRST. Stale events return early
+            // before any store write. When Rust confirms (is_playing
+            // matches the expected direction), the guard clears and
+            // normal processing proceeds.
+            if (this.commandGuard === 'pause') {
+              if (state.is_playing) {
+                // ═══════════════════════════════════════════════════
+                // STALE EVENT: Rust hasn't processed the pause yet.
+                // Return IMMEDIATELY — no tracking update, no store
+                // write, no emitProgress. Without this early return,
+                // store.setCurrentTime() below would write the Rust
+                // position (which has been advancing via anchor + elapsed)
+                // and the timer/progress bar would jump forward by
+                // however many seconds the Rust loop has advanced.
+                // ═══════════════════════════════════════════════════
+                console.log('[LIBRESPOT] state event — SKIPPED (pause pending, stale is_playing=true)')
+                return
+              } else {
+                // Rust confirmed pause — clear the guard.
+                console.log('[LIBRESPOT] state event — Rust confirmed pause')
+                this.commandGuard = 'idle'
+                // Process normally below.
+              }
+            } else if (this.commandGuard === 'resume') {
+              if (!state.is_playing) {
+                console.log('[LIBRESPOT] state event — SKIPPED (resume pending, stale is_playing=false)')
+                return
+              } else {
+                console.log('[LIBRESPOT] state event — Rust confirmed resume')
+                this.commandGuard = 'idle'
+                // Process normally below.
+              }
+            }
 
             // ═══════════════════════════════════════════════════════
             // ISSUE 1 FIX: Guard against stale Rust state events
@@ -233,6 +302,7 @@ export class LibrespotProvider implements PlaybackProvider {
                 // Write the confirmed position to the store
                 // (only if not dragging — the UI handles that).
                 if (!store.isDragging) {
+                  console.log('[SRC:librespot/listener-seek-confirmed] store.setCurrentTime(', (state.position_ms / 1000).toFixed(3), ') position_ms=', state.position_ms, 'is_playing=', state.is_playing)
                   store.setCurrentTime(state.position_ms / 1000)
                 }
               } else {
@@ -250,7 +320,7 @@ export class LibrespotProvider implements PlaybackProvider {
               // ── Normal (non-seek) state update ───────────────────
               // No seek in progress — write the Rust position directly.
               if (!store.isDragging) {
-                console.log('[LIBRESPOT] state event → writing to store (normal)')
+                console.log('[SRC:librespot/listener-normal] store.setCurrentTime(', (state.position_ms / 1000).toFixed(3), ') position_ms=', state.position_ms, 'is_playing=', state.is_playing)
                 store.setCurrentTime(state.position_ms / 1000)
               } else {
                 console.log('[LIBRESPOT] state event → SKIPPED setCurrentTime (isDragging=true)')
@@ -266,7 +336,8 @@ export class LibrespotProvider implements PlaybackProvider {
           }
 
           // Fire progress callbacks so the engine's onProgress can react.
-          this.emitProgress()
+          console.log('[SRC:emitProgress/listener] calling emitProgress() after state event (commandGuard=', this.commandGuard, ', is_playing=', state.is_playing, ', position_ms=', state.position_ms, ')')
+          this.emitProgress('listener')
         },
       )
     } catch (e) {
@@ -462,6 +533,7 @@ export class LibrespotProvider implements PlaybackProvider {
     console.log('[PLAY] Loading new track...')
     this.cleared = false
     this.pendingSeek = false
+    this.commandGuard = 'idle'
 
     // Ensure audio context is resumed (user gesture requirement).
     if (this.audioCtx?.state === 'suspended') {
@@ -504,6 +576,11 @@ export class LibrespotProvider implements PlaybackProvider {
 
   async pause(): Promise<void> {
     console.log('[LIBRESPOT] pause() — flushing audio, stopping timer, invoking backend')
+
+    // Set the command guard BEFORE any async operations to prevent stale
+    // state events from overwriting the store while the command is in flight.
+    this.commandGuard = 'pause'
+
     // 1. Flush ALL scheduled Web Audio sources immediately.
     //    This stops the already-scheduled AudioBufferSourceNodes from
     //    continuing to play out their buffered PCM.
@@ -518,11 +595,18 @@ export class LibrespotProvider implements PlaybackProvider {
       console.log('[LIBRESPOT] pause() — backend completed')
     } catch (e) {
       console.error('[LIBRESPOT] pause() failed:', e)
+      // On error, clear the guard to avoid getting stuck in 'pause' state.
+      this.commandGuard = 'idle'
     }
   }
 
   async resume(): Promise<void> {
     console.log('[LIBRESPOT] resume() — accepting new audio, resuming playback')
+
+    // Set the command guard BEFORE any async operations to prevent stale
+    // state events from overwriting the store while the command is in flight.
+    this.commandGuard = 'resume'
+
     // Re-accept incoming audio chunks (was blocked by cleared=true in pause()).
     this.cleared = false
     if (this.audioCtx?.state === 'suspended') {
@@ -538,6 +622,8 @@ export class LibrespotProvider implements PlaybackProvider {
       console.log('[LIBRESPOT] resume() — backend completed')
     } catch (e) {
       console.error('[LIBRESPOT] resume() failed:', e)
+      // On error, clear the guard to avoid getting stuck in 'resume' state.
+      this.commandGuard = 'idle'
     }
   }
 
@@ -553,6 +639,11 @@ export class LibrespotProvider implements PlaybackProvider {
 
   async stop(): Promise<void> {
     console.log('[LIBRESPOT] stop() — flushing audio queue, clearing state')
+
+    // Set the command guard to prevent stale state events from overwriting
+    // the store while the stop command is in flight.
+    this.commandGuard = 'pause'
+
     this.flushAudioQueue()
     this.cleared = true
     this.scheduledEndTime = 0
@@ -566,6 +657,8 @@ export class LibrespotProvider implements PlaybackProvider {
       console.log('[LIBRESPOT] stop() — backend completed')
     } catch (e) {
       console.error('[LIBRESPOT] stop_playback failed:', e)
+      // On error, clear the guard to avoid getting stuck in 'pause' state.
+      this.commandGuard = 'idle'
     }
   }
 
@@ -728,7 +821,7 @@ export class LibrespotProvider implements PlaybackProvider {
     }
     console.log('[LIBRESPOT] startProgressTimer() — starting 200ms interval')
     this.progressInterval = setInterval(() => {
-      this.emitProgress()
+      this.emitProgress('timer')
     }, 200)
   }
 
@@ -748,8 +841,10 @@ export class LibrespotProvider implements PlaybackProvider {
    * Reads playback state FROM THE STORE (single source of truth)
    * rather than from internal fields. During the EndOfTrack tail,
    * position is estimated from the saved EOT position + elapsed time.
+   *
+   * @param caller - Source identifier for diagnostics ('timer' | 'listener').
    */
-  private emitProgress(): void {
+  private emitProgress(caller: string = 'unknown'): void {
     const store = usePlayerStore.getState()
 
     let currentTimeSec: number
@@ -808,7 +903,7 @@ export class LibrespotProvider implements PlaybackProvider {
       isPlaying,
     }
 
-    console.log('[LIBRESPOT] emitProgress() [' + sourceTag + '] → currentTimeSec=', currentTimeSec, 'isPlaying=', isPlaying, 'firing', this.progressCbs.length, 'callbacks')
+    console.log('[LIBRESPOT] emitProgress() [' + sourceTag + '] caller=', caller, '→ currentTimeSec=', currentTimeSec.toFixed(3), 'isPlaying=', isPlaying, 'lastRustPositionMs=', this.lastRustPositionMs, 'firing', this.progressCbs.length, 'callbacks, store.currentTime=', store.currentTime.toFixed(3))
 
     // Check if the Web Audio queue is finally exhausted during EOT tail.
     if (this.endOfTrackPending &&
