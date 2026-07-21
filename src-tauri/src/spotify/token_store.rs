@@ -135,6 +135,7 @@ fn dirs_next() -> Option<std::path::PathBuf> {
     }
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn dirs_fallback(env_var: &str, suffix: &str) -> Option<std::path::PathBuf> {
     std::env::var(env_var)
         .ok()
@@ -149,9 +150,4 @@ fn xor_obfuscate(data: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-impl Drop for TokenStore {
-    fn drop(&mut self) {
-        // Ensure tokens are wiped on drop. The actual wipe-on-logout
-        // happens explicitly via delete(), but this is belt-and-suspenders.
-    }
-}
+

@@ -1,12 +1,12 @@
 # 🎵 Chiptune 8-Bit Player
 
-**Version 0.1.0**
+**Version 0.2.0**
 
 A retro-inspired desktop music player with a nostalgic 8-bit aesthetic, bringing the look and feel of classic NES-era interfaces to modern systems — with **Spotify streaming** support powered by Librespot.
 
 Built with [Tauri 2](https://v2.tauri.app/) (Rust) + [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/), designed to feel like a native app with pixel-perfect retro charm.
 
-![Chiptune 8-Bit Player](https://img.shields.io/badge/version-0.1.0-brightgreen) ![License](https://img.shields.io/badge/license-MIT-blue) ![Tauri](https://img.shields.io/badge/Tauri-2-purple) ![React](https://img.shields.io/badge/React-19-61DAFB)
+![Chiptune 8-Bit Player](https://img.shields.io/badge/version-0.2.0-brightgreen) ![License](https://img.shields.io/badge/license-MIT-blue) ![Tauri](https://img.shields.io/badge/Tauri-2-purple) ![React](https://img.shields.io/badge/React-19-61DAFB)
 
 ---
 

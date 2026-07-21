@@ -5,7 +5,7 @@ export interface AboutDialogProps {
   onClose: () => void
 }
 
-const APP_VERSION = '0.1.0'
+const APP_VERSION = '0.2.0'
 /**
  * The static "About" description text. Per the i18n spec, only UI chrome
  * is translated — the description stays English so the spec's

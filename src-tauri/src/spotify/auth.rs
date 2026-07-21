@@ -29,7 +29,7 @@ pub fn generate_code_verifier() -> String {
 /// Generate a code challenge from a verifier using S256 (SHA-256 + base64url).
 pub fn generate_code_challenge(verifier: &str) -> String {
     let hash = Sha256::digest(verifier.as_bytes());
-    URL_SAFE_NO_PAD.encode(&hash)
+    URL_SAFE_NO_PAD.encode(hash)
 }
 
 /// Build the Spotify authorization URL for the PKCE flow.

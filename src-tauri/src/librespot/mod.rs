@@ -163,7 +163,7 @@ impl audio_backend::Sink for AppAudioSink {
                     channels: self.channels,
                 };
 
-                if count <= 5 || count % 100 == 0 {
+                if count <= 5 || count.is_multiple_of(100) {
                     eprintln!("[librespot-sink] write #{} (Samples, {} f64 samples, {} bytes pcm)",
                         count, sample_count, byte_len);
                 }
@@ -187,7 +187,7 @@ impl audio_backend::Sink for AppAudioSink {
                     channels: self.channels,
                 };
 
-                if count <= 5 || count % 100 == 0 {
+                if count <= 5 || count.is_multiple_of(100) {
                     eprintln!("[librespot-sink] write #{} (Raw, {} bytes)", count, byte_len);
                 }
 
@@ -200,7 +200,7 @@ impl audio_backend::Sink for AppAudioSink {
             }
         }
 
-        if count <= 3 || count % 50 == 0 {
+        if count <= 3 || count.is_multiple_of(50) {
             eprintln!("[librespot-sink] write #{} — returning Ok(())", count);
         }
         Ok(())
@@ -789,34 +789,4 @@ pub fn librespot_version() -> String {
     format!("embedded (app v{})", env!("CARGO_PKG_VERSION"))
 }
 
-// ── Data directory ───────────────────────────────────────────────
 
-fn dirs_data() -> Option<std::path::PathBuf> {
-    #[cfg(target_os = "windows")]
-    {
-        std::env::var("APPDATA")
-            .ok()
-            .map(|p| std::path::PathBuf::from(p).join("Chiptune8BitPlayer"))
-    }
-    #[cfg(target_os = "macos")]
-    {
-        std::env::var("HOME").ok().map(|p| {
-            std::path::PathBuf::from(p).join("Library/Application Support/Chiptune8BitPlayer")
-        })
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::env::var("XDG_DATA_HOME")
-            .ok()
-            .map(|p| std::path::PathBuf::from(p).join("Chiptune8BitPlayer"))
-            .or_else(|| {
-                std::env::var("HOME")
-                    .ok()
-                    .map(|p| std::path::PathBuf::from(p).join(".local/share/Chiptune8BitPlayer"))
-            })
-    }
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-    {
-        None
-    }
-}
