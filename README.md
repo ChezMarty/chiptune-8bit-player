@@ -129,7 +129,7 @@ The app window will open with the retro interface. Add audio files via the `+ AD
 ### 🔌 Setting Up Spotify
 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and create an app
-2. Add `http://127.0.0.1:*/callback` to the Redirect URIs in your Spotify app settings
+2. Add `http://127.0.0.1:49436/callback` to the Redirect URIs in your Spotify app settings
 3. Open the app → click the gear icon ⚙ → navigate to the **SPOTIFY** section
 4. Enter your Spotify **Client ID** and click **SAVE**
 5. Click **CONNECT TO SPOTIFY** to authorize via your browser
