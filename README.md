@@ -10,6 +10,19 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust) + [React 19](https://react.de
 
 ---
 
+## 📸 Screenshots
+
+| | |
+|---|---|
+| ![Main View](screenshots/main-view.png) | ![Settings Drawer](screenshots/settings-drawer.png) |
+| *Main interface — library, vinyl record, and transport controls* | *Settings panel with playback, Spotify, and display options* |
+| ![Context Menu](screenshots/context-menu.png) | ![Spotify Panel](screenshots/spotify-panel.png) |
+| *Right-click app context menu with all actions* | *Spotify integration — connect, browse, and search* |
+| ![Library Empty State](screenshots/library-empty.png) | |
+| *Empty library state with the clean retro interface* | |
+
+---
+
 ## ✨ Features
 
 ### 🎮 Core Experience
