@@ -167,6 +167,22 @@
 
   "spotify.notConfigured": "Spotify is not configured yet. Go to Settings to enter your Client ID.",
   "spotify.notConfigured.action": "OPEN SETTINGS",
+
+  "spotify.contextMenu.play": "▶ PLAY",
+  "spotify.contextMenu.goToAlbum": "💿 GO TO ALBUM",
+  "spotify.contextMenu.copyLink": "🔗 COPY TRACK LINK",
+  "spotify.contextMenu.noAlbum": "No album information available",
+  "spotify.contextMenu.aria": "Spotify track actions",
+
+  "spotify.contextMenu.playlist.play": "▶ PLAY PLAYLIST",
+  "spotify.contextMenu.playlist.shufflePlay": "🔀 SHUFFLE PLAY",
+  "spotify.contextMenu.playlist.openInSpotify": "🌐 OPEN IN SPOTIFY",
+  "spotify.contextMenu.playlist.copyLink": "🔗 COPY LINK",
+  "spotify.contextMenu.playlist.copyUri": "📋 COPY URI",
+  "spotify.contextMenu.playlist.refresh": "🔄 REFRESH",
+  "spotify.contextMenu.playlist.trackSingular": "{n} track",
+  "spotify.contextMenu.playlist.trackPlural": "{n} tracks",
+  "spotify.contextMenu.playlist.aria": "Spotify playlist actions",
   "settings.language.en": "EN",
   "settings.language.fr": "FR",
   "settings.language.os": "OS",

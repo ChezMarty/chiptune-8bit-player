@@ -3,6 +3,8 @@ import { listen } from '@tauri-apps/api/event'
 import { useSpotifyStore, type SpotifySection } from '../state/useSpotifyStore'
 import type { SpotifyTrackInfo, SpotifyPlaylistInfo, SpotifyAccountStatus } from '../lib/spotify'
 import { useT } from '../i18n/useT'
+import { SpotifyContextMenu } from './SpotifyContextMenu'
+import { SpotifyPlaylistContextMenu } from './SpotifyPlaylistContextMenu'
 
 const SECTION_TABS: { key: SpotifySection; labelKey: string }[] = [
   { key: 'liked', labelKey: 'spotify.section.liked' },
@@ -42,6 +44,18 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
   const verifierRef = useRef<string | null>(null)
   const redirectUriRef = useRef<string | null>(null)
 
+  const [spotifyMenu, setSpotifyMenu] = useState<{
+    track: SpotifyTrackInfo
+    x: number
+    y: number
+  } | null>(null)
+
+  const [playlistMenu, setPlaylistMenu] = useState<{
+    playlist: SpotifyPlaylistInfo
+    x: number
+    y: number
+  } | null>(null)
+
   // Wrap the playTrack action so the warning dialog is shown if needed.
   const wrappedPlayTrack = useCallback(
     (track: SpotifyTrackInfo) => {
@@ -54,6 +68,88 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
     },
     [onPlayTrack, playTrackStore],
   )
+
+  const handleTrackContextMenu = useCallback((e: React.MouseEvent, track: SpotifyTrackInfo) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setPlaylistMenu(null)
+    setSpotifyMenu({ track, x: e.clientX, y: e.clientY })
+  }, [])
+
+  const handlePlaylistContextMenu = useCallback((e: React.MouseEvent, playlist: SpotifyPlaylistInfo) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSpotifyMenu(null)
+    setPlaylistMenu({ playlist, x: e.clientX, y: e.clientY })
+  }, [])
+
+  const closeSpotifyMenu = useCallback(() => setSpotifyMenu(null), [])
+  const closePlaylistMenu = useCallback(() => setPlaylistMenu(null), [])
+
+  const handleGoToAlbum = useCallback(async (albumId: string) => {
+    try {
+      const { openUrl } = await import('@tauri-apps/plugin-opener')
+      await openUrl(`https://open.spotify.com/album/${albumId}`)
+    } catch (err) {
+      console.error('[spotify] Failed to open album URL:', err)
+    }
+  }, [])
+
+  const handleCopyTrackLink = useCallback(async (trackId: string) => {
+    try {
+      const url = `https://open.spotify.com/track/${trackId}`
+      await navigator.clipboard.writeText(url)
+    } catch (err) {
+      console.error('[spotify] Failed to copy track link:', err)
+    }
+  }, [])
+
+  // ── Playlist context menu action handlers ─────────────
+
+  const handlePlayPlaylist = useCallback(async (playlist: SpotifyPlaylistInfo) => {
+    const tracks = await useSpotifyStore.getState().loadPlaylistTracks(playlist.id)
+    if (tracks.length > 0) {
+      wrappedPlayTrack(tracks[0])
+    }
+  }, [wrappedPlayTrack])
+
+  const handleShufflePlayPlaylist = useCallback(async (playlist: SpotifyPlaylistInfo) => {
+    const tracks = await useSpotifyStore.getState().loadPlaylistTracks(playlist.id)
+    if (tracks.length > 0) {
+      const shuffled = [...tracks].sort(() => Math.random() - 0.5)
+      wrappedPlayTrack(shuffled[0])
+    }
+  }, [wrappedPlayTrack])
+
+  const handleOpenPlaylistInSpotify = useCallback(async (playlistId: string) => {
+    try {
+      const { openUrl } = await import('@tauri-apps/plugin-opener')
+      await openUrl(`https://open.spotify.com/playlist/${playlistId}`)
+    } catch (err) {
+      console.error('[spotify] Failed to open playlist URL:', err)
+    }
+  }, [])
+
+  const handleCopyPlaylistLink = useCallback(async (playlistId: string) => {
+    try {
+      await navigator.clipboard.writeText(`https://open.spotify.com/playlist/${playlistId}`)
+    } catch (err) {
+      console.error('[spotify] Failed to copy playlist link:', err)
+    }
+  }, [])
+
+  const handleCopyPlaylistUri = useCallback(async (playlistId: string) => {
+    try {
+      await navigator.clipboard.writeText(`spotify:playlist:${playlistId}`)
+    } catch (err) {
+      console.error('[spotify] Failed to copy playlist URI:', err)
+    }
+  }, [])
+
+  const handleRefreshPlaylist = useCallback(async (playlist: SpotifyPlaylistInfo) => {
+    await useSpotifyStore.getState().loadPlaylistTracks(playlist.id)
+    console.log(`[spotify] Refreshed playlist "${playlist.name}"`)
+  }, [])
 
   useEffect(() => {
     loadConfig().then(() => checkAuth())
@@ -273,13 +369,13 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
 
       <div className="spotify-panel__content">
         {activeSection === 'liked' && (
-          <TrackListSection title={t('spotify.section.liked')} loadMoreKey="liked" onPlayTrack={wrappedPlayTrack} />
+          <TrackListSection title={t('spotify.section.liked')} loadMoreKey="liked" onPlayTrack={wrappedPlayTrack} onTrackContextMenu={handleTrackContextMenu} />
         )}
-        {activeSection === 'playlists' && <PlaylistSection onPlayTrack={wrappedPlayTrack} />}
+        {activeSection === 'playlists' && <PlaylistSection onPlayTrack={wrappedPlayTrack} onTrackContextMenu={handleTrackContextMenu} onPlaylistContextMenu={handlePlaylistContextMenu} />}
         {activeSection === 'top' && (
-          <TrackListSection title={t('spotify.section.top')} loadMoreKey="top" onPlayTrack={wrappedPlayTrack} />
+          <TrackListSection title={t('spotify.section.top')} loadMoreKey="top" onPlayTrack={wrappedPlayTrack} onTrackContextMenu={handleTrackContextMenu} />
         )}
-        {activeSection === 'search' && <SearchSection onPlayTrack={wrappedPlayTrack} />}
+        {activeSection === 'search' && <SearchSection onPlayTrack={wrappedPlayTrack} onTrackContextMenu={handleTrackContextMenu} onPlaylistContextMenu={handlePlaylistContextMenu} />}
       </div>
 
       <div className="spotify-panel__footer">
@@ -287,6 +383,33 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
           {account.product === 'premium' ? '🔊 Premium' : '🎵 Spotify'}
         </span>
       </div>
+
+      {spotifyMenu && (
+        <SpotifyContextMenu
+          track={spotifyMenu.track}
+          x={spotifyMenu.x}
+          y={spotifyMenu.y}
+          onClose={closeSpotifyMenu}
+          onPlay={() => wrappedPlayTrack(spotifyMenu.track)}
+          onGoToAlbum={() => spotifyMenu.track.album_id && handleGoToAlbum(spotifyMenu.track.album_id)}
+          onCopyLink={() => handleCopyTrackLink(spotifyMenu.track.id)}
+        />
+      )}
+
+      {playlistMenu && (
+        <SpotifyPlaylistContextMenu
+          playlist={playlistMenu.playlist}
+          x={playlistMenu.x}
+          y={playlistMenu.y}
+          onClose={closePlaylistMenu}
+          onPlay={() => handlePlayPlaylist(playlistMenu.playlist)}
+          onShufflePlay={() => handleShufflePlayPlaylist(playlistMenu.playlist)}
+          onOpenInSpotify={() => handleOpenPlaylistInSpotify(playlistMenu.playlist.id)}
+          onCopyLink={() => handleCopyPlaylistLink(playlistMenu.playlist.id)}
+          onCopyUri={() => handleCopyPlaylistUri(playlistMenu.playlist.id)}
+          onRefresh={() => handleRefreshPlaylist(playlistMenu.playlist)}
+        />
+      )}
     </aside>
   )
 }
@@ -297,10 +420,12 @@ function TrackListSection({
   title,
   loadMoreKey,
   onPlayTrack,
+  onTrackContextMenu,
 }: {
   title: string
   loadMoreKey: 'liked' | 'top'
   onPlayTrack?: (track: SpotifyTrackInfo) => void
+  onTrackContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void
 }) {
   const tracks = useSpotifyStore((s) => {
     if (loadMoreKey === 'liked') return s.likedSongs
@@ -339,7 +464,7 @@ function TrackListSection({
       ) : (
         <ul className="spotify-panel__track-list">
           {tracks.map((track) => (
-            <TrackRow key={track.id} track={track} onPlay={playTrackFn} />
+            <TrackRow key={track.id} track={track} onPlay={playTrackFn} onContextMenu={onTrackContextMenu} />
           ))}
           {hasMore && (
             <li>
@@ -358,11 +483,12 @@ function TrackListSection({
   )
 }
 
-function TrackRow({ track, onPlay }: { track: SpotifyTrackInfo; onPlay?: (track: SpotifyTrackInfo) => void }) {
+function TrackRow({ track, onPlay, onContextMenu }: { track: SpotifyTrackInfo; onPlay?: (track: SpotifyTrackInfo) => void; onContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void }) {
   return (
     <li
       className="spotify-panel__track-row"
       onDoubleClick={() => onPlay?.(track)}
+      onContextMenu={(e) => onContextMenu?.(e, track)}
       title={onPlay ? `Play: ${track.title} — ${track.artist}` : undefined}
       role="button"
       tabIndex={0}
@@ -384,7 +510,7 @@ function TrackRow({ track, onPlay }: { track: SpotifyTrackInfo; onPlay?: (track:
   )
 }
 
-function PlaylistSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackInfo) => void }) {
+function PlaylistSection({ onPlayTrack, onTrackContextMenu, onPlaylistContextMenu }: { onPlayTrack?: (track: SpotifyTrackInfo) => void; onTrackContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void; onPlaylistContextMenu?: (e: React.MouseEvent, playlist: SpotifyPlaylistInfo) => void }) {
   const playlists = useSpotifyStore((s) => s.playlists)
   const loading = useSpotifyStore((s) => s.loadingPlaylists)
   const hasMore = useSpotifyStore((s) => s.playlistHasMore)
@@ -419,8 +545,8 @@ function PlaylistSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackIn
           <div className="spotify-panel__loading">Loading...</div>
         ) : (
           <ul className="spotify-panel__track-list">
-            {tracks.map((t) => <TrackRow key={t.id} track={t} onPlay={playTrack} />)}
-          </ul>
+          {tracks.map((t) => <TrackRow key={t.id} track={t} onPlay={playTrack} onContextMenu={onTrackContextMenu} />)}
+        </ul>
         )}
       </div>
     )
@@ -440,7 +566,11 @@ function PlaylistSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackIn
         <ul className="spotify-panel__list">
           {playlists.map((p) => (
             <li key={p.id}>
-              <button className="spotify-panel__item-btn" onClick={() => handleExpand(p)}>
+              <button
+                className="spotify-panel__item-btn"
+                onClick={() => handleExpand(p)}
+                onContextMenu={(e) => onPlaylistContextMenu?.(e, p)}
+              >
                 {p.image_url ? (
                   <img className="spotify-panel__item-art" src={p.image_url} alt="" style={{ imageRendering: 'pixelated' }} />
                 ) : (
@@ -468,7 +598,7 @@ function PlaylistSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackIn
   )
 }
 
-function SearchSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackInfo) => void }) {
+function SearchSection({ onPlayTrack, onTrackContextMenu, onPlaylistContextMenu }: { onPlayTrack?: (track: SpotifyTrackInfo) => void; onTrackContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void; onPlaylistContextMenu?: (e: React.MouseEvent, playlist: SpotifyPlaylistInfo) => void }) {
   const searchResults = useSpotifyStore((s) => s.searchResults)
   const loadingSearch = useSpotifyStore((s) => s.loadingSearch)
   const doSearch = useSpotifyStore((s) => s.doSearch)
@@ -528,7 +658,7 @@ function SearchSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackInfo
             <>
               <div className="spotify-panel__result-header">Tracks</div>
               <ul className="spotify-panel__track-list">
-                {searchResults.tracks.map((t) => <TrackRow key={t.id} track={t} onPlay={playTrack} />)}
+                {searchResults.tracks.map((t) => <TrackRow key={t.id} track={t} onPlay={playTrack} onContextMenu={onTrackContextMenu} />)}
               </ul>
             </>
           )}
@@ -578,7 +708,10 @@ function SearchSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackInfo
               <ul className="spotify-panel__list">
                 {searchResults.playlists.map((p) => (
                   <li key={p.id}>
-                    <div className="spotify-panel__item-btn">
+                    <div
+                      className="spotify-panel__item-btn"
+                      onContextMenu={(e) => onPlaylistContextMenu?.(e, p)}
+                    >
                       {p.image_url ? (
                         <img className="spotify-panel__item-art" src={p.image_url} alt="" style={{ imageRendering: 'pixelated' }} />
                       ) : (

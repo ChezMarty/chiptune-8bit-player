@@ -167,6 +167,22 @@
 
   "spotify.notConfigured": "Spotify n'est pas encore configuré. Ouvrez les Paramètres pour entrer votre Client ID.",
   "spotify.notConfigured.action": "OUVRIR PARAMÈTRES",
+
+  "spotify.contextMenu.play": "▶ LIRE",
+  "spotify.contextMenu.goToAlbum": "💿 VOIR L'ALBUM",
+  "spotify.contextMenu.copyLink": "🔗 COPIER LE LIEN",
+  "spotify.contextMenu.noAlbum": "Aucune information sur l'album disponible",
+  "spotify.contextMenu.aria": "Actions de la piste Spotify",
+
+  "spotify.contextMenu.playlist.play": "▶ LIRE LA PLAYLIST",
+  "spotify.contextMenu.playlist.shufflePlay": "🔀 LECTURE ALÉATOIRE",
+  "spotify.contextMenu.playlist.openInSpotify": "🌐 OUVRIR DANS SPOTIFY",
+  "spotify.contextMenu.playlist.copyLink": "🔗 COPIER LE LIEN",
+  "spotify.contextMenu.playlist.copyUri": "📋 COPIER L'URI",
+  "spotify.contextMenu.playlist.refresh": "🔄 ACTUALISER",
+  "spotify.contextMenu.playlist.trackSingular": "{n} titre",
+  "spotify.contextMenu.playlist.trackPlural": "{n} titres",
+  "spotify.contextMenu.playlist.aria": "Actions de la playlist Spotify",
   "settings.language.en": "EN",
   "settings.language.fr": "FR",
   "settings.language.os": "OS",
