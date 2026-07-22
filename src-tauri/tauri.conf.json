@@ -13,10 +13,11 @@
     "windows": [
       {
         "title": "Chiptune 8-Bit Player",
-        "width": 1100,
-        "height": 720,
+        "width": 1550,
+        "height": 935,
         "minWidth": 900,
         "minHeight": 620,
+        "center": true,
         "resizable": true,
         "fullscreen": false,
         "decorations": false
