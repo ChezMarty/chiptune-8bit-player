@@ -93,7 +93,7 @@ export class LibrespotProvider implements PlaybackProvider {
   private audioCtx: AudioContext | null = null
   private gainNode: GainNode | null = null
   private scheduledEndTime = 0
-  private currentVolume = 0.7
+  private currentVolume = 0 // Set from player store during initialize()
 
   // State tracking — MINIMAL, only needed to estimate position smoothly
   // between Rust state loop updates (every 250 ms). The store is the
@@ -420,6 +420,10 @@ export class LibrespotProvider implements PlaybackProvider {
 
     // Initialise Web Audio API context (must be done after user gesture).
     try {
+      // Read the persisted volume from the store — never use a hardcoded
+      // default so the gainNode always starts at the user's last setting.
+      const storeVolume = usePlayerStore.getState().volume
+      this.currentVolume = Math.max(0, Math.min(1, storeVolume))
       this.audioCtx = new AudioContext()
       this.gainNode = this.audioCtx.createGain()
       this.gainNode.gain.value = this.currentVolume
@@ -740,7 +744,6 @@ export class LibrespotProvider implements PlaybackProvider {
 
   async setVolume(v: number): Promise<void> {
     this.currentVolume = Math.max(0, Math.min(1, v))
-
     // Set local gain.
     if (this.gainNode) {
       this.gainNode.gain.value = this.currentVolume

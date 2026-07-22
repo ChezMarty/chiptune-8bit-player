@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { usePlayerStore } from '../../state/usePlayerStore'
 import type {
   PlaybackProvider,
   PlaybackSource,
@@ -119,7 +120,7 @@ export class SpotifySdkProvider implements PlaybackProvider {
   private available = false
   private progressTimer: ReturnType<typeof setInterval> | null = null
   private currentTrack: SpotifySDKTrack | null = null
-  private currentVolume = 0.7
+  private currentVolume = 0 // Set from player store during initialize()
 
   private progressCbs: ProgressCallback[] = []
   private endedCbs: TrackEndedCallback[] = []
@@ -158,7 +159,9 @@ export class SpotifySdkProvider implements PlaybackProvider {
       return
     }
 
-    // 3. Create the player.
+    // 3. Create the player with the persisted volume from the store.
+    const storeVolume = usePlayerStore.getState().volume
+    this.currentVolume = Math.max(0, Math.min(1, storeVolume))
     this.player = new window.Spotify.Player({
       name: PLAYER_NAME,
       getOAuthToken: (cb) => {

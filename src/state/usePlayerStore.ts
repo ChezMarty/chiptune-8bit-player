@@ -253,7 +253,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     console.log('[STORE] setDuration(', d, ') ←', new Error().stack?.split('\n').slice(2).join('\n'))
     set({ duration: Number.isFinite(d) ? d : 0 })
   },
-  setVolume: (v) => set({ volume: Math.max(0, Math.min(1, v)) }),
+  setVolume: (v) => {
+    const clamped = Math.max(0, Math.min(1, v))
+    set({ volume: clamped })
+    writeIntPref(START_VOLUME_STORAGE_KEY, Math.round(clamped * 100))
+  },
   setStartVolume: (v) => {
     const clamped = Math.max(0, Math.min(100, Math.round(v)))
     set({ startVolume: clamped, volume: clamped / 100 })

@@ -436,7 +436,13 @@ class PlaybackEngine {
   }
 
   async setVolume(v: number): Promise<void> {
-    await this.active.setVolume(v)
+    // Apply volume to ALL providers, not just the active one. This ensures
+    // that when the provider is switched later (e.g. from local to librespot
+    // when playing a Spotify track), it already has the correct volume.
+    const providers: PlaybackProvider[] = [this.local, this.spotifySdk, this.librespot]
+    for (const provider of providers) {
+      await provider.setVolume(v)
+    }
     usePlayerStore.getState().setVolume(v)
   }
 

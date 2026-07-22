@@ -62,9 +62,10 @@ usePlayerStore.setState({
 
 // Seed starting volume (applies both the persisted 0–100 preference and
 // the runtime 0..1 volume so the audio element reflects it from boot).
+// Default is 100 (max) on first launch, matching Spotify's default.
 const savedStartVol = readIntPref(
   START_VOLUME_STORAGE_KEY,
-  70,
+  100,
   0,
   100,
 );

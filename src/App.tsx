@@ -127,7 +127,12 @@ function App() {
 
   // Initialize the playback engine on mount (loads Spotify SDK, etc.).
   useEffect(() => {
-    playbackEngine.initialize()
+    playbackEngine.initialize().then(() => {
+      // Apply the restored volume to all playback providers so they all
+      // reflect the persisted volume immediately on startup.
+      const vol = usePlayerStore.getState().volume
+      playbackEngine.setVolume(vol)
+    })
   }, [])
 
   // Auto-switch to Spotify tab if connected on mount.
