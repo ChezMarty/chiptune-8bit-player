@@ -219,6 +219,15 @@ export class LocalPlaybackProvider implements PlaybackProvider {
 
   private handleEnded(): void {
     const s = usePlayerStore.getState()
+
+    // If a queue is active, let the engine handle advancement via
+    // its onTrackEnded → engine.next() logic. This prevents the
+    // double-advance that would happen if we also called s.next().
+    if (s.queue.length > 0) {
+      this.endedCbs.forEach((cb) => cb())
+      return
+    }
+
     if (s.tracks.length === 0) return
     // Advance the store index. The engine's subscription on currentIndex
     // will handle loading and playing the next track automatically.

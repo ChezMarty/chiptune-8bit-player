@@ -8,6 +8,7 @@ import {
   type SpotifyDevice,
 } from '../lib/spotify'
 import { readBoolPref, writeBoolPref } from '../lib/preferences'
+import type { QueueTrack } from './usePlayerStore'
 
 // ── Section types ────────────────────────────────────────────────
 
@@ -89,6 +90,14 @@ interface SpotifyState {
 
   // Playback actions
   playTrack: (track: SpotifyTrackInfo) => Promise<void>
+  /**
+   * Play a track within its containing list context (playlist, liked songs, etc.).
+   * Loads the entire list as the playback queue so Next/Previous navigate within it.
+   * @param track - The track to start playing
+   * @param allTracks - All tracks in the current context (playlist, liked, etc.)
+   * @param source - Source identifier (e.g., 'liked', 'playlist:xxx', 'search', 'top')
+   */
+  playTrackInQueue: (track: SpotifyTrackInfo, allTracks: SpotifyTrackInfo[], source: string) => Promise<void>
   resumePlayback: () => Promise<void>
   pausePlayback: () => Promise<void>
   skipNext: () => Promise<void>
@@ -373,6 +382,52 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
         uri: track.uri,
       }
       // Use the playback engine — it auto-selects Librespot or SDK.
+      const { playbackEngine } = await import('../lib/playback/engine')
+      await playbackEngine.play(track.uri, meta)
+      set({ isPlaying: true, playbackError: null })
+    } catch (e) {
+      const msg = String(e)
+      console.error('[spotify] Playback failed:', msg)
+      set({ playbackError: msg, isPlaying: false })
+    }
+  },
+
+  playTrackInQueue: async (track, allTracks, source) => {
+    // Convert all tracks to QueueTrack format
+    const queueTracks: QueueTrack[] = allTracks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      artist: t.artist,
+      album: t.album,
+      durationSec: (t.duration_ms ?? 0) / 1000,
+      imageUrl: t.image_url ?? null,
+      uri: t.uri,
+      source: 'spotify' as const,
+    }))
+
+    const startIndex = allTracks.findIndex((t) => t.id === track.id)
+
+    // Set the queue in the player store
+    const { usePlayerStore } = await import('../state/usePlayerStore')
+    usePlayerStore.getState().setQueue(queueTracks, startIndex, source)
+
+    // Play the selected track
+    if (!track.uri) {
+      set({ playbackError: 'No Spotify URI available for this track' })
+      return
+    }
+    set({ playbackError: null })
+    try {
+      console.log('[spotify] Playing track in queue context:', track.title, '- source:', source)
+      const meta = {
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        album: track.album ?? undefined,
+        durationSec: (track.duration_ms ?? 0) / 1000,
+        imageUrl: track.image_url ?? null,
+        uri: track.uri,
+      }
       const { playbackEngine } = await import('../lib/playback/engine')
       await playbackEngine.play(track.uri, meta)
       set({ isPlaying: true, playbackError: null })

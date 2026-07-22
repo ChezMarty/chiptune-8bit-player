@@ -37,8 +37,12 @@ function App() {
   const tracks = usePlayerStore((s) => s.tracks)
   const currentIndex = usePlayerStore((s) => s.currentIndex)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
+  const queue = usePlayerStore((s) => s.queue)
+  const queueIndex = usePlayerStore((s) => s.queueIndex)
   const shuffleUpcoming = usePlayerStore((s) => s.shuffleUpcoming)
+  const shuffleQueue = usePlayerStore((s) => s.shuffleQueue)
   const clearUpcoming = usePlayerStore((s) => s.clearUpcoming)
+  const clearQueue = usePlayerStore((s) => s.clearQueue)
   const spotifyConnected = useSpotifyStore((s) => s.account?.connected ?? false)
   const librespotWarningDismissed = useSpotifyStore((s) => s.librespotWarningDismissed)
   const librespotShowWarning = useSpotifyStore((s) => s.librespotShowWarning)
@@ -137,12 +141,17 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotifyConnected])
 
-  const hasTracks = tracks.length > 0
-  const hasCurrent = currentIndex >= 0 && tracks[currentIndex] !== undefined
+  const isQueueActive = queue.length > 0
+  const hasTracks = tracks.length > 0 || isQueueActive
+  const hasCurrent = isQueueActive
+    ? queueIndex >= 0 && queue[queueIndex] !== undefined
+    : currentIndex >= 0 && tracks[currentIndex] !== undefined
   // Number of tracks scheduled to play after the current one.
-  const upcomingCount = hasCurrent
-    ? Math.max(0, tracks.length - 1 - currentIndex)
-    : 0
+  const upcomingCount = isQueueActive
+    ? Math.max(0, queue.length - 1 - queueIndex)
+    : hasCurrent
+      ? Math.max(0, tracks.length - 1 - currentIndex)
+      : 0
 
   // Global right-click handler. Shows the app context menu on any
   // right-click within the app root. The default browser context menu is
@@ -194,10 +203,18 @@ function App() {
     void addAudioFiles()
   }
   function onShuffle() {
-    shuffleUpcoming()
+    if (isQueueActive) {
+      shuffleQueue()
+    } else {
+      shuffleUpcoming()
+    }
   }
   function onClear() {
-    clearUpcoming()
+    if (isQueueActive) {
+      clearQueue()
+    } else {
+      clearUpcoming()
+    }
   }
   async function onQuit() {
     try {

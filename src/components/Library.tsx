@@ -74,6 +74,8 @@ export function Library({ activeTab, onTabChange }: LibraryProps) {
   }
 
   function onRowDoubleClick(idx: number) {
+    // Clear any active queue when playing from local library
+    usePlayerStore.getState().clearQueue()
     setCurrent(idx)
     const t = usePlayerStore.getState().tracks[idx]
     if (!t) return
@@ -140,6 +142,8 @@ export function Library({ activeTab, onTabChange }: LibraryProps) {
     infoDialog ? (tracks.find((t) => t.id === infoDialog.trackId) ?? null) : null
 
   function handleMenuPlay(track: Track, isCurrent: boolean) {
+    // Clear any active queue when playing from local library
+    usePlayerStore.getState().clearQueue()
     if (!isCurrent) {
       const idx = tracks.findIndex((t) => t.id === track.id)
       if (idx >= 0) setCurrent(idx)

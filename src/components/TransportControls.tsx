@@ -6,6 +6,8 @@ import { useT } from '../i18n/useT'
 export function TransportControls() {
   const tracks = usePlayerStore((s) => s.tracks)
   const currentIndex = usePlayerStore((s) => s.currentIndex)
+  const queue = usePlayerStore((s) => s.queue)
+  const queueIndex = usePlayerStore((s) => s.queueIndex)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
@@ -23,10 +25,13 @@ export function TransportControls() {
   const progressRef = useRef<HTMLDivElement | null>(null)
 
   const isSpotify = activeSource === 'spotify-librespot' || activeSource === 'spotify-sdk'
+  const isQueueActive = queue.length > 0
   const hasCurrent = isSpotify
     ? !!nowPlaying
-    : currentIndex >= 0 && tracks[currentIndex] !== undefined
-  const hasTracks = tracks.length > 0 || isSpotify
+    : isQueueActive
+      ? queueIndex >= 0 && queue[queueIndex] !== undefined
+      : currentIndex >= 0 && tracks[currentIndex] !== undefined
+  const hasTracks = tracks.length > 0 || isSpotify || isQueueActive
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -4,9 +4,11 @@ import { useT } from '../i18n/useT'
 
 /**
  * The "Now Playing" section rendered below the library list. Shows the
- * current track (non-draggable) and the upcoming queue (draggable). The
- * queue is derived from `tracks.slice(currentIndex + 1)` — the library IS
- * the play order, so reordering within the queue reorders the library.
+ * current track (non-draggable) and the upcoming queue (draggable).
+ *
+ * When an active playback queue is set (e.g., from a Spotify playlist),
+ * the queue tracks are shown instead of the local library tracks.
+ * Otherwise, the queue is derived from `tracks.slice(currentIndex + 1)`.
  *
  * Drag-and-drop uses the native HTML5 DnD API with "insert before"
  * semantics: dropping on item N moves the dragged track to position N.
@@ -16,24 +18,31 @@ import { useT } from '../i18n/useT'
 export function NowPlaying() {
   const tracks = usePlayerStore((s) => s.tracks)
   const currentIndex = usePlayerStore((s) => s.currentIndex)
+  const queue = usePlayerStore((s) => s.queue)
+  const queueIndex = usePlayerStore((s) => s.queueIndex)
+  const queueSource = usePlayerStore((s) => s.queueSource)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const moveTrackTo = usePlayerStore((s) => s.moveTrackTo)
   const { t } = useT()
 
+  // Determine which track list to display
+  const isQueueActive = queue.length > 0
+  const displayTracks = isQueueActive ? queue : tracks
+  const displayIndex = isQueueActive ? queueIndex : currentIndex
+
   // Local drag state. `draggedId` is the id of the track being dragged;
-  // `dragOverIdx` is the absolute index in `tracks` where the dragged
-  // track would be inserted if dropped now. Set to the sentinel's index
-  // (= tracks.length) when hovering the end-of-list drop zone.
+  // `dragOverIdx` is the absolute index where the dragged
+  // track would be inserted if dropped now.
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
-  // No library → nothing to show.
-  if (tracks.length === 0) return null
+  // Nothing to show.
+  if (displayTracks.length === 0) return null
 
-  const currentTrack = currentIndex >= 0 ? tracks[currentIndex] : null
-  const upcomingTracks = currentIndex >= 0 ? tracks.slice(currentIndex + 1) : []
-  // Absolute index in `tracks` of the first upcoming entry.
-  const firstUpcomingIdx = currentIndex >= 0 ? currentIndex + 1 : 0
+  const currentTrack = displayIndex >= 0 ? displayTracks[displayIndex] : null
+  const upcomingTracks = displayIndex >= 0 ? displayTracks.slice(displayIndex + 1) : []
+  // Absolute index in `displayTracks` of the first upcoming entry.
+  const firstUpcomingIdx = displayIndex >= 0 ? displayIndex + 1 : 0
 
   function onDragStart(e: React.DragEvent, id: string) {
     setDraggedId(id)
@@ -46,7 +55,7 @@ export function NowPlaying() {
     e.preventDefault()
     e.stopPropagation()
     e.dataTransfer.dropEffect = 'move'
-    if (draggedId) {
+    if (draggedId && !isQueueActive) {
       setDragOverIdx(firstUpcomingIdx + upcomingIdx)
     }
   }
@@ -54,14 +63,15 @@ export function NowPlaying() {
   function onSentinelDragOver(e: React.DragEvent) {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    if (draggedId) {
-      setDragOverIdx(tracks.length)
+    if (draggedId && !isQueueActive) {
+      setDragOverIdx(displayTracks.length)
     }
   }
 
   function onItemDrop(e: React.DragEvent, upcomingIdx: number) {
     e.preventDefault()
     e.stopPropagation()
+    if (isQueueActive) return // Queue tracks are not draggable
     const id = draggedId ?? e.dataTransfer.getData('text/plain')
     if (!id) return
     moveTrackTo(id, firstUpcomingIdx + upcomingIdx)
@@ -71,9 +81,10 @@ export function NowPlaying() {
 
   function onSentinelDrop(e: React.DragEvent) {
     e.preventDefault()
+    if (isQueueActive) return // Queue tracks are not draggable
     const id = draggedId ?? e.dataTransfer.getData('text/plain')
     if (!id) return
-    moveTrackTo(id, tracks.length)
+    moveTrackTo(id, displayTracks.length)
     setDraggedId(null)
     setDragOverIdx(null)
   }
@@ -87,6 +98,11 @@ export function NowPlaying() {
     <div className="now-playing">
       <div className="now-playing__header">
         <span className="now-playing__title">{t('header.nowPlaying')}</span>
+        {isQueueActive && queueSource && (
+          <span className="now-playing__queue-source">
+            · {queueSource}
+          </span>
+        )}
         <span className="now-playing__count">
           {t('nowPlaying.upNext', { n: upcomingTracks.length })}
         </span>
@@ -126,6 +142,7 @@ export function NowPlaying() {
             const absoluteIdx = firstUpcomingIdx + idx
             const isDragged = tr.id === draggedId
             const isDragOver = dragOverIdx === absoluteIdx
+            const canDrag = !isQueueActive
             return (
               <li
                 key={tr.id}
@@ -133,19 +150,21 @@ export function NowPlaying() {
                   `now-playing__item ${isDragged ? 'is-dragging' : ''} ` +
                   `${isDragOver ? 'is-drag-over' : ''}`.trim()
                 }
-                draggable
-                onDragStart={(e) => onDragStart(e, tr.id)}
-                onDragOver={(e) => onItemDragOver(e, idx)}
-                onDrop={(e) => onItemDrop(e, idx)}
-                onDragEnd={onDragEnd}
-                title={t('nowPlaying.dragToReorder')}
+                draggable={canDrag}
+                onDragStart={canDrag ? (e) => onDragStart(e, tr.id) : undefined}
+                onDragOver={canDrag ? (e) => onItemDragOver(e, idx) : undefined}
+                onDrop={canDrag ? (e) => onItemDrop(e, idx) : undefined}
+                onDragEnd={canDrag ? onDragEnd : undefined}
+                title={canDrag ? t('nowPlaying.dragToReorder') : undefined}
               >
-                <span
-                  className="now-playing__drag-handle"
-                  aria-hidden="true"
-                >
-                  ⠿
-                </span>
+                {canDrag && (
+                  <span
+                    className="now-playing__drag-handle"
+                    aria-hidden="true"
+                  >
+                    ⠿
+                  </span>
+                )}
                 <span className="now-playing__item-num">
                   {String(idx + 1).padStart(2, '0')}
                 </span>
@@ -169,14 +188,15 @@ export function NowPlaying() {
               </li>
             )
           })}
-          {/* Sentinel: catches drops below the last item so the user can
-              move a track to the very end of the queue. */}
-          <li
-            className={`now-playing__sentinel ${dragOverIdx === tracks.length ? 'is-drag-over' : ''}`.trim()}
-            onDragOver={onSentinelDragOver}
-            onDrop={onSentinelDrop}
-            aria-hidden="true"
-          />
+          {/* Sentinel: catches drops below the last item. Only active for local library. */}
+          {!isQueueActive && (
+            <li
+              className={`now-playing__sentinel ${dragOverIdx === displayTracks.length ? 'is-drag-over' : ''}`.trim()}
+              onDragOver={onSentinelDragOver}
+              onDrop={onSentinelDrop}
+              aria-hidden="true"
+            />
+          )}
         </ul>
       ) : currentTrack ? (
         <div className="now-playing__empty">{t('nowPlaying.endOfQueue')}</div>

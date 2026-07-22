@@ -331,11 +331,72 @@ class PlaybackEngine {
   }
 
   async next(): Promise<void> {
+    const store = usePlayerStore.getState()
+
+    // If a queue is active, advance within it
+    if (store.queue.length > 0) {
+      if (store.queueIndex >= store.queue.length - 1) {
+        // End of queue — stop playback
+        await this.stop()
+        return
+      }
+      store.queueNext()
+      await this.playCurrentQueueTrack()
+      return
+    }
+
+    // Fall back to provider (local library tracks)
     await this.active.next()
   }
 
   async prev(): Promise<void> {
+    const store = usePlayerStore.getState()
+
+    // If a queue is active, go back within it
+    if (store.queue.length > 0) {
+      if (store.queueIndex <= 0) {
+        // Already at the beginning — restart the current track
+        store.setQueueIndex(0)
+        await this.playCurrentQueueTrack()
+        return
+      }
+      store.queuePrev()
+      await this.playCurrentQueueTrack()
+      return
+    }
+
+    // Fall back to provider (local library tracks)
     await this.active.prev()
+  }
+
+  /**
+   * Play the track at the current queue index.
+   * Handles both Spotify and local tracks within the queue.
+   */
+  private async playCurrentQueueTrack(): Promise<void> {
+    const store = usePlayerStore.getState()
+    const track = store.queue[store.queueIndex]
+    if (!track) {
+      await this.stop()
+      return
+    }
+
+    if (track.source === 'spotify' && track.uri) {
+      const meta: NowPlayingMeta = {
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        durationSec: track.durationSec,
+        imageUrl: track.imageUrl ?? null,
+        uri: track.uri,
+      }
+      await this.play(track.uri, meta)
+    } else if (track.source === 'local' && track.path) {
+      this.setSource('local')
+      store.setPlaybackStatus('loading')
+      await this.active.play(track.path)
+    }
   }
 
   async seek(seconds: number): Promise<void> {

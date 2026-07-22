@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback, useLayoutEffect } from 'react
 import { listen } from '@tauri-apps/api/event'
 import { useSpotifyStore, type SpotifySection } from '../state/useSpotifyStore'
 import type { SpotifyTrackInfo, SpotifyPlaylistInfo, SpotifyAccountStatus } from '../lib/spotify'
+import { usePlayerStore } from '../state/usePlayerStore'
 import { useT } from '../i18n/useT'
 import { SpotifyContextMenu } from './SpotifyContextMenu'
 import { SpotifyPlaylistContextMenu } from './SpotifyPlaylistContextMenu'
@@ -37,6 +38,8 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
   const checkAuth = useSpotifyStore((s) => s.checkAuth)
   const loadConfig = useSpotifyStore((s) => s.loadConfig)
   const playTrackStore = useSpotifyStore((s) => s.playTrack)
+  const playTrackInQueueStore = useSpotifyStore((s) => s.playTrackInQueue)
+  const clearQueue = usePlayerStore((s) => s.clearQueue)
 
   const { t } = useT()
   const [oauthStep, setOauthStep] = useState<'idle' | 'waiting' | 'entering'>('idle')
@@ -56,9 +59,27 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
     y: number
   } | null>(null)
 
-  // Wrap the playTrack action so the warning dialog is shown if needed.
+  /**
+   * Play a track within its section context (liked, top, search, playlist).
+   * This loads the entire track list as the playback queue so that
+   * Next/Previous navigate through the full list, not just the single track.
+   */
+  const playTrackInSection = useCallback(
+    (track: SpotifyTrackInfo, allTracks: SpotifyTrackInfo[], section: string) => {
+      const doPlay = () => playTrackInQueueStore(track, allTracks, section)
+      if (onPlayTrack) {
+        onPlayTrack(doPlay)
+      } else {
+        doPlay()
+      }
+    },
+    [onPlayTrack, playTrackInQueueStore],
+  )
+
+  // Fallback: play a single track without queue context (clears any active queue)
   const wrappedPlayTrack = useCallback(
     (track: SpotifyTrackInfo) => {
+      clearQueue()
       const doPlay = () => playTrackStore(track)
       if (onPlayTrack) {
         onPlayTrack(doPlay)
@@ -66,7 +87,7 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
         doPlay()
       }
     },
-    [onPlayTrack, playTrackStore],
+    [onPlayTrack, playTrackStore, clearQueue],
   )
 
   const handleTrackContextMenu = useCallback((e: React.MouseEvent, track: SpotifyTrackInfo) => {
@@ -109,17 +130,29 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
   const handlePlayPlaylist = useCallback(async (playlist: SpotifyPlaylistInfo) => {
     const tracks = await useSpotifyStore.getState().loadPlaylistTracks(playlist.id)
     if (tracks.length > 0) {
-      wrappedPlayTrack(tracks[0])
+      // Load the entire playlist as a queue, starting from the first track
+      const doPlay = () => playTrackInQueueStore(tracks[0], tracks, `playlist:${playlist.id}`)
+      if (onPlayTrack) {
+        onPlayTrack(doPlay)
+      } else {
+        doPlay()
+      }
     }
-  }, [wrappedPlayTrack])
+  }, [playTrackInQueueStore, onPlayTrack])
 
   const handleShufflePlayPlaylist = useCallback(async (playlist: SpotifyPlaylistInfo) => {
     const tracks = await useSpotifyStore.getState().loadPlaylistTracks(playlist.id)
     if (tracks.length > 0) {
       const shuffled = [...tracks].sort(() => Math.random() - 0.5)
-      wrappedPlayTrack(shuffled[0])
+      // Load the shuffled playlist as a queue, starting from the first track
+      const doPlay = () => playTrackInQueueStore(shuffled[0], shuffled, `playlist:${playlist.id}`)
+      if (onPlayTrack) {
+        onPlayTrack(doPlay)
+      } else {
+        doPlay()
+      }
     }
-  }, [wrappedPlayTrack])
+  }, [playTrackInQueueStore, onPlayTrack])
 
   const handleOpenPlaylistInSpotify = useCallback(async (playlistId: string) => {
     try {
@@ -369,13 +402,13 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
 
       <div className="spotify-panel__content">
         {activeSection === 'liked' && (
-          <TrackListSection title={t('spotify.section.liked')} loadMoreKey="liked" onPlayTrack={wrappedPlayTrack} onTrackContextMenu={handleTrackContextMenu} />
+          <TrackListSection title={t('spotify.section.liked')} loadMoreKey="liked" onPlayTrackInSection={playTrackInSection} onTrackContextMenu={handleTrackContextMenu} />
         )}
-        {activeSection === 'playlists' && <PlaylistSection onPlayTrack={wrappedPlayTrack} onTrackContextMenu={handleTrackContextMenu} onPlaylistContextMenu={handlePlaylistContextMenu} />}
+        {activeSection === 'playlists' && <PlaylistSection onPlayTrackInSection={playTrackInSection} onTrackContextMenu={handleTrackContextMenu} onPlaylistContextMenu={handlePlaylistContextMenu} />}
         {activeSection === 'top' && (
-          <TrackListSection title={t('spotify.section.top')} loadMoreKey="top" onPlayTrack={wrappedPlayTrack} onTrackContextMenu={handleTrackContextMenu} />
+          <TrackListSection title={t('spotify.section.top')} loadMoreKey="top" onPlayTrackInSection={playTrackInSection} onTrackContextMenu={handleTrackContextMenu} />
         )}
-        {activeSection === 'search' && <SearchSection onPlayTrack={wrappedPlayTrack} onTrackContextMenu={handleTrackContextMenu} onPlaylistContextMenu={handlePlaylistContextMenu} />}
+        {activeSection === 'search' && <SearchSection onPlayTrackInSection={playTrackInSection} onTrackContextMenu={handleTrackContextMenu} onPlaylistContextMenu={handlePlaylistContextMenu} />}
       </div>
 
       <div className="spotify-panel__footer">
@@ -390,7 +423,7 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
           x={spotifyMenu.x}
           y={spotifyMenu.y}
           onClose={closeSpotifyMenu}
-          onPlay={() => wrappedPlayTrack(spotifyMenu.track)}
+          onPlay={() => { clearQueue(); wrappedPlayTrack(spotifyMenu.track) }}
           onGoToAlbum={() => spotifyMenu.track.album_id && handleGoToAlbum(spotifyMenu.track.album_id)}
           onCopyLink={() => handleCopyTrackLink(spotifyMenu.track.id)}
         />
@@ -419,12 +452,12 @@ export function SpotifyPanel({ onPlayTrack }: SpotifyPanelProps) {
 function TrackListSection({
   title,
   loadMoreKey,
-  onPlayTrack,
+  onPlayTrackInSection,
   onTrackContextMenu,
 }: {
   title: string
   loadMoreKey: 'liked' | 'top'
-  onPlayTrack?: (track: SpotifyTrackInfo) => void
+  onPlayTrackInSection?: (track: SpotifyTrackInfo, allTracks: SpotifyTrackInfo[], section: string) => void
   onTrackContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void
 }) {
   const tracks = useSpotifyStore((s) => {
@@ -444,8 +477,17 @@ function TrackListSection({
     return s.loadTopTracks
   })
   const error = useSpotifyStore((s) => s.error)
-  const playTrackFromStore = useSpotifyStore((s) => s.playTrack)
-  const playTrackFn = onPlayTrack ?? playTrackFromStore
+  const playTrackFromStore = useSpotifyStore((s) => s.playTrackInQueue)
+  const playTrackFn = useCallback(
+    (track: SpotifyTrackInfo) => {
+      if (onPlayTrackInSection) {
+        onPlayTrackInSection(track, tracks, loadMoreKey)
+      } else {
+        playTrackFromStore(track, tracks, loadMoreKey)
+      }
+    },
+    [onPlayTrackInSection, playTrackFromStore, tracks, loadMoreKey],
+  )
   const playbackError = useSpotifyStore((s) => s.playbackError)
 
   return (
@@ -510,7 +552,7 @@ function TrackRow({ track, onPlay, onContextMenu }: { track: SpotifyTrackInfo; o
   )
 }
 
-function PlaylistSection({ onPlayTrack, onTrackContextMenu, onPlaylistContextMenu }: { onPlayTrack?: (track: SpotifyTrackInfo) => void; onTrackContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void; onPlaylistContextMenu?: (e: React.MouseEvent, playlist: SpotifyPlaylistInfo) => void }) {
+function PlaylistSection({ onPlayTrackInSection, onTrackContextMenu, onPlaylistContextMenu }: { onPlayTrackInSection?: (track: SpotifyTrackInfo, allTracks: SpotifyTrackInfo[], section: string) => void; onTrackContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void; onPlaylistContextMenu?: (e: React.MouseEvent, playlist: SpotifyPlaylistInfo) => void }) {
   const playlists = useSpotifyStore((s) => s.playlists)
   const loading = useSpotifyStore((s) => s.loadingPlaylists)
   const hasMore = useSpotifyStore((s) => s.playlistHasMore)
@@ -529,8 +571,17 @@ function PlaylistSection({ onPlayTrack, onTrackContextMenu, onPlaylistContextMen
     setLoadingTracks(false)
   }
 
-  const playTrackFromStore = useSpotifyStore((s) => s.playTrack)
-  const playTrack = onPlayTrack ?? playTrackFromStore
+  const playTrackFromStore = useSpotifyStore((s) => s.playTrackInQueue)
+  const playTrack = useCallback(
+    (track: SpotifyTrackInfo) => {
+      if (onPlayTrackInSection) {
+        onPlayTrackInSection(track, tracks, `playlist:${expanded?.id}`)
+      } else {
+        playTrackFromStore(track, tracks, `playlist:${expanded?.id}`)
+      }
+    },
+    [onPlayTrackInSection, playTrackFromStore, tracks, expanded],
+  )
   const playbackError = useSpotifyStore((s) => s.playbackError)
 
   if (expanded) {
@@ -598,13 +649,32 @@ function PlaylistSection({ onPlayTrack, onTrackContextMenu, onPlaylistContextMen
   )
 }
 
-function SearchSection({ onPlayTrack, onTrackContextMenu, onPlaylistContextMenu }: { onPlayTrack?: (track: SpotifyTrackInfo) => void; onTrackContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void; onPlaylistContextMenu?: (e: React.MouseEvent, playlist: SpotifyPlaylistInfo) => void }) {
+function SearchSection({ onPlayTrackInSection, onTrackContextMenu, onPlaylistContextMenu }: { onPlayTrackInSection?: (track: SpotifyTrackInfo, allTracks: SpotifyTrackInfo[], section: string) => void; onTrackContextMenu?: (e: React.MouseEvent, track: SpotifyTrackInfo) => void; onPlaylistContextMenu?: (e: React.MouseEvent, playlist: SpotifyPlaylistInfo) => void }) {
   const searchResults = useSpotifyStore((s) => s.searchResults)
   const loadingSearch = useSpotifyStore((s) => s.loadingSearch)
   const doSearch = useSpotifyStore((s) => s.doSearch)
   const storeError = useSpotifyStore((s) => s.error)
-  const playTrackFromStore = useSpotifyStore((s) => s.playTrack)
-  const playTrack = onPlayTrack ?? playTrackFromStore
+  const playTrackFromStore = useSpotifyStore((s) => s.playTrackInQueue)
+  const clearQueue = usePlayerStore((s) => s.clearQueue)
+  const playTrack = useCallback(
+    (track: SpotifyTrackInfo) => {
+      if (!searchResults) {
+        // No search results — fall back to single track play
+        clearQueue()
+        const fallback = useSpotifyStore.getState().playTrack
+        fallback(track)
+        return
+      }
+      // Use search result tracks as the queue
+      const allTracks = searchResults.tracks
+      if (onPlayTrackInSection) {
+        onPlayTrackInSection(track, allTracks, 'search')
+      } else {
+        playTrackFromStore(track, allTracks, 'search')
+      }
+    },
+    [onPlayTrackInSection, playTrackFromStore, searchResults, clearQueue],
+  )
   const playbackError = useSpotifyStore((s) => s.playbackError)
   const [query, setQuery] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)

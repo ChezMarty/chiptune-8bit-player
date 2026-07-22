@@ -34,6 +34,25 @@ export interface Track {
   artDataUrl?: string | null
 }
 
+/**
+ * A track in the playback queue.
+ * Can represent either a local file or a Spotify track.
+ */
+export interface QueueTrack {
+  id: string
+  title: string
+  artist: string
+  album?: string
+  durationSec: number
+  imageUrl?: string | null
+  /** Spotify URI (spotify:track:xxx) or undefined for local tracks. */
+  uri?: string
+  /** Whether this is a local file or Spotify track. */
+  source: 'local' | 'spotify'
+  /** Local file path (only for local tracks). */
+  path?: string
+}
+
 /** All valid theme IDs derived from the definitions. */
 export const THEME_IDS: ThemeId[] = ALL_THEMES.map((d) => d.id)
 
@@ -88,6 +107,12 @@ interface PlayerState {
   stopRewinds: boolean
   shuffleOnImport: boolean
 
+  // Active playback queue (for Spotify-like playlist playback)
+  queue: QueueTrack[]
+  queueIndex: number
+  /** Source identifier for the active queue (e.g., 'playlist:xxx', 'liked', 'search', 'top'). */
+  queueSource: string | null
+
   // Active playback source (which engine is driving audio)
   activeSource: PlaybackSource
 
@@ -134,6 +159,23 @@ interface PlayerState {
   shuffleUpcoming: () => void
   /** Remove all tracks after the current track. No-op if already empty. */
   clearUpcoming: () => void
+  /**
+   * Set the active playback queue. Replaces any existing queue.
+   * @param tracks - The queue tracks
+   * @param startIndex - Index within the queue to start playback from
+   * @param source - Identifier for what generated the queue (e.g., 'playlist:xxx', 'liked')
+   */
+  setQueue: (tracks: QueueTrack[], startIndex: number, source: string) => void
+  /** Clear the active playback queue. */
+  clearQueue: () => void
+  /** Set the queue index (e.g., after user selects a different track). */
+  setQueueIndex: (idx: number) => void
+  /** Advance queueIndex by 1 (next track). */
+  queueNext: () => void
+  /** Go back 1 in queueIndex (previous track). */
+  queuePrev: () => void
+  /** Shuffle the queue while preserving the current track. */
+  shuffleQueue: () => void
   /** Set the active playback source (local, spotify-sdk, spotify-librespot). */
   setActiveSource: (source: PlaybackSource) => void
   /** GATE progress callbacks during user drag — UI writes to currentTime exclusively. */
@@ -162,6 +204,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   activeSource: 'local',
   isDragging: false,
+
+  queue: [],
+  queueIndex: -1,
+  queueSource: null,
 
   addTracks: (tracks) =>
     set((s) => ({ tracks: [...s.tracks, ...tracks] })),
@@ -395,6 +441,54 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const head = s.tracks.slice(0, s.currentIndex + 1)
       if (head.length === s.tracks.length) return s
       return { tracks: head }
+    }),
+
+  setQueue: (tracks, startIndex, source) =>
+    set({
+      queue: tracks,
+      queueIndex: Math.max(0, Math.min(tracks.length - 1, startIndex)),
+      queueSource: source,
+    }),
+
+  clearQueue: () =>
+    set({ queue: [], queueIndex: -1, queueSource: null }),
+
+  setQueueIndex: (idx) =>
+    set((s) => ({
+      queueIndex: Math.max(0, Math.min(s.queue.length - 1, idx)),
+    })),
+
+  queueNext: () =>
+    set((s) => {
+      if (s.queueIndex < s.queue.length - 1) {
+        return { queueIndex: s.queueIndex + 1 }
+      }
+      return s
+    }),
+
+  queuePrev: () =>
+    set((s) => {
+      if (s.queueIndex > 0) {
+        return { queueIndex: s.queueIndex - 1 }
+      }
+      return s
+    }),
+
+  shuffleQueue: () =>
+    set((s) => {
+      if (s.queue.length < 3 || s.queueIndex < 0) return s
+      const current = s.queue[s.queueIndex]
+      if (!current) return s
+      // Separate current track from the rest
+      const others = s.queue.filter((_, i) => i !== s.queueIndex)
+      // Fisher-Yates shuffle the others
+      for (let i = others.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[others[i], others[j]] = [others[j], others[i]]
+      }
+      // Rebuild queue with current at same position
+      const shuffled = [...others.slice(0, s.queueIndex), current, ...others.slice(s.queueIndex)]
+      return { queue: shuffled }
     }),
 
   setActiveSource: (source) => set({ activeSource: source }),
