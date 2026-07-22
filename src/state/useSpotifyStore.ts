@@ -345,7 +345,8 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
     try {
       const result = await spotifyService.playlistTracks(playlistId, 0, 50)
       return result.items
-    } catch {
+    } catch (e) {
+      set({ error: String(e) })
       return []
     }
   },

@@ -17,14 +17,14 @@ impl SpotifyApiClient {
         }
     }
 
-    // ── User ───────────────────────────────────────────────────
+    // -- User --
 
     pub async fn get_me(&self, token: &str) -> Result<SpotifyUser, String> {
         let url = format!("{BASE_URL}/me");
         self.get(&url, token).await
     }
 
-    // ── Library: Liked Songs ───────────────────────────────────
+    // -- Library: Liked Songs --
 
     pub async fn get_liked_songs(
         &self,
@@ -42,7 +42,7 @@ impl SpotifyApiClient {
         })
     }
 
-    // ── Playlists ──────────────────────────────────────────────
+    // -- Playlists --
 
     pub async fn get_my_playlists(
         &self,
@@ -64,36 +64,77 @@ impl SpotifyApiClient {
         offset: u64,
         limit: u64,
     ) -> Result<PaginatedSpotifyTracks, String> {
+        // As of Feb 2026, Spotify uses /items instead of /tracks.
         let url = format!(
-            "{BASE_URL}/playlists/{playlist_id}/tracks?limit={limit}&offset={offset}"
+            "{BASE_URL}/playlists/{playlist_id}/items?limit={limit}&offset={offset}"
         );
-        #[derive(serde::Deserialize)]
-        struct PlaylistTrackPage {
-            #[serde(default)]
-            items: Vec<PlaylistTrackItem>,
-            total: u64,
-            offset: u64,
-            next: Option<String>,
+
+        let resp = self
+            .http
+            .get(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await
+            .map_err(|e| format!("HTTP GET failed: {e}"))?;
+
+        if resp.status() == 401 {
+            return Err("TOKEN_EXPIRED".to_string());
         }
-        #[derive(serde::Deserialize)]
-        struct PlaylistTrackItem {
-            track: Option<SpotifyTrack>,
+        if resp.status() == 429 {
+            let retry_after = resp
+                .headers()
+                .get("Retry-After")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok());
+            return Err(format!("RATE_LIMITED:{}", retry_after.unwrap_or(1)));
         }
-        let paging: PlaylistTrackPage = self.get(&url, token).await?;
-        let items: Vec<SpotifyTrackInfo> = paging
-            .items
-            .iter()
-            .filter_map(|i| i.track.as_ref().map(|t| t.into()))
-            .collect();
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("HTTP {status}: {body}"));
+        }
+
+        let raw_json = resp.text().await.map_err(|e| format!("Read body: {e}"))?;
+
+        // Parse as serde_json::Value and process items individually
+        // to handle per-item deserialization errors gracefully
+        let root: serde_json::Value = serde_json::from_str(&raw_json)
+            .map_err(|e| format!("JSON parse: {e}"))?;
+
+        let paging_total = root.get("total").and_then(|v| v.as_u64()).unwrap_or(0);
+        let paging_offset = root.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        let paging_has_more = root.get("next").and_then(|v| v.as_str()).is_some();
+
+        let items_array = match root.get("items") {
+            Some(serde_json::Value::Array(arr)) => arr,
+            _ => return Err("Missing or invalid 'items' field".to_string()),
+        };
+
+        // Process each item individually — skip null/missing tracks
+        let mut info_items: Vec<SpotifyTrackInfo> = Vec::with_capacity(items_array.len());
+
+        for item_value in items_array.iter() {
+            // Spotify renamed "track" to "item" in Feb 2026.
+            // Check both for backward compatibility.
+            let track_value = match item_value.get("item").or_else(|| item_value.get("track")) {
+                Some(v) if !v.is_null() => v,
+                _ => continue,
+            };
+
+            if let Ok(track) = serde_json::from_value::<SpotifyTrack>(track_value.clone()) {
+                info_items.push((&track).into());
+            }
+        }
+
         Ok(PaginatedSpotifyTracks {
-            items,
-            total: paging.total,
-            offset: paging.offset,
-            has_more: paging.next.is_some(),
+            items: info_items,
+            total: paging_total,
+            offset: paging_offset,
+            has_more: paging_has_more,
         })
     }
 
-    // ── Search ─────────────────────────────────────────────────
+    // -- Search --
 
     pub async fn search(
         &self,
@@ -102,12 +143,10 @@ impl SpotifyApiClient {
         types: &[&str],
         limit: u64,
     ) -> Result<SpotifySearchResults, String> {
-        // ════════════════════════════════════════════════════════════
-        // NOTE: Spotify Search API 'limit' range is 0–10 (not 0–50!)
+        // NOTE: Spotify Search API 'limit' range is 0-10 (not 0-50!)
         // https://developer.spotify.com/documentation/web-api/reference/search
-        // ════════════════════════════════════════════════════════════
 
-        // ── Clamp limit to Search API's max (1..=10) ─────────
+        // Clamp limit to Search API's max (1..=10)
         let clamped = limit.clamp(1, 10);
         if clamped != limit {
             eprintln!("[SEARCH] WARNING: limit was {limit}, clamped to {clamped} (Search API max is 10)");
@@ -120,7 +159,7 @@ impl SpotifyApiClient {
         );
         eprintln!("[SEARCH] Search URL: GET {url}");
 
-        // ── DIAGNOSTIC: Get raw JSON text, log it, THEN parse ──
+        // Diagnostic: Get raw JSON text, log it, THEN parse
         let token_prefix: String = token.chars().take(20).collect();
         eprintln!("[SEARCH] Token prefix: {token_prefix}...");
 
@@ -149,28 +188,27 @@ impl SpotifyApiClient {
             return Err(format!("HTTP {status}: {body}"));
         }
 
-        // ── Get raw JSON text ─────────────────────────────────
+        // Get raw JSON text
         let raw_json = resp.text().await.map_err(|e| format!("Read response body: {e}"))?;
 
-        // Truncate for logging if very large (search results can be big).
+        // Truncate for logging if very large
         let preview: String = raw_json.chars().take(2000).collect();
-        eprintln!("[SEARCH] ╔══ RAW JSON RESPONSE (first 2000 chars) ═══╗");
+        eprintln!("[SEARCH] === RAW JSON (first 2000 chars) ===");
         for line in preview.lines() {
             eprintln!("[SEARCH]   {line}");
         }
         if raw_json.len() > 2000 {
-            eprintln!("[SEARCH]   ... ({} total chars, truncated at 2000)", raw_json.len());
+            eprintln!("[SEARCH]   ... ({} total chars)", raw_json.len());
         }
-        eprintln!("[SEARCH] ╚══════════════════════════════════════════════╝");
+        eprintln!("[SEARCH] === END RAW JSON ===");
 
-        // ── Parse JSON ────────────────────────────────────────
+        // Parse JSON
         let result: SearchResponse = match serde_json::from_str(&raw_json) {
             Ok(r) => r,
             Err(e) => {
-                eprintln!("[SEARCH] ❌ JSON PARSE FAILED");
+                eprintln!("[SEARCH] JSON PARSE FAILED");
                 eprintln!("[SEARCH]    serde error: {e}");
-                eprintln!("[SEARCH]    error class: {:?}", e.classify());
-                eprintln!("[SEARCH]    line: {}, column: {}", e.line(), e.column());
+                eprintln!("[SEARCH]    line: {} col: {}", e.line(), e.column());
                 return Err(format!("JSON parse: {e}"));
             }
         };
@@ -179,7 +217,7 @@ impl SpotifyApiClient {
         let albums_count = result.albums.as_ref().map(|p| p.items.len()).unwrap_or(0);
         let artists_count = result.artists.as_ref().map(|p| p.items.len()).unwrap_or(0);
         let playlists_count = result.playlists.as_ref().map(|p| p.items.len()).unwrap_or(0);
-        eprintln!("[SEARCH] ✅ Parsed: {} tracks, {} albums, {} artists, {} playlists",
+        eprintln!("[SEARCH] Parsed: {} tracks, {} albums, {} artists, {} playlists",
             tracks_count, albums_count, artists_count, playlists_count);
 
         Ok(SpotifySearchResults {
@@ -202,7 +240,7 @@ impl SpotifyApiClient {
         })
     }
 
-    // ── Top Tracks ─────────────────────────────────────────────
+    // -- Top Tracks --
 
     pub async fn get_top_tracks(
         &self,
@@ -222,7 +260,7 @@ impl SpotifyApiClient {
         })
     }
 
-    // ── Playback ──────────────────────────────────────────────
+    // -- Playback --
 
     /// Start/resume playback with one or more track URIs.
     pub async fn play_uris(
@@ -381,7 +419,7 @@ impl SpotifyApiClient {
         Ok(result.devices)
     }
 
-    // ── Internal helpers ───────────────────────────────────────
+    // -- Internal helpers --
 
     async fn get<T: serde::de::DeserializeOwned>(
         &self,
@@ -403,7 +441,6 @@ impl SpotifyApiClient {
             return Err("TOKEN_EXPIRED".to_string());
         }
         if resp.status() == 429 {
-            // Rate limited — extract Retry-After if present.
             let retry_after = resp
                 .headers()
                 .get("Retry-After")

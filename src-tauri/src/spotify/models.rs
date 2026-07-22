@@ -80,6 +80,11 @@ pub struct SpotifyTrack {
 }
 
 /// Playlist object (simplified).
+///
+/// Spotify returns the tracks reference under either:
+/// - `tracks` (newer API docs)
+/// - `items` (observed in Feb 2026 responses)
+/// We accept both via serde alias.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpotifyPlaylist {
     pub id: String,
@@ -87,6 +92,7 @@ pub struct SpotifyPlaylist {
     #[serde(default)]
     pub images: Vec<SpotifyImage>,
     pub owner: Option<PlaylistOwner>,
+    #[serde(alias = "items")]
     pub tracks: Option<PlaylistTracksRef>,
     pub uri: Option<String>,
     pub description: Option<String>,

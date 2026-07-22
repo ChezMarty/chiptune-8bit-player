@@ -448,7 +448,7 @@ function PlaylistSection({ onPlayTrack }: { onPlayTrack?: (track: SpotifyTrackIn
                 )}
                 <div className="spotify-panel__item-info">
                   <div className="spotify-panel__item-name">{p.name}</div>
-                  <div className="spotify-panel__item-sub">
+                <div className="spotify-panel__item-sub">
                     {p.owner ? `${p.owner} · ` : ''}{p.track_count} tracks
                   </div>
                 </div>
