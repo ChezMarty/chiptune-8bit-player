@@ -141,7 +141,6 @@
   "settings.close.title": "Close settings (Esc)",
   "settings.section.language": "LANGUAGE",
   "settings.section.theme": "THEME",
-  "settings.section.playback": "PLAYBACK",
   "settings.section.spotify": "SPOTIFY",
 
   "settings.spotify.engine": "PLAYBACK ENGINE",
@@ -186,13 +185,7 @@
   "settings.language.fr": "FR",
   "settings.language.os": "OS",
   "settings.language.hint": "Auto-detect from the system language.",
-  "settings.playback.startVolume": "STARTING VOLUME",
-  "settings.playback.autoPlay": "AUTO-PLAY AFTER IMPORT",
-  "settings.playback.stopBehavior": "STOP BEHAVIOR",
-  "settings.playback.stop.pause": "PAUSE",
-  "settings.playback.stop.rewind": "REWIND",
-  "settings.playback.shuffleOnImport": "SHUFFLE ON IMPORT",
-  "settings.playback.stopBehaviorHint": "PAUSE keeps the playhead where it was. REWIND jumps back to 0.",
+
   "settings.on": "ON",
   "settings.off": "OFF",
   "settings.check": "✓",

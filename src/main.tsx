@@ -10,11 +10,8 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import {
-  AUTOPLAY_STORAGE_KEY,
   LANGUAGE_STORAGE_KEY,
   LOCALE_CHOICES,
-  SHUFFLE_IMPORT_STORAGE_KEY,
-  STOP_REWINDS_STORAGE_KEY,
   START_VOLUME_STORAGE_KEY,
   usePlayerStore,
   type ThemeId,
@@ -26,7 +23,6 @@ import {
   readUserMeta,
 } from "./themes/engine";
 import {
-  readBoolPref,
   readIntPref,
   readStringPref,
 } from "./lib/preferences";
@@ -59,25 +55,10 @@ usePlayerStore.setState({
   locale: savedLocale as "en" | "fr" | "os",
 });
 
-// Seed starting volume (applies both the persisted 0–100 preference and
-// the runtime 0..1 volume so the audio element reflects it from boot).
-// Default is 100 (max) on first launch, matching Spotify's default.
-const savedStartVol = readIntPref(
-  START_VOLUME_STORAGE_KEY,
-  100,
-  0,
-  100,
-);
-usePlayerStore.setState({
-  startVolume: savedStartVol,
-  volume: savedStartVol / 100,
-});
-
-usePlayerStore.setState({
-  autoPlayOnImport: readBoolPref(AUTOPLAY_STORAGE_KEY, false),
-  stopRewinds: readBoolPref(STOP_REWINDS_STORAGE_KEY, false),
-  shuffleOnImport: readBoolPref(SHUFFLE_IMPORT_STORAGE_KEY, false),
-});
+// Seed starting volume (applies the runtime 0..1 volume so the audio
+// element reflects it from boot). Default is 100 (max) on first launch.
+const savedVol = readIntPref(START_VOLUME_STORAGE_KEY, 100, 0, 100);
+usePlayerStore.setState({ volume: savedVol / 100 });
 
 // Load the persisted library BEFORE React mounts. Top-level await is
 // supported by Vite's ESM build. Blocking the first render keeps the

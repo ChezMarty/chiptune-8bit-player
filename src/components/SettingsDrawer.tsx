@@ -17,20 +17,12 @@ export interface SettingsDrawerProps {
 /**
  * The right-side slide-in settings panel.
  *
- * Sections: LANGUAGE, PLAYBACK, SPOTIFY (with experimental Librespot status).
+ * Sections: LANGUAGE, SPOTIFY (with experimental Librespot status).
  */
 export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawerProps) {
   const { t } = useT()
   const localeChoice = usePlayerStore((s) => s.locale)
   const setLocale = usePlayerStore((s) => s.setLocale)
-  const startVolume = usePlayerStore((s) => s.startVolume)
-  const setStartVolume = usePlayerStore((s) => s.setStartVolume)
-  const autoPlayOnImport = usePlayerStore((s) => s.autoPlayOnImport)
-  const setAutoPlayOnImport = usePlayerStore((s) => s.setAutoPlayOnImport)
-  const stopRewinds = usePlayerStore((s) => s.stopRewinds)
-  const setStopRewinds = usePlayerStore((s) => s.setStopRewinds)
-  const shuffleOnImport = usePlayerStore((s) => s.shuffleOnImport)
-  const setShuffleOnImport = usePlayerStore((s) => s.setShuffleOnImport)
   // Spotify state
   const spotifyConfigured = useSpotifyStore((s) => s.isConfigured)
   const spotifyConfigLoading = useSpotifyStore((s) => s.configLoading)
@@ -166,97 +158,6 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
               ))}
             </SegmentedRow>
             <p className="settings-section__hint">{t('settings.language.hint')}</p>
-          </Section>
-
-          <Section title={t('settings.section.playback')}>
-            <div className="settings-row">
-              <span className="settings-row__label">
-                {t('settings.playback.startVolume')}
-              </span>
-              <div className="settings-row__control settings-row__volume">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={startVolume}
-                  onChange={(e) => setStartVolume(Number(e.target.value))}
-                  aria-label={t('settings.playback.startVolume')}
-                />
-                <span className="settings-row__value">{startVolume}</span>
-              </div>
-            </div>
-
-            <div className="settings-row">
-              <span className="settings-row__label">
-                {t('settings.playback.autoPlay')}
-              </span>
-              <SegmentedRow compact>
-                <SegmentButton
-                  active={!autoPlayOnImport}
-                  onClick={() => setAutoPlayOnImport(false)}
-                  aria-label={t('settings.playback.autoPlay') + ' ' + t('settings.off')}
-                >
-                  {t('settings.off')}
-                </SegmentButton>
-                <SegmentButton
-                  active={autoPlayOnImport}
-                  onClick={() => setAutoPlayOnImport(true)}
-                  aria-label={t('settings.playback.autoPlay') + ' ' + t('settings.on')}
-                >
-                  {t('settings.on')}
-                </SegmentButton>
-              </SegmentedRow>
-            </div>
-
-            <div className="settings-row">
-              <span className="settings-row__label">
-                {t('settings.playback.stopBehavior')}
-              </span>
-              <SegmentedRow compact>
-                <SegmentButton
-                  active={!stopRewinds}
-                  onClick={() => setStopRewinds(false)}
-                  aria-label={
-                    t('settings.playback.stopBehavior') + ' ' + t('settings.playback.stop.pause')
-                  }
-                >
-                  {t('settings.playback.stop.pause')}
-                </SegmentButton>
-                <SegmentButton
-                  active={stopRewinds}
-                  onClick={() => setStopRewinds(true)}
-                  aria-label={
-                    t('settings.playback.stopBehavior') + ' ' + t('settings.playback.stop.rewind')
-                  }
-                >
-                  {t('settings.playback.stop.rewind')}
-                </SegmentButton>
-              </SegmentedRow>
-            </div>
-            <p className="settings-section__hint">{t('settings.playback.stopBehaviorHint')}</p>
-
-            <div className="settings-row">
-              <span className="settings-row__label">
-                {t('settings.playback.shuffleOnImport')}
-              </span>
-              <SegmentedRow compact>
-                <SegmentButton
-                  active={!shuffleOnImport}
-                  onClick={() => setShuffleOnImport(false)}
-                  aria-label={t('settings.playback.shuffleOnImport') + ' ' + t('settings.off')}
-                >
-                  {t('settings.off')}
-                </SegmentButton>
-                <SegmentButton
-                  active={shuffleOnImport}
-                  onClick={() => setShuffleOnImport(true)}
-                  aria-label={t('settings.playback.shuffleOnImport') + ' ' + t('settings.on')}
-                >
-                  {t('settings.on')}
-                </SegmentButton>
-              </SegmentedRow>
-            </div>
           </Section>
 
           <Section title={t('settings.section.spotify')}>

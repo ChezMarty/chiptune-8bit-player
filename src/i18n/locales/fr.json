@@ -141,7 +141,6 @@
   "settings.close.title": "Fermer les reglages (Echap)",
   "settings.section.language": "LANGUE",
   "settings.section.theme": "THEME",
-  "settings.section.playback": "LECTURE",
   "settings.section.spotify": "SPOTIFY",
 
   "settings.spotify.engine": "MOTEUR DE LECTURE",
@@ -186,13 +185,7 @@
   "settings.language.fr": "FR",
   "settings.language.os": "OS",
   "settings.language.hint": "Détection automatique selon la langue du système.",
-  "settings.playback.startVolume": "VOLUME AU DEMARRAGE",
-  "settings.playback.autoPlay": "LECTURE AUTO APRES IMPORT",
-  "settings.playback.stopBehavior": "COMPORTEMENT DU STOP",
-  "settings.playback.stop.pause": "PAUSE",
-  "settings.playback.stop.rewind": "REBOBINER",
-  "settings.playback.shuffleOnImport": "MELANGER A L'IMPORT",
-  "settings.playback.stopBehaviorHint": "PAUSE garde la position. REBOBINER remet à 0.",
+
   "settings.on": "MARCHE",
   "settings.off": "ARRET",
   "settings.check": "✓",

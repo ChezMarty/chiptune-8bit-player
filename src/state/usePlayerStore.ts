@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import {
-  writeBoolPref,
   writeIntPref,
   writeStringPref,
 } from '../lib/preferences'
@@ -63,9 +62,6 @@ export const LOCALE_CHOICES: LocaleChoice[] = ['en', 'fr', 'os']
 
 export const LANGUAGE_STORAGE_KEY = 'chiptune-language'
 export const START_VOLUME_STORAGE_KEY = 'chiptune-start-volume'
-export const AUTOPLAY_STORAGE_KEY = 'chiptune-auto-play-import'
-export const STOP_REWINDS_STORAGE_KEY = 'chiptune-stop-rewinds'
-export const SHUFFLE_IMPORT_STORAGE_KEY = 'chiptune-shuffle-import'
 interface PlayerState {
   // Library
   tracks: Track[]
@@ -82,9 +78,6 @@ interface PlayerState {
   duration: number
   /** Runtime volume (0..1), drives the audio element. */
   volume: number
-  /** Persisted starting volume (0..100). Applied at boot. */
-  startVolume: number
-
   // UI flags
   importing: boolean
 
@@ -96,11 +89,6 @@ interface PlayerState {
   // Locale
   /** What the user chose. `'os'` is resolved at render to `'en'` or `'fr'`. */
   locale: LocaleChoice
-
-  // Playback defaults (persisted preferences)
-  autoPlayOnImport: boolean
-  stopRewinds: boolean
-  shuffleOnImport: boolean
 
   // Active playback queue (for Spotify-like playlist playback)
   queue: QueueTrack[]
@@ -125,7 +113,6 @@ interface PlayerState {
   setCurrentTime: (t: number) => void
   setDuration: (d: number) => void
   setVolume: (v: number) => void
-  setStartVolume: (v: number) => void
   setImporting: (v: boolean) => void
   setTheme: (theme: ThemeId) => void
   toggleThemeFavorite: (id: ThemeId) => void
@@ -137,9 +124,6 @@ interface PlayerState {
    * in `main.tsx` so they share one helper.
    */
   setPref: <K extends keyof PlayerState>(key: K, value: PlayerState[K]) => void
-  setAutoPlayOnImport: (v: boolean) => void
-  setStopRewinds: (v: boolean) => void
-  setShuffleOnImport: (v: boolean) => void
   next: () => void
   prev: () => void
   /** Swap a track with its neighbor in the given direction. No-op at edges. */
@@ -184,15 +168,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentTime: 0,
   duration: 0,
   volume: 0.7,
-  startVolume: 70,
   importing: false,
   theme: 'nes',
   themeFavorites: [],
   themeSortMode: 'name' as ThemeSortMode,
   locale: 'os',
-  autoPlayOnImport: false,
-  stopRewinds: false,
-  shuffleOnImport: false,
 
   activeSource: 'local',
   isDragging: false,
@@ -250,11 +230,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ volume: clamped })
     writeIntPref(START_VOLUME_STORAGE_KEY, Math.round(clamped * 100))
   },
-  setStartVolume: (v) => {
-    const clamped = Math.max(0, Math.min(100, Math.round(v)))
-    set({ startVolume: clamped, volume: clamped / 100 })
-    writeIntPref(START_VOLUME_STORAGE_KEY, clamped)
-  },
   setImporting: (v) => set({ importing: v }),
 
   setTheme: (theme) => {
@@ -290,32 +265,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       case 'locale':
         writeStringPref(LANGUAGE_STORAGE_KEY, String(value))
         break
-      case 'startVolume':
-        writeIntPref(START_VOLUME_STORAGE_KEY, Number(value))
-        break
-      case 'autoPlayOnImport':
-        writeBoolPref(AUTOPLAY_STORAGE_KEY, Boolean(value))
-        break
-      case 'stopRewinds':
-        writeBoolPref(STOP_REWINDS_STORAGE_KEY, Boolean(value))
-        break
-      case 'shuffleOnImport':
-        writeBoolPref(SHUFFLE_IMPORT_STORAGE_KEY, Boolean(value))
-        break
     }
-  },
-
-  setAutoPlayOnImport: (v) => {
-    set({ autoPlayOnImport: v })
-    writeBoolPref(AUTOPLAY_STORAGE_KEY, v)
-  },
-  setStopRewinds: (v) => {
-    set({ stopRewinds: v })
-    writeBoolPref(STOP_REWINDS_STORAGE_KEY, v)
-  },
-  setShuffleOnImport: (v) => {
-    set({ shuffleOnImport: v })
-    writeBoolPref(SHUFFLE_IMPORT_STORAGE_KEY, v)
   },
 
   next: () => {

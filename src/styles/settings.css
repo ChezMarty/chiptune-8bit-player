@@ -1,7 +1,7 @@
 /* =========================================================
  * Settings button (top-right of the record-player column) +
- * right-side slide-in drawer with 4 sections
- * (LANGUAGE / THEME / PLAYBACK / DISPLAY).
+ * right-side slide-in drawer with sections
+ * (LANGUAGE / SPOTIFY).
  *
  * All styles read existing theme tokens so the drawer
  * automatically recolors when the active theme changes.
