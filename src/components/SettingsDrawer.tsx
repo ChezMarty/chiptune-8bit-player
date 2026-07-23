@@ -17,8 +17,7 @@ export interface SettingsDrawerProps {
 /**
  * The right-side slide-in settings panel.
  *
- * Sections: LANGUAGE, PLAYBACK, SPOTIFY (with experimental Librespot status),
- * DISPLAY.
+ * Sections: LANGUAGE, PLAYBACK, SPOTIFY (with experimental Librespot status).
  */
 export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawerProps) {
   const { t } = useT()
@@ -32,9 +31,6 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
   const setStopRewinds = usePlayerStore((s) => s.setStopRewinds)
   const shuffleOnImport = usePlayerStore((s) => s.shuffleOnImport)
   const setShuffleOnImport = usePlayerStore((s) => s.setShuffleOnImport)
-  const alwaysOnTop = usePlayerStore((s) => s.alwaysOnTop)
-  const setAlwaysOnTop = usePlayerStore((s) => s.setAlwaysOnTop)
-
   // Spotify state
   const spotifyConfigured = useSpotifyStore((s) => s.isConfigured)
   const spotifyConfigLoading = useSpotifyStore((s) => s.configLoading)
@@ -395,30 +391,6 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
             </p>
           </Section>
 
-          <Section title={t('settings.section.display')}>
-            <div className="settings-row">
-              <span className="settings-row__label">
-                {t('settings.display.alwaysOnTop')}
-              </span>
-              <SegmentedRow compact>
-                <SegmentButton
-                  active={!alwaysOnTop}
-                  onClick={() => void setAlwaysOnTop(false)}
-                  aria-label={t('settings.display.alwaysOnTop') + ' ' + t('settings.off')}
-                >
-                  {t('settings.off')}
-                </SegmentButton>
-                <SegmentButton
-                  active={alwaysOnTop}
-                  onClick={() => void setAlwaysOnTop(true)}
-                  aria-label={t('settings.display.alwaysOnTop') + ' ' + t('settings.on')}
-                >
-                  {t('settings.on')}
-                </SegmentButton>
-              </SegmentedRow>
-            </div>
-            <p className="settings-section__hint">{t('settings.display.alwaysOnTopHint')}</p>
-          </Section>
         </div>
 
         <footer className="settings-drawer__footer">

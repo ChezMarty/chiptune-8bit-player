@@ -66,8 +66,6 @@ export const START_VOLUME_STORAGE_KEY = 'chiptune-start-volume'
 export const AUTOPLAY_STORAGE_KEY = 'chiptune-auto-play-import'
 export const STOP_REWINDS_STORAGE_KEY = 'chiptune-stop-rewinds'
 export const SHUFFLE_IMPORT_STORAGE_KEY = 'chiptune-shuffle-import'
-export const ALWAYS_ON_TOP_STORAGE_KEY = 'chiptune-always-on-top'
-
 interface PlayerState {
   // Library
   tracks: Track[]
@@ -98,9 +96,6 @@ interface PlayerState {
   // Locale
   /** What the user chose. `'os'` is resolved at render to `'en'` or `'fr'`. */
   locale: LocaleChoice
-
-  // Window display
-  alwaysOnTop: boolean
 
   // Playback defaults (persisted preferences)
   autoPlayOnImport: boolean
@@ -142,8 +137,6 @@ interface PlayerState {
    * in `main.tsx` so they share one helper.
    */
   setPref: <K extends keyof PlayerState>(key: K, value: PlayerState[K]) => void
-  /** Apply/persist toggle for "always-on-top" window. */
-  setAlwaysOnTop: (v: boolean) => Promise<void>
   setAutoPlayOnImport: (v: boolean) => void
   setStopRewinds: (v: boolean) => void
   setShuffleOnImport: (v: boolean) => void
@@ -197,7 +190,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   themeFavorites: [],
   themeSortMode: 'name' as ThemeSortMode,
   locale: 'os',
-  alwaysOnTop: false,
   autoPlayOnImport: false,
   stopRewinds: false,
   shuffleOnImport: false,
@@ -310,22 +302,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       case 'shuffleOnImport':
         writeBoolPref(SHUFFLE_IMPORT_STORAGE_KEY, Boolean(value))
         break
-      case 'alwaysOnTop':
-        writeBoolPref(ALWAYS_ON_TOP_STORAGE_KEY, Boolean(value))
-        break
-    }
-  },
-
-  setAlwaysOnTop: async (v) => {
-    set({ alwaysOnTop: v })
-    writeBoolPref(ALWAYS_ON_TOP_STORAGE_KEY, v)
-    // Tauri-side application. Lazy-imported to keep the store free of
-    // platform-specific imports so it can run in a plain browser preview.
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window')
-      await getCurrentWindow().setAlwaysOnTop(v)
-    } catch (err) {
-      console.error('[alwaysOnTop] failed', err)
     }
   },
 

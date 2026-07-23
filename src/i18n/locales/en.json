@@ -142,7 +142,6 @@
   "settings.section.language": "LANGUAGE",
   "settings.section.theme": "THEME",
   "settings.section.playback": "PLAYBACK",
-  "settings.section.display": "DISPLAY",
   "settings.section.spotify": "SPOTIFY",
 
   "settings.spotify.engine": "PLAYBACK ENGINE",
@@ -194,8 +193,6 @@
   "settings.playback.stop.rewind": "REWIND",
   "settings.playback.shuffleOnImport": "SHUFFLE ON IMPORT",
   "settings.playback.stopBehaviorHint": "PAUSE keeps the playhead where it was. REWIND jumps back to 0.",
-  "settings.display.alwaysOnTop": "ALWAYS ON TOP",
-  "settings.display.alwaysOnTopHint": "Keep the window above all other apps.",
   "settings.on": "ON",
   "settings.off": "OFF",
   "settings.check": "✓",

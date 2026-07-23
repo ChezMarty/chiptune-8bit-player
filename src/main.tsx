@@ -10,7 +10,6 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import {
-  ALWAYS_ON_TOP_STORAGE_KEY,
   AUTOPLAY_STORAGE_KEY,
   LANGUAGE_STORAGE_KEY,
   LOCALE_CHOICES,
@@ -78,7 +77,6 @@ usePlayerStore.setState({
   autoPlayOnImport: readBoolPref(AUTOPLAY_STORAGE_KEY, false),
   stopRewinds: readBoolPref(STOP_REWINDS_STORAGE_KEY, false),
   shuffleOnImport: readBoolPref(SHUFFLE_IMPORT_STORAGE_KEY, false),
-  alwaysOnTop: readBoolPref(ALWAYS_ON_TOP_STORAGE_KEY, false),
 });
 
 // Load the persisted library BEFORE React mounts. Top-level await is
@@ -104,20 +102,6 @@ if (persisted) {
     currentTime: 0,
     duration: 0,
   });
-}
-
-// Apply persisted always-on-top asynchronously. The Tauri call is
-// wrapped so a failure (e.g. running in a non-Tauri preview) doesn't
-// crash boot.
-if (usePlayerStore.getState().alwaysOnTop) {
-  void (async () => {
-    try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      await getCurrentWindow().setAlwaysOnTop(true);
-    } catch (err) {
-      console.error("[alwaysOnTop] boot failed", err);
-    }
-  })();
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

@@ -142,7 +142,6 @@
   "settings.section.language": "LANGUE",
   "settings.section.theme": "THEME",
   "settings.section.playback": "LECTURE",
-  "settings.section.display": "AFFICHAGE",
   "settings.section.spotify": "SPOTIFY",
 
   "settings.spotify.engine": "MOTEUR DE LECTURE",
@@ -194,8 +193,6 @@
   "settings.playback.stop.rewind": "REBOBINER",
   "settings.playback.shuffleOnImport": "MELANGER A L'IMPORT",
   "settings.playback.stopBehaviorHint": "PAUSE garde la position. REBOBINER remet à 0.",
-  "settings.display.alwaysOnTop": "TOUJOURS DEVANT",
-  "settings.display.alwaysOnTopHint": "Garder la fenêtre au-dessus des autres applications.",
   "settings.on": "MARCHE",
   "settings.off": "ARRET",
   "settings.check": "✓",
