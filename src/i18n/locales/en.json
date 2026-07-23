@@ -2,7 +2,6 @@
   "app.title": "Chiptune 8-Bit Player",
 
   "header.library": "LIBRARY",
-  "header.nowPlaying": "NOW PLAYING",
   "header.settings": "SETTINGS",
 
   "footer.upcomingCount": "{n} UP NEXT",
@@ -55,10 +54,6 @@
   "recordPlayer.aria.error": "Playback error",
   "recordPlayer.aria.noTrack": "No track",
 
-  "nowPlaying.empty": "NOTHING PLAYING",
-  "nowPlaying.endOfQueue": "END OF QUEUE",
-  "nowPlaying.upNext": "{n} UP NEXT",
-  "nowPlaying.dragToReorder": "Drag to reorder",
 
   "transport.prev": "◀◀",
   "transport.play": "▶",

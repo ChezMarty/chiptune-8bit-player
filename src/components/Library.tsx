@@ -6,7 +6,6 @@ import { addAudioFiles } from '../lib/addAudioFiles'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { ContextMenu } from './ContextMenu'
 import { TrackInfoDialog } from './TrackInfoDialog'
-import { NowPlaying } from './NowPlaying'
 import { useT } from '../i18n/useT'
 
 /**
@@ -270,8 +269,6 @@ export function Library({ activeTab, onTabChange }: LibraryProps) {
           })
         )}
       </ul>
-
-      <NowPlaying />
 
       <div className="library__footer">
         <ThemeSwitcher />

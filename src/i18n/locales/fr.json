@@ -2,7 +2,6 @@
   "app.title": "Lecteur Chiptune 8 Bits",
 
   "header.library": "BIBLIOTHEQUE",
-  "header.nowPlaying": "EN COURS",
   "header.settings": "REGLAGES",
 
   "footer.upcomingCount": "{n} A VENIR",
@@ -55,10 +54,6 @@
   "recordPlayer.aria.error": "Erreur de lecture",
   "recordPlayer.aria.noTrack": "Aucune piste",
 
-  "nowPlaying.empty": "RIEN EN COURS",
-  "nowPlaying.endOfQueue": "FIN DE LA FILE",
-  "nowPlaying.upNext": "{n} A VENIR",
-  "nowPlaying.dragToReorder": "Glissez pour réordonner",
 
   "transport.prev": "◀◀",
   "transport.play": "▶",
