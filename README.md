@@ -1,12 +1,104 @@
+<div align="center">
+
+<!-- Pixel-art cassette logo — scaled up from the 16×16 favicon grid -->
+<img src="public/favicon.svg" width="96" height="96" alt="Chiptune 8-Bit Player icon" style="image-rendering:pixelated;image-rendering:crisp-edges" />
+
 # 🎵 Chiptune 8-Bit Player
 
-**Version 0.2.0**
+**v0.2.0**
 
-A retro-inspired desktop music player with a nostalgic 8-bit aesthetic, bringing the look and feel of classic NES-era interfaces to modern systems — with **Spotify streaming** support powered by Librespot.
+A retro-inspired desktop music player with an authentic 8-bit aesthetic — bringing the look, sound, and feel of classic NES-era interfaces to your modern desktop. Powered by **Tauri 2** + **React 19**, with optional **Spotify streaming** via Librespot.
 
-Built with [Tauri 2](https://v2.tauri.app/) (Rust) + [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/), designed to feel like a native app with pixel-perfect retro charm.
+[![Version](https://img.shields.io/badge/version-0.2.0-brightgreen?style=flat-square)]()
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-latest-orange?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Tauri](https://img.shields.io/badge/Tauri-2-6C4FBB?style=flat-square&logo=tauri&logoColor=white)](https://v2.tauri.app/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
+[![Spotify](https://img.shields.io/badge/Spotify-supported-1DB954?style=flat-square&logo=spotify&logoColor=white)](https://developer.spotify.com/)
+[![PRs](https://img.shields.io/badge/PRs-welcome-8A2BE2?style=flat-square)]()
 
-![Chiptune 8-Bit Player](https://img.shields.io/badge/version-0.2.0-brightgreen) ![License](https://img.shields.io/badge/license-MIT-blue) ![Tauri](https://img.shields.io/badge/Tauri-2-purple) ![React](https://img.shields.io/badge/React-19-61DAFB)
+</div>
+
+---
+
+## ✨ Features
+
+### 🎮 Core Experience
+- **Authentic pixel-art interface** — every pixel is hand-crafted for that vintage console feel, powered by `Press Start 2P` and `VT323` fonts
+- **Animated virtual vinyl record** — album artwork displayed on a stylized, spinning turntable
+- **Transport controls** — Play, Pause, Stop, Previous, Next with keyboard shortcuts
+- **Progress & seek bar** — click-to-seek and drag support with elapsed / remaining time display
+- **Volume control** — adjustable with configurable startup level
+- **Playback queue** — drag-to-reorder, shuffle, clear queue, and upcoming-track counter
+- **Playback persistence** — queue and library state survive app restarts
+
+### 🎵 Audio Support
+- **Local audio files** — import via drag & drop, file picker, or right-click context menu
+- **Smart metadata** — auto-detected title, artist, album, and cover art via `music-metadata`
+- **Format support** — MP3, FLAC, WAV, OGG, M4A, and more (whatever your browser's Web Audio API supports)
+
+### 🟢 Spotify Integration
+- **OAuth PKCE login** — secure, no server-side secret required
+- **Browse your library** — liked songs, playlists, and top tracks at your fingertips
+- **Spotify search** — search tracks, albums, artists, and playlists directly
+- **Dual playback engines:**
+  - 🔊 **Librespot** (primary) — direct audio streaming via the open-source [librespot](https://github.com/librespot-org/librespot) library
+  - 🎧 **Spotify Web Playback SDK** (fallback) — browser-based playback via Spotify's official SDK
+- **Automatic tab switching** — seamlessly switches to Spotify view when connected
+
+### 🎨 Theme System
+- **70+ retro themes** organized into 6 categories:
+  - 🎮 **Classic Consoles** — NES, SNES, Game Boy, Sega Genesis, PlayStation, Nintendo Switch, and more
+  - 💾 **Retro Computers** — Windows 95/98/XP/7, MS-DOS, Macintosh Classic, Commodore 64, Amiga
+  - 🖥️ **CRT & Terminal** — Green phosphor, Amber terminal, Matrix hacker, Monochrome
+  - 🎭 **Artistic** — Vaporwave, Synthwave sunset, Tokyo Night, Dracula, Nord, Catppuccin, Cyberpunk 2077
+  - 🔊 **Music & Audio** — Vinyl Studio, Cassette Player, Walkman, Hi-Fi Stereo, Boombox
+  - 🌿 **Nature & Mood** — Midnight Purple, Ocean Blue, Sakura Pink, Forest Pixel, Halloween, Christmas
+- **Theme search** — quickly find themes by name
+- **Favorites** — bookmark your go-to themes for quick access
+- **Sort modes** — sort alphabetically or by favorites
+- **Smooth transitions** — animated crossfade when switching themes
+
+### ⚙️ Settings & Customization
+- **Language** — English, French, or system auto-detect (easily extensible for more locales)
+- **Playback preferences** — startup volume, auto-play on import, stop behavior (pause / rewind), shuffle on import
+- **Display options** — always-on-top mode, theme selection
+- **Spotify configuration** — Client ID management, connection status, Librespot version info
+
+### ⌨️ Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Space` | Play / Pause |
+| `←` / `→` | Seek ±5 seconds |
+| `Shift + ←` / `Shift + →` | Previous / Next track |
+| `↑` / `↓` | Volume ±5% |
+| `Esc` | Close dialog / menu |
+
+### 🖱️ Context Menus
+- **App-wide** (right-click anywhere) — Play/Pause, Next, Prev, Stop, Add Files, Shuffle Queue, Clear Queue, Theme selection, Shortcuts, About, Quit
+- **Track-level** (right-click a track) — Play, Play Next, Move Up/Down, Show in Folder, Copy Path, Track Info, Remove (with confirmation)
+
+### 🖼️ Interface Layout
+The player is organized into four main panels:
+
+```
+┌───────────────────┬──────────────────────┐
+│                   │                      │
+│   Library Panel   │   Now Playing        │
+│   (tracks, search,│   Sidebar            │
+│    playlists)     │   (queue, upcoming)  │
+│                   │                      │
+├───────────────────┴──────────────────────┤
+│                                           │
+│    Record Player (album art + track info) │
+│                                           │
+├───────────────────────────────────────────┤
+│    Transport Controls (seek, volume, etc) │
+└───────────────────────────────────────────┘
+```
 
 ---
 
@@ -21,137 +113,41 @@ Built with [Tauri 2](https://v2.tauri.app/) (Rust) + [React 19](https://react.de
 | ![Library Empty State](screenshots/library-empty.png) | |
 | *Empty library state with the clean retro interface* | |
 
----
-
-## ✨ Features
-
-### 🎮 Core Experience
-- **Authentic 8-bit / NES-inspired pixel interface** — every pixel is crafted for that vintage console feel
-- **Animated virtual vinyl record** with album artwork display
-- **Playback controls** — Play, Pause, Stop, Previous, Next with keyboard shortcuts
-- **Progress/seek bar** with click-to-seek and drag support
-- **Volume control** with configurable starting volume
-- **Playback queue** management — shuffle, reorder by drag, clear queue
-- **Upcoming track count** displayed in the footer
-
-### 🎵 Audio Support
-- **Local audio files** — import via drag & drop, file picker, or right-click menu
-- **Song metadata** — auto-detected title, artist, album, album art via `music-metadata`
-- **Playback persistence** — library survives app restarts
-
-### 🟢 Spotify Integration
-- **OAuth PKCE login** — secure, no server-side secret needed
-- **Browse Spotify library** — liked songs, playlists, top tracks
-- **Spotify search** — search tracks, albums, artists, and playlists
-- **Two playback engines:**
-  - **🔊 Librespot** (primary) — direct Spotify audio streaming via the open-source [librespot](https://github.com/librespot-org/librespot) library (v0.8) — streams audio directly without the official Spotify client
-  - **🎧 Spotify Web Playback SDK** (fallback) — browser-based playback via Spotify's official SDK
-- **Experimental warning dialog** — informs users that Librespot is an independent open-source project
-- **Automatic tab switching** — auto-switches to Spotify tab when connected (if local library is empty)
-
-### 🎨 Theme System
-- **70+ retro themes** organized into 6 categories:
-  - 🎮 **Classic Consoles** — NES, SNES, Game Boy, Sega Genesis, PlayStation, Nintendo Switch, and more
-  - 💾 **Retro Computers** — Windows 95/98/XP/7, MS-DOS, Macintosh Classic, Commodore 64, Amiga
-  - 🖥️ **CRT & Terminal** — Green phosphor, Amber terminal, Matrix hacker, Monochrome
-  - 🎭 **Artistic** — Vaporwave, Synthwave sunset, Tokyo Night, Dracula, Nord, Catppuccin, Cyberpunk 2077
-  - 🔊 **Music & Audio** — Vinyl Studio, Cassette Player, Walkman, Hi-Fi Stereo, Boombox
-  - 🌿 **Nature & Mood** — Midnight Purple, Ocean Blue, Sakura Pink, Forest Pixel, Halloween, Christmas
-- **Theme search** — quickly find themes by name
-- **Theme favorites** — bookmark your favorites for quick access
-- **Theme sort modes** — sort by name or favorites
-- **Smooth theme transitions** — animated crossfade when switching themes
-
-### ⚙️ Settings Panel
-- **Language** — English, French, or OS auto-detect
-- **Playback** — starting volume, auto-play on import, stop behavior (pause/rewind), shuffle on import
-- **Display** — always-on-top mode
-- **Spotify** — Client ID configuration, connection status, Librespot version info, experimental warning toggle
-
-### ⌨️ Keyboard Shortcuts
-| Key | Action |
-|-----|--------|
-| `Space` | Play / Pause |
-| `←` / `→` | Seek ±5 seconds |
-| `Shift + ←` / `Shift + →` | Previous / Next track |
-| `↑` / `↓` | Volume ±5% |
-| `Esc` | Close dialog / menu |
-
-### 🖱️ Context Menus
-- **App context menu** (right-click anywhere) — Play/Pause, Next, Prev, Stop, Add Files, Shuffle Queue, Clear Queue, Theme selection, Shortcuts, About, Quit
-- **Track context menu** (right-click a track) — Play, Play Next, Move Up/Down, Show in Folder, Copy Path, Track Info, Remove (with confirmation)
-
-### 🖼️ Interface Sections
-The interface is divided into four main sections:
-1. **Library Panel** — Browse and manage your local music collection and/or Spotify library
-2. **Now Playing Sidebar** — Shows the current queue, upcoming tracks, and end-of-queue state
-3. **Record Player** — Displays album artwork on a stylized vinyl record with track info
-4. **Transport Controls** — Retro-inspired media controls, progress slider, and volume adjustment
-
-### 🌍 Internationalization
-- English and French translations included
-- Auto-detect from system language
-- Architecture ready for additional locales
+> **Note:** Screenshots will appear once they are placed in the `screenshots/` directory.
 
 ---
 
-## 🛠️ Tech Stack
+## 📦 Installation
 
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 19, TypeScript, Vite 7 |
-| **State Management** | Zustand 5 |
-| **Desktop Shell** | Tauri 2 (Rust) |
-| **Audio - Local** | HTML5 Web Audio API |
-| **Audio - Spotify** | Librespot (core + playback v0.8) / Spotify Web Playback SDK |
-| **Metadata** | music-metadata |
-| **Styling** | CSS (pixel-art custom properties), Google Fonts (Press Start 2P, VT323) |
-| **Storage** | Tauri plugin-fs, OS secure credential store (keyring) |
-| **Icons** | SVG + ICO favicon |
-
----
-
-## 📋 Prerequisites
+### Prerequisites
 
 - [Node.js](https://nodejs.org/) 18+
 - [Rust](https://www.rust-lang.org/) (latest stable) with Cargo
-- [Tauri CLI](https://v2.tauri.app/start/cli/) (`cargo install tauri-cli --version "^2"`)
-- For Spotify features: A [Spotify Developer](https://developer.spotify.com/) account with a registered app
+- [Tauri CLI](https://v2.tauri.app/start/cli/) — `cargo install tauri-cli --version "^2"`
+- For Spotify features: a [Spotify Developer](https://developer.spotify.com/) account with a registered app
 
----
-
-## 🚀 Getting Started
+### Quick Start
 
 ```bash
-# 1. Clone the repository
-git clone <repo-url>
+# Clone the repository
+git clone https://github.com/ChezMarty/chiptune-8bit-player.git
 cd chiptune-8bit-player
 
-# 2. Install frontend dependencies
+# Install frontend dependencies
 npm install
 
-# 3. Generate favicons
+# Generate favicons
 npm run icons
 
-# 4. Run in development mode
+# Launch in development mode
 npm run tauri dev
 ```
 
-The app window will open with the retro interface. Add audio files via the `+ ADD` button or right-click → `Add Files`.
-
-### 🔌 Setting Up Spotify
-
-1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and create an app
-2. Add `http://127.0.0.1:49436/callback` to the Redirect URIs in your Spotify app settings
-3. Open the app → click the gear icon ⚙ → navigate to the **SPOTIFY** section
-4. Enter your Spotify **Client ID** and click **SAVE**
-5. Click **CONNECT TO SPOTIFY** to authorize via your browser
-
-> ⚠️ Spotify playback requires a **Premium** account when using the Librespot engine. The Spotify Web Playback SDK works with any account type but requires the official Spotify client to be running.
+The app window opens with the retro interface ready to go. Add audio files via the **+ADD** button or right-click → **Add Files**.
 
 ---
 
-## 📦 Building
+## 🔨 Building from Source
 
 ```bash
 npm run tauri build
@@ -159,94 +155,140 @@ npm run tauri build
 
 The bundled application will be available in `src-tauri/target/release/bundle/`.
 
+### Platform Support
+
+| Platform | Status |
+|----------|--------|
+| 🪟 Windows | ✅ Supported (NSIS/MSI) |
+| 🍎 macOS | ✅ Supported (DMG) |
+| 🐧 Linux | ✅ Supported (deb/AppImage) |
+
 ---
 
-## 🎯 Design Philosophy
+## 🚀 Usage
 
-This project aims to combine the simplicity of vintage console interfaces with the convenience of a modern music player. Every pixel, color, and animation is inspired by the golden age of 8-bit gaming while maintaining usability and performance.
+### Playing Local Music
 
-Whether you're listening to chiptune, game soundtracks, or your favorite playlist, **Chiptune 8-Bit Player** delivers a nostalgic experience alongside modern features — and with Spotify integration, your entire streaming library is just a click away.
+1. Launch the app
+2. **Add files** — click **+ADD**, drag & drop audio files into the window, or right-click → **Add Files**
+3. **Control playback** — use the transport buttons or keyboard shortcuts (`Space` to play/pause)
+4. **Manage the queue** — drag tracks to reorder, right-click for options, shuffle with the shuffle button
+
+### Connecting Spotify
+
+1. Register an app at the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Add `http://127.0.0.1:49436/callback` to your app's **Redirect URIs**
+3. In Chiptune 8-Bit Player, click the gear icon ⚙ → navigate to the **SPOTIFY** section
+4. Enter your **Client ID** and click **SAVE**
+5. Click **CONNECT TO SPOTIFY** and authorize via your browser
+
+> ⚠️ **Spotify Premium** is required for Librespot-based playback. The Spotify Web Playback SDK fallback works with any account type but needs the official Spotify client running.
 
 ---
 
-## 📁 Project Structure
+## 🟢 Spotify Integration
+
+Chiptune 8-Bit Player offers two Spotify playback engines:
+
+| Engine | Requirements | Latency | Notes |
+|--------|-------------|---------|-------|
+| **Librespot** (default) | Spotify Premium | Low | Direct audio streaming — no client needed |
+| **Web Playback SDK** (fallback) | Any Spotify account | Moderate | Requires official Spotify client running |
+
+Both engines support:
+- Full library browsing (liked songs, playlists, top tracks)
+- Spotify search
+- Playback controls (play, pause, skip, seek)
+
+---
+
+## 🎧 Listening Party
+
+<div align="center">
+
+> **Coming Soon** 🚧
+
+_A real-time synchronized listening experience — share your queue and listen together with friends._
+
+Planned features:
+- Create and join listening sessions via shareable links
+- Synchronized playback across multiple devices
+- Shared queue management (collaborative adding, voting)
+- In-app chat with 8-bit themed messages
+- Role-based controls (host can pause, skip, etc.)
+
+Stay tuned for updates!
+
+</div>
+
+---
+
+## 🗺️ Roadmap
+
+- [x] **v0.1.0** — Core player with local audio support, retro UI, basic themes
+- [x] **v0.2.0** — Spotify integration (Librespot + Web SDK), 70+ themes, i18n (EN/FR)
+- [ ] **v0.3.0** — Listening Party (synchronized multi-user playback)
+- [ ] **v0.4.0** — Equalizer & audio effects (visualizer, bass boost, reverb)
+- [ ] **v0.5.0** — Custom theme editor & community theme sharing
+- [ ] **v1.0.0** — Stable release with cross-platform distribution
+
+---
+
+## 🛠️ Technologies Used
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Vite 7](https://vite.dev/) |
+| **State Management** | [Zustand 5](https://zustand.docs.pmnd.rs/) |
+| **Desktop Shell** | [Tauri 2](https://v2.tauri.app/) (Rust) |
+| **Audio — Local** | HTML5 Web Audio API |
+| **Audio — Spotify** | [Librespot](https://github.com/librespot-org/librespot) v0.8 / Spotify Web Playback SDK |
+| **Metadata** | [music-metadata](https://github.com/Borewit/music-metadata) |
+| **Styling** | CSS custom properties, pixel-art design system |
+| **Typography** | [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P), [VT323](https://fonts.google.com/specimen/VT323) (Google Fonts) |
+| **Persistence** | Tauri plugin-fs, OS secure credential store (keyring) |
+| **Backend (Rust)** | reqwest, serde, tokio, sha2, keyring, rustls |
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how to get involved:
+
+1. **Fork** the repository
+2. **Create a feature branch** — `git checkout -b feat/amazing-feature`
+3. **Commit your changes** — `git commit -m 'feat: add amazing feature'`
+4. **Push to the branch** — `git push origin feat/amazing-feature`
+5. **Open a Pull Request**
+
+### Development Tips
+
+- Run `npm run icons` after modifying the favicon grid in `scripts/gen-favicon.mjs`
+- Run `cargo check` from `src-tauri/` to verify Rust code compiles
+- Follow the existing code style (TypeScript strict mode, ESLint-compatible)
+
+### Project Structure
 
 ```
 chiptune-8bit-player/
 ├── src/                          # Frontend (React + TypeScript)
 │   ├── components/               # React components
-│   │   ├── TitleBar.tsx          # Custom window title bar
-│   │   ├── Library.tsx           # Local library browser
-│   │   ├── SpotifyPanel.tsx      # Spotify library browser
-│   │   ├── RecordPlayer.tsx      # Animated vinyl record display
-│   │   ├── TransportControls.tsx # Playback controls
-│   │   ├── SettingsDrawer.tsx    # Settings panel
-│   │   ├── ThemeSwitcher.tsx     # Theme selection UI
-│   │   ├── AppContextMenu.tsx    # Right-click app menu
-│   │   ├── ContextMenu.tsx       # Reusable context menu
-│   │   ├── AboutDialog.tsx       # About dialog
-│   │   ├── KeyboardShortcutsDialog.tsx
-│   │   ├── TrackInfoDialog.tsx   # Track metadata dialog
-│   │   ├── LibrespotWarningDialog.tsx
-│   │   ├── SettingsButton.tsx    # Settings toggle button
-│   │   ├── NowPlaying.tsx        # Now playing sidebar
-│   │   └── ...
 │   ├── lib/                      # Business logic
 │   │   ├── playback/             # Playback engine & providers
-│   │   │   ├── engine.ts         # Singleton playback facade
-│   │   │   ├── localProvider.ts  # Local file audio provider
-│   │   │   ├── librespotProvider.ts  # Librespot provider
-│   │   │   ├── spotifySdkProvider.ts # Spotify SDK provider
-│   │   │   └── types.ts          # Provider interfaces
-│   │   ├── addAudioFiles.ts      # File import logic
-│   │   ├── libraryPersistence.ts # Save/restore library state
-│   │   ├── metadata.ts           # Audio metadata extraction
-│   │   ├── pixelate.ts           # Pixel art utility
-│   │   ├── preferences.ts        # Persisted preferences
-│   │   └── spotify.ts            # Spotify API client (frontend)
+│   │   └── ...
 │   ├── state/                    # Zustand state stores
-│   │   ├── usePlayerStore.ts     # Main player state
-│   │   └── useSpotifyStore.ts    # Spotify auth & data state
 │   ├── themes/                   # Theme engine & definitions
-│   │   ├── definitions/          # 6 category files, ~60 themes
-│   │   ├── engine.ts             # Theme application & persistence
-│   │   ├── patterns.ts           # Reusable pattern definitions
-│   │   └── types.ts              # Theme type definitions
-│   ├── i18n/                     # Internationalization
-│   │   ├── I18nProvider.tsx
-│   │   ├── useT.ts
-│   │   └── locales/
-│   │       ├── en.json           # English translations
-│   │       └── fr.json           # French translations
+│   ├── i18n/                     # Internationalization (en, fr)
 │   ├── styles/                   # CSS style modules
-│   │   ├── 8bit.css              # Main pixel-art styles
-│   │   ├── settings.css          # Settings drawer styles
-│   │   ├── spotify.css           # Spotify panel styles
-│   │   └── titlebar.css          # Title bar styles
-│   ├── App.tsx                   # Root component
-│   ├── App.css                   # App-level styles
-│   ├── main.tsx                  # Entry point
-│   └── index.css                 # Global styles
+│   └── ...
 ├── src-tauri/                    # Backend (Rust + Tauri)
 │   ├── src/
-│   │   ├── main.rs               # Desktop entry point
-│   │   ├── lib.rs                # Tauri plugin & command registration
-│   │   ├── commands.rs           # Tauri IPC commands
 │   │   ├── librespot/            # Librespot integration
-│   │   │   └── mod.rs            # Session, player, PCM audio sink
-│   │   └── spotify/              # Spotify Web API integration
-│   │       ├── mod.rs            # Service & token management
-│   │       ├── api.rs            # Web API client
-│   │       ├── auth.rs           # OAuth PKCE flow
-│   │       ├── models.rs         # API response types
-│   │       └── token_store.rs    # Secure credential storage
-│   ├── Cargo.toml                # Rust dependencies
-│   └── tauri.conf.json           # Tauri configuration
+│   │   ├── spotify/              # Spotify Web API (auth, API, models)
+│   │   └── ...
+│   └── Cargo.toml
 ├── scripts/                      # Build utilities
-│   ├── gen-favicon.mjs           # Favicon generation
-│   └── verify-icons.mjs          # Icon verification
-├── package.json
-└── README.md
+└── package.json
 ```
 
 ---
@@ -255,8 +297,14 @@ chiptune-8bit-player/
 
 This project is licensed under the [MIT License](./LICENSE).
 
-### Third-Party Components
+### Third-Party Notices
 
-- **Librespot** — licensed under MIT. Copyright © 2024 librespot-org. See [github.com/librespot-org/librespot](https://github.com/librespot-org/librespot).
-- **Spotify Web Playback SDK** — proprietary, used under Spotify's Developer Terms.
-- Spotify playback is powered by Librespot, an independent open-source implementation of the Spotify protocol. Librespot is **not** developed or endorsed by Spotify.
+- **[Librespot](https://github.com/librespot-org/librespot)** — open-source Spotify protocol implementation, licensed under MIT. Copyright © 2024 librespot-org. This project is **not** developed or endorsed by Spotify AB.
+- **Spotify Web Playback SDK** — proprietary, used under [Spotify's Developer Terms](https://developer.spotify.com/terms).
+- **Google Fonts** — [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) (Open Font License), [VT323](https://fonts.google.com/specimen/VT323) (Open Font License).
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ and pixel-perfect precision. If you enjoy this project, consider ⭐ starring it on GitHub!</sub>
+</div>
