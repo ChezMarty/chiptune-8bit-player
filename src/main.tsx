@@ -90,3 +90,17 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <App />
   </React.StrictMode>,
 );
+
+// Expose Zustand stores for dev tools and screenshot capture in development mode.
+// The import is inside the guard so tree-shaking removes it from production builds.
+if (import.meta.env.DEV) {
+  import('./state/useSpotifyStore').then(({ useSpotifyStore }) => {
+    window.__CHIPTUNE_STORES__ = {
+      player: usePlayerStore,
+      spotify: useSpotifyStore,
+    }
+    console.log('[dev] Chiptune stores exposed on window.__CHIPTUNE_STORES__')
+  }).catch((err) => {
+    console.warn('[dev] Failed to expose Spotify store:', err)
+  })
+}

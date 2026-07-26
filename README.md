@@ -106,14 +106,16 @@ The player is organized into four main panels:
 
 | | |
 |---|---|
-| ![Main View](screenshots/main-view.png) | ![Settings Drawer](screenshots/settings-drawer.png) |
-| *Main interface — library, vinyl record, and transport controls* | *Settings panel with playback, Spotify, and display options* |
-| ![Context Menu](screenshots/context-menu.png) | ![Spotify Panel](screenshots/spotify-panel.png) |
-| *Right-click app context menu with all actions* | *Spotify integration — connect, browse, and search* |
-| ![Library Empty State](screenshots/library-empty.png) | |
-| *Empty library state with the clean retro interface* | |
-
-> **Note:** Screenshots will appear once they are placed in the `screenshots/` directory.
+| ![Main View](screenshots/main-view.png) | ![Library with Tracks](screenshots/library-full.png) |
+| *Main interface — Monochrome theme, library, vinyl record, and transport controls* | *Local library populated with tracks and album metadata* |
+| ![Now Playing](screenshots/now-playing.png) | ![Spotify Search](screenshots/spotify-search.png) |
+| *Active playback with album artwork on the vinyl record* | *Spotify search — find tracks, albums, artists, and playlists* |
+| ![Settings Drawer](screenshots/settings-drawer.png) | ![Theme Switcher](screenshots/theme-switcher.png) |
+| *Settings panel with playback, Spotify, and display options* | *70+ retro themes organized into 6 categories* |
+| ![Spotify Panel](screenshots/spotify-panel.png) | ![Spotify Playlists](screenshots/spotify-playlists.png) |
+| *Spotify integration — liked songs, search, and playback* | *Spotify playlists browsing with connected account* |
+| ![Context Menu](screenshots/context-menu.png) | ![About Dialog](screenshots/about-dialog.png) |
+| *Right-click track context menu with playback and management options* | *About dialog with app version and credits* |
 
 ---
 
