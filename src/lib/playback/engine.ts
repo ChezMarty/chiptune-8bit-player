@@ -2,6 +2,7 @@ import { usePlayerStore } from '../../state/usePlayerStore'
 import { LocalPlaybackProvider } from './localProvider'
 import { SpotifySdkProvider } from './spotifySdkProvider'
 import { LibrespotProvider } from './librespotProvider'
+import { dspEngine } from '../../dsp/DspEngine'
 import type {
   AudioDataCallback,
   PlaybackProvider,
@@ -47,6 +48,14 @@ class PlaybackEngine {
   async initialize(): Promise<void> {
     if (this.initialized) return
     this.initialized = true
+
+    // Initialize the shared DSP engine first.
+    try {
+      await dspEngine.initialize()
+      console.log('[playback] DSP Engine ready')
+    } catch (e) {
+      console.warn('[playback] DSP Engine init failed', e)
+    }
 
     // Local is always ready — nothing to init.
     // Try to init the Librespot backend (non-blocking).

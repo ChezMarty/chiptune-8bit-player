@@ -300,6 +300,18 @@ export function TransportControls() {
         <span className="transport__volume-num">{Math.round(volume * 100)}</span>
         <span className="transport__source">{sourceIcon}</span>
       </div>
+
+      {/* Audio Lab button */}
+      <button
+        className="pixel-button audio-lab__toggle-btn"
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent('toggle-audio-lab'))
+        }}
+        title="Audio Lab (Ctrl+Shift+E)"
+        aria-label="Open Audio Lab"
+      >
+        🔊 FX
+      </button>
     </div>
   )
 }

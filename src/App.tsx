@@ -6,6 +6,7 @@ import { LibrespotWarningDialog } from './components/LibrespotWarningDialog'
 import { SpotifyPanel } from './components/SpotifyPanel'
 import { RecordPlayer } from './components/RecordPlayer'
 import { TransportControls } from './components/TransportControls'
+import { AudioLabPanel } from './components/AudioLab/AudioLabPanel'
 import { usePlayerStore, type ThemeId } from './state/usePlayerStore'
 import { useSpotifyStore } from './state/useSpotifyStore'
 import { setupPersistenceSubscription } from './lib/libraryPersistence'
@@ -83,6 +84,8 @@ function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [audioLabOpen, setAudioLabOpen] = useState(false)
+  const [audioLabTab, setAudioLabTab] = useState<'eq' | 'effects' | 'presets' | 'visualizer'>('eq')
   const [libraryTab, setLibraryTab] = useState<LibraryTab>('local')
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
 
@@ -118,6 +121,13 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [theme])
 
+  // Listen for the Audio Lab toggle event from TransportControls.
+  useEffect(() => {
+    const handler = () => setAudioLabOpen((prev) => !prev)
+    window.addEventListener('toggle-audio-lab', handler)
+    return () => window.removeEventListener('toggle-audio-lab', handler)
+  }, [])
+
   // Install the library persistence subscriber once on mount. The
   // returned cleanup unsubscribes and flushes any pending debounced
   // save so a last-second edit isn't lost on unmount (HMR or app close).
@@ -133,6 +143,18 @@ function App() {
       const vol = usePlayerStore.getState().volume
       playbackEngine.setVolume(vol)
     })
+  }, [])
+
+  // Keyboard shortcut: Ctrl+Shift+E toggles Audio Lab.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.code === 'KeyE') {
+        e.preventDefault()
+        setAudioLabOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
   }, [])
 
   // Auto-switch to Spotify tab if connected on mount.
@@ -303,6 +325,14 @@ function App() {
             onClose={handleWarningClose}
           />
         )}
+
+        {/* Audio Lab panel */}
+        <AudioLabPanel
+          open={audioLabOpen}
+          onClose={() => setAudioLabOpen(false)}
+          lastTab={audioLabTab}
+          onTabChange={setAudioLabTab}
+        />
       </div>
     </I18nProvider>
   )

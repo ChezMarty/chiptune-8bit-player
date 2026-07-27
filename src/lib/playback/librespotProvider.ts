@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { usePlayerStore } from '../../state/usePlayerStore'
+import { dspEngine } from '../../dsp/DspEngine'
+import { computeSignalMetrics } from '../../dsp/diagnostics'
 import type {
   PlaybackProvider,
   PlaybackSource,
@@ -94,6 +96,7 @@ export class LibrespotProvider implements PlaybackProvider {
   private gainNode: GainNode | null = null
   private scheduledEndTime = 0
   private currentVolume = 0 // Set from player store during initialize()
+  private dspConnected = false
 
   // State tracking — MINIMAL, only needed to estimate position smoothly
   // between Rust state loop updates (every 250 ms). The store is the
@@ -391,7 +394,7 @@ export class LibrespotProvider implements PlaybackProvider {
         () => {
           if (this.destroyed) return
           console.log('[librespot] audio-clear event received — flushing scheduled audio')
-          this.flushAudioQueue()
+          this.flushAudioQueue('librespot-audio-clear-event')
         },
       )
     } catch (e) {
@@ -420,14 +423,47 @@ export class LibrespotProvider implements PlaybackProvider {
 
     // Initialise Web Audio API context (must be done after user gesture).
     try {
-      // Read the persisted volume from the store — never use a hardcoded
-      // default so the gainNode always starts at the user's last setting.
-      const storeVolume = usePlayerStore.getState().volume
-      this.currentVolume = Math.max(0, Math.min(1, storeVolume))
-      this.audioCtx = new AudioContext()
-      this.gainNode = this.audioCtx.createGain()
-      this.gainNode.gain.value = this.currentVolume
-      this.gainNode.connect(this.audioCtx.destination)
+      // Use the shared DSP engine's AudioContext if available.
+      if (dspEngine.initialized) {
+        this.audioCtx = dspEngine.audioCtx
+        console.log('[LIBRESPOT] Using shared DSP AudioContext. state=', this.audioCtx.state, 'sampleRate=', this.audioCtx.sampleRate)
+        console.log('[LIBRESPOT]   dspEngine.initialized=', dspEngine.initialized)
+        console.log('[LIBRESPOT]   dspEngine.chain.input=', !!dspEngine.chain.input)
+        console.log('[LIBRESPOT]   dspEngine.chain.output=', !!dspEngine.chain.output)
+        // No gainNode — volume is handled by the DSP engine's MasterVolume effect.
+        this.currentVolume = usePlayerStore.getState().volume
+        console.log('[LIBRESPOT]   currentVolume from store:', this.currentVolume)
+        this.dspConnected = true
+        console.log('[LIBRESPOT]   dspConnected = true')
+
+        console.log('[LIBRESPOT] ═══ AUDIO ROUTING VERIFICATION ═══')
+        console.log('[LIBRESPOT]   DSP engine IS initialized. Audio path:')
+        console.log('[LIBRESPOT]   AudioBufferSourceNode → DspEngine._inputNode')
+        console.log('[LIBRESPOT]   → InputProbe → PluginChain → OutputProbe')
+        console.log('[LIBRESPOT]   → AudioContext.destination')
+        console.log('[LIBRESPOT]   No fallback gainNode created.')
+        console.log('[LIBRESPOT]   ✅ All audio goes through DSP chain.')
+        console.log('[LIBRESPOT] ═══════════════════════════════════')
+      } else {
+        // Fallback: create our own AudioContext.
+        console.log('[LIBRESPOT] DSP engine not available — creating own AudioContext (fallback)')
+        const storeVolume = usePlayerStore.getState().volume
+        this.currentVolume = Math.max(0, Math.min(1, storeVolume))
+        this.audioCtx = new AudioContext()
+        console.log('[LIBRESPOT] Created own AudioContext. state=', this.audioCtx.state)
+        this.gainNode = this.audioCtx.createGain()
+        this.gainNode.gain.value = this.currentVolume
+        console.log('[LIBRESPOT] Created gainNode. gain=', this.gainNode.gain.value)
+        this.gainNode.connect(this.audioCtx.destination)
+        console.log('[LIBRESPOT] gainNode -> destination connected')
+
+        console.log('[LIBRESPOT] ═══ AUDIO ROUTING VERIFICATION ═══')
+        console.log('[LIBRESPOT]   ⚠️ DSP engine NOT available — using FALLBACK path!')
+        console.log('[LIBRESPOT]   AudioBufferSourceNode → gainNode → AudioContext.destination')
+        console.log('[LIBRESPOT]   ❌ DSP chain (EQ, Preamp, etc.) is BYPASSED!')
+        console.log('[LIBRESPOT]   ✅ Volume slider works via gainNode.gain')
+        console.log('[LIBRESPOT] ═══════════════════════════════════')
+      }
     } catch (e) {
       console.warn('[librespot] Web Audio API not available', e)
     }
@@ -435,9 +471,10 @@ export class LibrespotProvider implements PlaybackProvider {
 
   destroy(): void {
     this.destroyed = true
+    console.log('[LIBRESPOT] destroy() called. dspConnected=', this.dspConnected)
 
     // Flush any scheduled audio.
-    this.flushAudioQueue()
+    this.flushAudioQueue('destroy')
 
     // Unlisten Tauri events.
     this.unlistenState?.()
@@ -457,9 +494,14 @@ export class LibrespotProvider implements PlaybackProvider {
       this.progressInterval = null
     }
 
-    // Close audio context.
-    if (this.audioCtx && this.audioCtx.state !== 'closed') {
+    // Disconnect from DSP engine.
+    this.dspConnected = false
+    // Only close the AudioContext if we created it (not the shared DSP engine's).
+    if (this.audioCtx && this.audioCtx !== dspEngine.audioCtx && this.audioCtx.state !== 'closed') {
+      console.log('[LIBRESPOT]   Closing own AudioContext')
       this.audioCtx.close().catch(() => {})
+    } else {
+      console.log('[LIBRESPOT]   NOT closing AudioContext (shared with DSP engine)')
     }
     this.audioCtx = null
     this.gainNode = null
@@ -468,6 +510,7 @@ export class LibrespotProvider implements PlaybackProvider {
     invoke('librespot_stop').catch(() => {})
 
     this.removeAllListeners()
+    console.log('[LIBRESPOT] destroy() complete')
   }
 
   async play(resource: string): Promise<void> {
@@ -506,7 +549,7 @@ export class LibrespotProvider implements PlaybackProvider {
     //   5. Reset all state flags for the new track
     // ═══════════════════════════════════════════════════════════════
     console.log('[PLAY] Stopping current playback...')
-    this.flushAudioQueue()
+    this.flushAudioQueue('executePlay-stop-old')
     this.cleared = true
     this.scheduledEndTime = 0
     this.endOfTrackPending = false
@@ -588,7 +631,7 @@ export class LibrespotProvider implements PlaybackProvider {
     // 1. Flush ALL scheduled Web Audio sources immediately.
     //    This stops the already-scheduled AudioBufferSourceNodes from
     //    continuing to play out their buffered PCM.
-    this.flushAudioQueue()
+    this.flushAudioQueue('pause')
     // 2. Discard any incoming audio chunks still arriving from the Rust
     //    emitter (which drains the mpsc channel after the decoder pauses).
     this.cleared = true
@@ -648,7 +691,7 @@ export class LibrespotProvider implements PlaybackProvider {
     // the store while the stop command is in flight.
     this.commandGuard = 'pause'
 
-    this.flushAudioQueue()
+    this.flushAudioQueue('stop')
     this.cleared = true
     this.scheduledEndTime = 0
     this.endOfTrackPending = false
@@ -691,7 +734,7 @@ export class LibrespotProvider implements PlaybackProvider {
     // Clear the EndOfTrack tail flag if set — the seek overrides it.
     this.endOfTrackPending = false
 
-    this.flushAudioQueue()
+    this.flushAudioQueue('seek')
     this.cleared = true
     console.log('[SEEK] flushed audio queue + discarded incoming packets (cleared=true)')
 
@@ -744,9 +787,16 @@ export class LibrespotProvider implements PlaybackProvider {
 
   async setVolume(v: number): Promise<void> {
     this.currentVolume = Math.max(0, Math.min(1, v))
-    // Set local gain.
+    console.log('[LIBRESPOT] setVolume:', v, '->', this.currentVolume, 'dspConnected=', this.dspConnected, 'hasGainNode=', !!this.gainNode)
+    // Route volume through DSP engine if connected.
+    if (this.dspConnected && dspEngine.initialized) {
+      dspEngine.setMasterVolume(this.currentVolume)
+      console.log('[LIBRESPOT]   Volume routed through DSP MasterVolume:', this.currentVolume)
+    }
+    // Set local gain (for fallback mode).
     if (this.gainNode) {
       this.gainNode.gain.value = this.currentVolume
+      console.log('[LIBRESPOT]   Volume set on local gainNode:', this.currentVolume)
     }
 
     // Sync to Rust backend.
@@ -930,20 +980,45 @@ export class LibrespotProvider implements PlaybackProvider {
   }
 
   /** Flush the Web Audio scheduled queue — stop all active sources immediately. */
-  private flushAudioQueue(): void {
+  private flushAudioQueue(caller?: string): void {
+    const stack = new Error().stack?.split('\n').slice(2, 6).join(' → ') ?? '?'
+    console.log('[LIBRESPOT] ═══ flushAudioQueue() CALLED ═══ caller=' + (caller ?? '?') + ' stack=' + stack)
+    console.log('[LIBRESPOT]   activeSources before flush:', this.activeSources.length)
+
     // Stop all active BufferSource nodes.
-    const sources = this.activeSources
+    const sources = [...this.activeSources]
     this.activeSources = []
     for (const src of sources) {
       try {
+        console.log('[LIBRESPOT]   Stopping source:', (src.buffer?.duration?.toFixed(3) ?? '?') + 's')
         src.stop()
-      } catch {
-        // Source may have already stopped — ignore.
+        console.log('[LIBRESPOT]   ✅ Source stopped')
+      } catch (err) {
+        console.log('[LIBRESPOT]   Source stop threw (likely already stopped):', err)
       }
     }
     // Reset scheduling so new buffers start immediately instead of queuing.
     this.scheduledEndTime = 0
-    console.log(`[librespot] Flushed ${sources.length} active audio sources`)
+    console.log('[LIBRESPOT] ═══ flushAudioQueue() COMPLETE: flushed ' + sources.length + ' sources, scheduledEndTime reset to 0')
+  }
+
+  /** Log the current DSP graph state for diagnostic purposes. */
+  private _logDspGraphState(context: string, sourceId: string, connectionTarget: string): void {
+    const ctxState = this.audioCtx?.state ?? 'null'
+    console.log('[DSP-GRAPH] ═══ DSP Graph State [' + context + '] ═══')
+    console.log('[DSP-GRAPH]   AudioContext state:', ctxState)
+    console.log('[DSP-GRAPH]   Source:', sourceId, '→', connectionTarget)
+    console.log('[DSP-GRAPH]   activeSources:', this.activeSources.length)
+    console.log('[DSP-GRAPH]   dspConnected:', this.dspConnected)
+    console.log('[DSP-GRAPH]   dspEngine.initialized:', dspEngine.initialized)
+    console.log('[DSP-GRAPH]   dspEngine._inputNode:', !!dspEngine['_inputNode'])
+    console.log('[DSP-GRAPH]   dspEngine.chain.input:', !!dspEngine.chain.input)
+    console.log('[DSP-GRAPH]   dspEngine.chain.output:', !!dspEngine.chain.output)
+    console.log('[DSP-GRAPH]   audioCtx:', !!this.audioCtx)
+    console.log('[DSP-GRAPH]   gainNode:', !!this.gainNode)
+    console.log('[DSP-GRAPH]   scheduledEndTime:', this.scheduledEndTime.toFixed(3))
+    console.log('[DSP-GRAPH]   cleared:', this.cleared)
+    console.log('[DSP-GRAPH] ════════════════════════════════════')
   }
 
   /**
@@ -994,17 +1069,37 @@ export class LibrespotProvider implements PlaybackProvider {
   }
 
   /** Handle incoming PCM audio data from the Rust backend. */
+  private _chunkCounter = 0
   private handleAudioChunk(payload: AudioChunkPayload): void {
-    if (!this.audioCtx || !this.gainNode) return
+    if (!this.audioCtx) {
+      console.warn('[LIBRESPOT-CHUNK] ❌ audioCtx is null — DISCARDING chunk')
+      return
+    }
+
+    this._chunkCounter++
+    const chunkNum = this._chunkCounter
 
     // After stop/clear, discard any stale audio data still arriving via
     // the emitter (which drains remaining mpsc packets after stop).
-    if (this.cleared) return
+    if (this.cleared) {
+      console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' DISCARDED (cleared=true)')
+      return
+    }
+
+    console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' ARRIVED. sample_rate=' + payload.sample_rate + ' channels=' + payload.channels + ' samples_len=' + payload.samples.length + ' activeSources=' + this.activeSources.length + ' scheduledEndTime=' + this.scheduledEndTime.toFixed(3) + ' dspConnected=' + this.dspConnected)
 
     try {
       // Decode base64 → raw f32 bytes → Float32Array.
       const samples = base64ToFloat32(payload.samples)
-      if (samples.length === 0) return
+      if (samples.length === 0) {
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' SKIPPED (zero samples after decode)')
+        return
+      }
+
+      // ── Signal measurement at decoded PCM ───────────────────────
+      // Measure all channels interleaved as a single multi-channel signal.
+      const pcmMetrics = computeSignalMetrics(samples)
+      console.log('[DSP-SIGNAL] decoded PCM #' + chunkNum + ': RMS=' + pcmMetrics.rms.toFixed(5) + ' Peak=' + pcmMetrics.peak.toFixed(5) + ' Silent=' + pcmMetrics.silent + ' Frames=' + pcmMetrics.frames + ' sample_rate=' + payload.sample_rate + ' channels=' + payload.channels)
 
       // Emit raw PCM data for visualizers before scheduling playback.
       if (this.audioDataCbs.length > 0) {
@@ -1036,29 +1131,112 @@ export class LibrespotProvider implements PlaybackProvider {
       // Schedule the buffer for gap-less playback.
       const source = this.audioCtx.createBufferSource()
       source.buffer = buffer
-      source.connect(this.gainNode)
+      const sourceId = 'src-' + chunkNum
+
+      console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') CREATED. buffer.duration=' + (source.buffer?.duration.toFixed(4) ?? '?') + 's buffer.length=' + (source.buffer?.length ?? '?') + ' sample_rate=' + payload.sample_rate + ' channels=' + payload.channels)
+
+      // Connect to DSP engine if available, otherwise to gain node or destination.
+      let connectionTarget = '?'
+      if (this.dspConnected && dspEngine.initialized) {
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') connecting to DSP engine input (DspEngine._inputNode)')
+        console.log('[LIBRESPOT-CHUNK]   Target path: DSP.input → InputProbe → PluginChain → OutputProbe → destination')
+
+        // IMPORTANT: Do NOT disconnect the previous source. In a streaming model,
+        // each AudioBufferSourceNode is created, connected, and started.
+        // Multiple sources can be connected to the same destination simultaneously
+        // — they all sum together. Old sources finish naturally when their buffer ends
+        // and are cleaned up via the onended callback.
+        //
+        // Calling this.sourceDisconnect?.() here would CUT OFF the previous source
+        // mid-buffer, causing the fraction-of-a-second audio burst bug!
+        try {
+          dspEngine.connectSource(source)
+          console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ✅ connected to DSP engine input')
+          connectionTarget = 'DSP-input'
+        } catch (err) {
+          console.error('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ❌ FAILED to connect to DSP:', err)
+          connectionTarget = 'ERROR'
+        }
+      } else if (this.gainNode) {
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ⚠️ FALLBACK PATH: connecting to local gainNode (BYASSES DSP chain)')
+        console.log('[LIBRESPOT-CHUNK]   Target path: gainNode → AudioContext.destination')
+        console.log('[LIBRESPOT-CHUNK]   ❌ EQ, Preamp, BassBoost, MasterVolume have NO effect!')
+        source.connect(this.gainNode)
+        connectionTarget = 'local-gainNode'
+      } else {
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ⚠️ RAW PATH: connecting directly to AudioContext.destination (no DSP, no gainNode)')
+        console.log('[LIBRESPOT-CHUNK]   Target path: source → AudioContext.destination (DIRECT)')
+        console.log('[LIBRESPOT-CHUNK]   ❌ NO audio processing at all!')
+        source.connect(this.audioCtx.destination)
+        connectionTarget = 'raw-destination'
+      }
 
       // Track this source so stop() can immediately terminate it.
       this.activeSources.push(source)
       source.onended = () => {
-        // Remove from active list when it naturally finishes.
+        // Log the exact AudioContext.currentTime when onended fired
+        const ctxTimeAtEnd = this.audioCtx?.currentTime?.toFixed(3) ?? '?'
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ⏹️ onended FIRED at ctxTime=' + ctxTimeAtEnd + 's. Removing from activeSources (current count: ' + this.activeSources.length + ')')
         const idx = this.activeSources.indexOf(source)
-        if (idx >= 0) this.activeSources.splice(idx, 1)
+        if (idx >= 0) {
+          this.activeSources.splice(idx, 1)
+          console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') Removed. Remaining active:', this.activeSources.length)
+        } else {
+          console.warn('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') onended but source NOT FOUND in activeSources!')
+        }
       }
 
       const now = this.audioCtx.currentTime
       const duration = frameCount / payload.sample_rate
+      let startTime: number
+      let scheduleMode: string
 
       if (this.scheduledEndTime <= now) {
-        source.start(now)
+        startTime = now
+        scheduleMode = 'immediate'
+      } else {
+        startTime = this.scheduledEndTime
+        scheduleMode = 'scheduled'
+      }
+
+      console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ▶️ STARTING. mode=' + scheduleMode + ' ctxTime=' + now.toFixed(3) + ' startTime=' + startTime.toFixed(3) + ' duration=' + duration.toFixed(3) + 's expectedEnd=' + (startTime + duration).toFixed(3) + 's oldScheduledEnd=' + this.scheduledEndTime.toFixed(3))
+
+      try {
+        source.start(startTime)
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ✅ source.start() succeeded')
+      } catch (err) {
+        console.error('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ❌ source.start() FAILED:', err)
+      }
+
+      if (scheduleMode === 'immediate') {
         this.scheduledEndTime = now + duration
       } else {
-        source.start(this.scheduledEndTime)
         this.scheduledEndTime += duration
       }
+      console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') new scheduledEndTime=' + this.scheduledEndTime.toFixed(3))
+
+      // ── Scheduling overlap check ─────────────────────────────────
+      const expectedEnd = startTime + duration
+      const otherSourcesCount = this.activeSources.length - 1  // Subtract the source we just pushed
+      const hasOtherSources = otherSourcesCount > 0
+      if (scheduleMode === 'scheduled' && hasOtherSources) {
+        // prevStartTime was the startTime of the PREVIOUS chunk (before the update)
+        // We stored oldScheduledEnd at the top — but we need the previous source's end
+        // prevEnd = startTime (which equals old scheduledEndTime for scheduled mode)
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ✅ Seamless scheduling: thisStart=' + startTime.toFixed(4) + 's = prevScheduledEnd, gap=0.0s')
+      } else if (scheduleMode === 'immediate' && hasOtherSources) {
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') ⚠️ OVERLAP: scheduling immediate while ' + otherSourcesCount + ' other active source(s) still playing')
+      } else {
+        console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') First source' + (hasOtherSources ? ' (with ' + otherSourcesCount + ' others)' : '') + ', no overlap check needed')
+      }
+      console.log('[LIBRESPOT-CHUNK] #' + chunkNum + ' (' + sourceId + ') otherActiveSources=' + otherSourcesCount + ' ctxTime=' + now.toFixed(4) + 's expectedEnd=' + expectedEnd.toFixed(4) + 's nextChunkStart=' + this.scheduledEndTime.toFixed(4) + 's')
+
+      // Log total DSP graph state after this chunk.
+      this._logDspGraphState('after-chunk-' + chunkNum, sourceId, connectionTarget)
+
     } catch (e) {
       // Silently ignore parse/playback errors for individual chunks.
-      console.warn('[librespot] Audio chunk error:', e)
+      console.warn('[LIBRESPOT-CHUNK] #' + chunkNum + ' ❌ ERROR in handleAudioChunk:', e)
     }
   }
 }

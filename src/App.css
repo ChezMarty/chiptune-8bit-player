@@ -1,3 +1,5 @@
+@import './styles/audio-lab.css';
+
 /* =========================================================
  * App layout — titlebar (custom, see styles/titlebar.css) +
  * sidebar (library) + main column (player + transport).
