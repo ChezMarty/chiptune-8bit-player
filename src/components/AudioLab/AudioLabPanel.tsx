@@ -67,6 +67,11 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
     setRefreshKey((k) => k + 1)
   }, [])
 
+  const handleResetAll = useCallback(() => {
+    dspEngine.resetAllEffects()
+    setRefreshKey((k) => k + 1)
+  }, [])
+
   return (
     <>
       {/* Overlay backdrop */}
@@ -151,6 +156,15 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
                 className="audio-lab__master-volume-slider"
               />
             </div>
+            <button
+              className="pixel-button"
+              onClick={handleResetAll}
+              aria-label="Reset all effects"
+              title="Reset all effects to defaults"
+              style={{ fontFamily: 'var(--font-pixel, monospace)', fontSize: '12px' }}
+            >
+              ↺ ALL
+            </button>
             <button
               className="pixel-button"
               onClick={onClose}

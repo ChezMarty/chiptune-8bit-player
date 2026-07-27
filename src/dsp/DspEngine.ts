@@ -437,6 +437,15 @@ class DspEngineSingleton {
     return this._activePresetName
   }
 
+  /** Reset every DSP effect to its default values. */
+  resetAllEffects(): void {
+    for (const effect of this._effects) {
+      effect.reset()
+    }
+    this._activePresetName = null
+    this._applyVersion++
+  }
+
   // ── Stub methods for future use ────────────────────────────
 
   setQualityPreset(_preset: QualityPreset): void {
