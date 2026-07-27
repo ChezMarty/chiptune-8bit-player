@@ -13,6 +13,12 @@ import type { AudioEffect } from './AudioEffect'
 import type { QualityPreset, Preset } from './types'
 
 /**
+ * Set to true to enable verbose DSP debug logging (wiring, probes, diagnostics).
+ * Can be toggled at runtime from the console: `DSP_DEBUG = true`
+ */
+export let DSP_DEBUG = false
+
+/**
  * DspEngine — the top-level singleton that:
  *
  * 1. Owns the shared AudioContext used by all playback providers
@@ -131,141 +137,87 @@ class DspEngineSingleton {
 
     // Create the shared AudioContext.
     this._ctx = new AudioContext()
-    console.log('[DSP] AudioContext created. state=', this._ctx.state, 'sampleRate=', this._ctx.sampleRate, 'baseLatency=', this._ctx.baseLatency)
+    console.log('[DSP] AudioContext created — sampleRate:', this._ctx.sampleRate)
 
-    // Monitor AudioContext state changes.
+    // Monitor AudioContext state changes (always visible).
     this._ctx.onstatechange = () => {
       if (!this._ctx) return
-      console.log('[DSP-CTX] AudioContext state:', this._ctx.state)
+      console.log('[DSP] AudioContext state:', this._ctx.state)
     }
 
     // Create input gain node (sources connect here).
     this._inputNode = this._ctx.createGain()
     this._inputNode.gain.value = 1.0
-    console.log('[DSP] _inputNode created. gain=', this._inputNode.gain.value)
 
-    // ── Create Preamp effect (input gain stage) ────────────────────
+    // ── Create effects in processing order ────────────────────────
     this._preampEffect = new Preamp()
     this._preampEffect.initialize(this._ctx)
-    // Default is 0 dB (linear gain = 1.0, unity), so no behavioral change.
-    console.log('[DSP] Preamp effect created. gain=0 dB (unity)')
     this._effects.push(this._preampEffect)
 
-    // ── Create Equalizer (flat, transparent) ───────────────────────
     this._equalizerEffect = new Equalizer10Band()
     this._equalizerEffect.initialize(this._ctx)
-    // All 10 bands at 0 dB by default — completely transparent.
-    console.log('[DSP] Equalizer effect created. all bands at 0 dB (flat)')
     this._effects.push(this._equalizerEffect)
 
-    // ── Create Bass Boost (default 0 dB, transparent) ──────────────
     this._bassBoostEffect = new BassBoost()
     this._bassBoostEffect.initialize(this._ctx)
-    // Default gain is 0 dB — lowshelf at 120 Hz, completely transparent.
-    console.log('[DSP] BassBoost effect created. gain=0 dB (transparent), cutoff=120 Hz')
     this._effects.push(this._bassBoostEffect)
 
-    // ── Create Treble Boost (default 0 dB, transparent at ~4 kHz) ──
     this._trebleBoostEffect = new TrebleBoost()
     this._trebleBoostEffect.initialize(this._ctx)
-    // Default gain is 0 dB — highshelf at 4 kHz, completely transparent.
-    console.log('[DSP] TrebleBoost effect created. gain=0 dB (transparent), cutoff=4 kHz')
     this._effects.push(this._trebleBoostEffect)
 
-    // ── Create Balance (StereoPannerNode, default center) ───────
     this._balanceEffect = new Balance()
     this._balanceEffect.initialize(this._ctx)
-    // Default pan is 0 (center) — completely transparent.
-    console.log('[DSP] Balance effect created. pan=0 (center)')
     this._effects.push(this._balanceEffect)
 
-    // ── Create Stereo Width (mid/side, default 100%) ────────────
     this._stereoWidthEffect = new StereoWidth()
     this._stereoWidthEffect.initialize(this._ctx)
-    // Default width is 1.0 (100%) — completely transparent (original stereo).
-    console.log('[DSP] StereoWidth effect created. width=100% (original stereo)')
     this._effects.push(this._stereoWidthEffect)
 
-    // ── Create dedicated MasterVolume effect ──────────────────────
     this._masterVolumeEffect = new MasterVolume()
     this._masterVolumeEffect.initialize(this._ctx)
-    this._masterVolumeEffect.setParameter('volume', this._masterVolume)
-    console.log('[DSP] MasterVolume effect created. volume=', this._masterVolume)
+    this._masterVolumeEffect.setParameter('volume', this._masterVolume * 100)
     this._effects.push(this._masterVolumeEffect)
 
     // Wire: _inputNode → Preamp → Equalizer → BassBoost → TrebleBoost → Balance → StereoWidth → MasterVolume → destination
     this._inputNode.connect(this._preampEffect.input)
-    console.log('[DSP] _inputNode -> Preamp.input connected')
     this._preampEffect.output.connect(this._equalizerEffect.input)
-    console.log('[DSP] Preamp.output -> Equalizer.input connected')
     this._equalizerEffect.output.connect(this._bassBoostEffect.input)
-    console.log('[DSP] Equalizer.output -> BassBoost.input connected')
     this._bassBoostEffect.output.connect(this._trebleBoostEffect.input)
-    console.log('[DSP] BassBoost.output -> TrebleBoost.input connected')
     this._trebleBoostEffect.output.connect(this._balanceEffect.input)
-    console.log('[DSP] TrebleBoost.output -> Balance.input connected')
     this._balanceEffect.output.connect(this._stereoWidthEffect.input)
-    console.log('[DSP] Balance.output -> StereoWidth.input connected')
     this._stereoWidthEffect.output.connect(this._masterVolumeEffect.input)
-    console.log('[DSP] StereoWidth.output -> MasterVolume.input connected')
     this._masterVolumeEffect.output.connect(this._ctx.destination)
-    console.log('[DSP] MasterVolume.output -> AudioContext.destination connected')
 
-    // ── 🔬 Create analyser probes ─────────────────────────────────
-    this._inputProbe = this._ctx.createAnalyser()
-    this._inputProbe.fftSize = 2048
-    this._outputProbe = this._ctx.createAnalyser()
-    this._outputProbe.fftSize = 2048
+    if (DSP_DEBUG) {
+      console.log('[DSP] Audio graph wired: _inputNode → Preamp → Equalizer → BassBoost → TrebleBoost → Balance → StereoWidth → MasterVolume → destination')
+    }
 
-    // Wire probes in parallel (snoop signal, don't affect main path).
-    //   _inputNode →+→ MasterVolume →+→ _outputProbe →+→ destination
-    //                |                 |
-    //                +→ _inputProbe    +→ (snoops only)
-    this._inputNode.connect(this._inputProbe)
-    console.log('[DSP] 🔬 _inputNode -> _inputProbe connected (parallel snoop)')
-    this._masterVolumeEffect.output.connect(this._outputProbe)
-    console.log('[DSP] 🔬 MasterVolume.output -> _outputProbe connected (parallel snoop)')
+    // ── Create analyser probes (debug only) ─────────────────────
+    if (DSP_DEBUG) {
+      this._inputProbe = this._ctx.createAnalyser()
+      this._inputProbe.fftSize = 2048
+      this._outputProbe = this._ctx.createAnalyser()
+      this._outputProbe.fftSize = 2048
+      this._inputNode.connect(this._inputProbe)
+      this._masterVolumeEffect.output.connect(this._outputProbe)
+      this._startProbeLogging()
+      console.log('[DSP] 🔬 Analyser probes active (DSP_DEBUG mode)')
+    }
 
-    // Start probe logging interval (500ms polling).
-    this._startProbeLogging()
-
-    // Initialize stub chain (NOT connected to audio path).
+    // Initialize stub services for UI compatibility.
     this._chain.initialize(this._ctx)
-    console.log('[DSP] Stub PluginChain initialized (NOT connected to audio)')
-
-    // Initialize stub analyzer (NOT connected to any audio node).
-    // Pass a dummy AnalyserNode to avoid crashes — it won't produce data.
     const dummyAnalyser = this._ctx.createAnalyser()
     this._analyzer.initialize(this._ctx, dummyAnalyser)
-    console.log('[DSP] Stub AnalyzerService initialized (dummy analyser, no data)')
-
-    // Load presets.
     await this._presets.loadPresets()
 
     this._initialized = true
 
-    // Routing summary.
-    const mvGain = (this._masterVolumeEffect as any)?._gainNode?.gain?.value ?? '?'
-    console.log('[DSP] ═══════════════════════════════════════════')
-    console.log('[DSP] DSP Engine initialized — Phase 7 (Preamp + Equalizer + BassBoost + TrebleBoost + Balance + StereoWidth + MasterVolume):')
-    console.log('[DSP]   Source')
-    console.log('[DSP]   → _inputNode (gain:', this._inputNode.gain.value, ')')
-    console.log('[DSP]   → [Preamp] (0 dB unity)')
-    console.log('[DSP]   → [Equalizer 10-band] (all bands 0 dB flat)')
-    console.log('[DSP]   → [BassBoost] (lowshelf, 0 dB transparent, 120 Hz cutoff)')
-    console.log('[DSP]   → [TrebleBoost] (highshelf, 0 dB transparent, 4 kHz cutoff)')
-    console.log('[DSP]   → [Balance] (StereoPannerNode, center)')
-    console.log('[DSP]   → [StereoWidth] (mid/side, 100% original stereo)')
-    console.log('[DSP]   → [MasterVolume class] _gainNode.gain:', mvGain)
-    console.log('[DSP]   → AudioContext.destination')
-    console.log('[DSP]   🔬 _inputProbe fftSize:', this._inputProbe?.fftSize, '— snooping post-_inputNode')
-    console.log('[DSP]   🔬 _outputProbe fftSize:', this._outputProbe?.fftSize, '— snooping pre-destination')
-    console.log('[DSP]   🔬 Probe logging every 500ms (filter [PROBE])')
-    console.log('[DSP]   ⚠️  PluginChain is DISCONNECTED from audio path')
-    console.log('[DSP]   ⚠️  AnalyzerService has dummy analyser — no signal data')
-    console.log('[DSP]   AudioContext state:', this._ctx.state)
-    console.log('[DSP]   AudioContext sampleRate:', this._ctx.sampleRate)
-    console.log('[DSP] ═══════════════════════════════════════════')
+    if (DSP_DEBUG) {
+      console.log('[DSP] DSP Engine initialized — Phase 7 (Preamp + Equalizer + BassBoost + TrebleBoost + Balance + StereoWidth + MasterVolume → destination)')
+    } else {
+      console.log('[DSP] DSP Engine initialized —', this._effects.length, 'effects in chain')
+    }
 
     // Resume AudioContext on first user gesture.
     const resumeOnInteraction = () => {
@@ -309,7 +261,7 @@ class DspEngineSingleton {
     this._masterVolumeEffect = null
     this._effects = []
     this._chain.destroy()
-    logDisconnect('GainNode(_inputNode)', 'DspEngine.destroy')
+    if (DSP_DEBUG) logDisconnect('GainNode(_inputNode)', 'DspEngine.destroy')
     this._inputNode?.disconnect()
     this._inputNode = null
     if (this._ctx && this._ctx.state !== 'closed') {
@@ -317,7 +269,6 @@ class DspEngineSingleton {
     }
     this._ctx = null
     this._initialized = false
-    console.log('[DSP] Engine destroyed')
   }
 
   /** Get the input AudioNode for playback providers to connect to. */
@@ -339,18 +290,18 @@ class DspEngineSingleton {
     if (!this._inputNode) {
       throw new Error('DspEngine not initialized')
     }
-    console.log('[DSP] connectSource called. source node type:', source.constructor.name, 'inputNode.gain:', this._inputNode.gain.value)
+    if (DSP_DEBUG) {
+      console.log('[DSP] connectSource —', source.constructor.name)
+    }
     try {
       source.connect(this._inputNode)
-      console.log('[DSP] Source connected to _inputNode successfully')
     } catch (err) {
-      console.error('[DSP] FAILED to connect source to _inputNode:', err)
+      console.error('[DSP] FAILED to connect source:', err)
     }
     return () => {
-      logDisconnect(source.constructor.name, 'DspEngine.connectSource(returned disconnect)')
+      if (DSP_DEBUG) logDisconnect(source.constructor.name, 'connectSource')
       try {
         source.disconnect(this._inputNode!)
-        console.log('[DSP] Source disconnected from _inputNode')
       } catch (err) {
         console.warn('[DSP] Error disconnecting source:', err)
       }
@@ -360,12 +311,11 @@ class DspEngineSingleton {
   /** Set master volume (0..1). Delegates to MasterVolume effect. */
   setMasterVolume(v: number): void {
     this._masterVolume = Math.max(0, Math.min(1, v))
-    console.log('[DSP] setMasterVolume(', v, ') — clamped to', this._masterVolume)
+    if (DSP_DEBUG) {
+      console.log('[DSP] setMasterVolume →', this._masterVolume)
+    }
     if (this._masterVolumeEffect) {
-      this._masterVolumeEffect.setParameter('volume', this._masterVolume)
-      console.log('[DSP]   MasterVolume effect updated. volume=', this._masterVolume)
-    } else {
-      console.warn('[DSP]   MasterVolume effect NOT initialized yet!')
+      this._masterVolumeEffect.setParameter('volume', this._masterVolume * 100)
     }
   }
 
@@ -388,7 +338,6 @@ class DspEngineSingleton {
         return
       }
 
-      // Compute RMS and peak from byte data (128 = zero).
       let inputSumSq = 0, outputSumSq = 0
       let inputPeak = 0, outputPeak = 0
       for (let i = 0; i < fftSize; i++) {
@@ -407,21 +356,10 @@ class DspEngineSingleton {
       const inputSilent = inputRms < 0.5
       const outputSilent = outputRms < 0.5
 
-      console.log(
-        '[PROBE] InputRMS=' + inputRms.toFixed(2) +
-        ' OutputRMS=' + outputRms.toFixed(2) +
-        ' InputPeak=' + inputPeak +
-        ' OutputPeak=' + outputPeak +
-        ' InputSilent=' + inputSilent +
-        ' OutputSilent=' + outputSilent
-      )
-
       if (!inputSilent && outputSilent) {
         console.warn('[PROBE] ⚠️  SIGNAL LOST IN DSP GRAPH! Input has signal, output is silent.')
-      } else if (inputSilent && !outputSilent) {
-        console.warn('[PROBE] ⚠️  REVERSE: Output has signal but input is silent (unexpected).')
       }
-    }, 500)
+    }, 1000)
   }
 
   /** Stop probe logging interval. */

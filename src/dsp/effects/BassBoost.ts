@@ -4,7 +4,7 @@ import type { EffectCategory, EffectParameter } from '../types'
 /**
  * Bass Boost — low-end enhancement.
  * Uses a lowshelf filter to boost frequencies below a cutoff.
- * Default: +4 dB boost at 100 Hz.
+ * Default: 0 dB (transparent) at 120 Hz cutoff.
  */
 export class BassBoost implements AudioEffect {
   readonly id = 'bass-boost'

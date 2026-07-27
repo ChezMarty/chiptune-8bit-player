@@ -4,7 +4,7 @@ import type { EffectCategory, EffectParameter } from '../types'
 /**
  * Treble Boost — high-end enhancement.
  * Uses a highshelf filter to boost frequencies above a cutoff.
- * Default: +4 dB boost at 8 kHz.
+ * Default: 0 dB (transparent) at 4 kHz cutoff.
  */
 export class TrebleBoost implements AudioEffect {
   readonly id = 'treble-boost'

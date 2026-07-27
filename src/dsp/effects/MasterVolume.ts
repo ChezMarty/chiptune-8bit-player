@@ -4,7 +4,7 @@ import type { EffectCategory, EffectParameter } from '../types'
 /**
  * Master Volume — final output gain stage.
  * Always the last effect in the chain.
- * Range: 0..1 (linear), with display as 0..100%.
+ * Range: 0..100% (linear gain 0..1 internally).
  */
 export class MasterVolume implements AudioEffect {
   readonly id = 'master-volume'
@@ -16,7 +16,7 @@ export class MasterVolume implements AudioEffect {
   private _gainNode: GainNode | null = null
   private _outputNode: GainNode | null = null
 
-  private _volume = 0.7 // 0..1
+  private _volume = 0.7 // 0..1 internal (linear gain)
 
   enabled = true
   bypassed = false
@@ -42,8 +42,6 @@ export class MasterVolume implements AudioEffect {
 
     this._inputNode.connect(this._gainNode)
     this._gainNode.connect(this._outputNode)
-
-    console.log('[MV] 🏁 initialize() — GainNode CREATED. _gainNode.gain.value=' + this._gainNode.gain.value + ' _volume=' + this._volume + ' _gainNode exists=' + (this._gainNode !== null) + ' instance=', this)
   }
 
   destroy(): void {
@@ -61,11 +59,11 @@ export class MasterVolume implements AudioEffect {
         id: 'volume',
         name: 'Volume',
         type: 'float',
-        defaultValue: 0.7,
-        value: this._volume,
+        defaultValue: 70,
+        value: Math.round(this._volume * 100),
         min: 0,
-        max: 1,
-        step: 0.01,
+        max: 100,
+        step: 1,
         unit: '%',
       },
     ]
@@ -73,17 +71,9 @@ export class MasterVolume implements AudioEffect {
 
   setParameter(id: string, value: number | boolean | string): void {
     if (id === 'volume') {
-      const beforeGain = this._gainNode?.gain?.value ?? 'N/A (null)'
-      this._volume = Math.max(0, Math.min(1, Number(value)))
-      console.log('[MV] setParameter(volume,', value, ') — ' +
-        '_gainNode exists=' + (this._gainNode !== null) + ' ' +
-        '_gainNode.gain.value BEFORE=' + beforeGain + ' ' +
-        '_volume AFTER=' + this._volume)
+      this._volume = Math.max(0, Math.min(1, Number(value) / 100))
       if (this._gainNode) {
         this._gainNode.gain.value = this._volume
-        console.log('[MV]   → _gainNode.gain.value SET TO', this._gainNode.gain.value, '(expected:', this._volume, ') — MATCH:', this._gainNode.gain.value === this._volume)
-      } else {
-        console.warn('[MV] ⚠️  _gainNode is NULL — volume stored in _volume but NOT applied to audio graph!')
       }
     }
   }
@@ -92,9 +82,6 @@ export class MasterVolume implements AudioEffect {
     this._volume = 0.7
     if (this._gainNode) {
       this._gainNode.gain.value = 0.7
-      console.log('[MV] reset() — _gainNode.gain.value set to', this._gainNode.gain.value)
-    } else {
-      console.warn('[MV] reset() — _gainNode is NULL!')
     }
   }
 }
