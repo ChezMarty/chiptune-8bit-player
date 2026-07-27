@@ -17,7 +17,7 @@ export class TrebleBoost implements AudioEffect {
   private _outputNode: GainNode | null = null
 
   private _gainDb = 0 // 0..12 dB
-  private _frequency = 8000 // 2000..20000 Hz
+  private _frequency = 4000 // 2000..20000 Hz (default ~4 kHz)
 
   enabled = true
   bypassed = false
@@ -72,12 +72,12 @@ export class TrebleBoost implements AudioEffect {
         id: 'frequency',
         name: 'Cutoff',
         type: 'float',
-        defaultValue: 8000,
-        value: this._frequency,
-        min: 2000,
-        max: 20000,
-        step: 500,
-        unit: 'Hz',
+        defaultValue: 4.0,
+        value: this._frequency / 1000,
+        min: 2.0,
+        max: 20.0,
+        step: 0.5,
+        unit: 'kHz',
       },
     ]
   }
@@ -89,7 +89,7 @@ export class TrebleBoost implements AudioEffect {
         this._applyParams()
         break
       case 'frequency':
-        this._frequency = Math.max(2000, Math.min(20000, Number(value)))
+        this._frequency = Math.max(2000, Math.min(20000, Number(value) * 1000))
         this._applyParams()
         break
     }
@@ -97,7 +97,7 @@ export class TrebleBoost implements AudioEffect {
 
   reset(): void {
     this._gainDb = 0
-    this._frequency = 8000
+    this._frequency = 4000
     this._applyParams()
   }
 
