@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const SCREENSHOTS_DIR = join(__dirname, '..', 'screenshots')
-const APP_URL = 'http://localhost:1422'
+const APP_URL = 'http://localhost:1420'
 
 // v0.3.0 default window size
 const VIEWPORT = { width: 1833, height: 980 }
