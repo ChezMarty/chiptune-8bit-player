@@ -4,6 +4,7 @@ import { Preamp } from './effects/Preamp'
 import { Equalizer10Band } from './effects/Equalizer10Band'
 import { BassBoost } from './effects/BassBoost'
 import { TrebleBoost } from './effects/TrebleBoost'
+import { Balance } from './effects/Balance'
 import { AnalyzerService } from './analyzers/AnalyzerService'
 import { PresetManager } from './presets/PresetManager'
 import { logDisconnect } from './diagnostics'
@@ -17,20 +18,20 @@ import type { QualityPreset, Preset } from './types'
  * 2. Provides an input node for audio sources to connect to
  * 3. Provides a master volume GainNode
  *
- * ── Phase 5 topology (TrebleBoost inserted between BassBoost and MasterVolume) ──
+ * ── Phase 6 topology (Balance inserted between TrebleBoost and MasterVolume) ──
  *
  *   Source → DspEngine._inputNode
  *   → Preamp class
  *   → Equalizer class (10 bands, all 0 dB flat)
  *   → BassBoost class (lowshelf filter, default 0 dB transparent)
  *   → TrebleBoost class (highshelf filter, default 0 dB transparent)
+ *   → Balance class (StereoPannerNode, default center)
  *   → MasterVolume class
  *   → AudioContext.destination
  *
  * The PluginChain, AnalyzerService, and PresetManager exist as stubs for
  * UI compatibility but are NOT connected to the audio path.
  * They will be wired in incrementally:
- *   6. + Balance
  *   7. + StereoWidth
  */
 class DspEngineSingleton {
@@ -47,6 +48,8 @@ class DspEngineSingleton {
   private _bassBoostEffect: BassBoost | null = null
   /** Treble Boost — highshelf filter boosting frequencies above ~4 kHz. Default 0 dB (transparent). */
   private _trebleBoostEffect: TrebleBoost | null = null
+  /** Balance — StereoPannerNode for left/right pan. Default center (0). */
+  private _balanceEffect: Balance | null = null
   /** Dedicated MasterVolume effect (AudioEffect interface, post-chain stage). */
   private _masterVolumeEffect: MasterVolume | null = null
   /** Ordered list of effects — single source of truth for the UI. */
@@ -164,6 +167,13 @@ class DspEngineSingleton {
     console.log('[DSP] TrebleBoost effect created. gain=0 dB (transparent), cutoff=4 kHz')
     this._effects.push(this._trebleBoostEffect)
 
+    // ── Create Balance (StereoPannerNode, default center) ───────
+    this._balanceEffect = new Balance()
+    this._balanceEffect.initialize(this._ctx)
+    // Default pan is 0 (center) — completely transparent.
+    console.log('[DSP] Balance effect created. pan=0 (center)')
+    this._effects.push(this._balanceEffect)
+
     // ── Create dedicated MasterVolume effect ──────────────────────
     this._masterVolumeEffect = new MasterVolume()
     this._masterVolumeEffect.initialize(this._ctx)
@@ -171,7 +181,7 @@ class DspEngineSingleton {
     console.log('[DSP] MasterVolume effect created. volume=', this._masterVolume)
     this._effects.push(this._masterVolumeEffect)
 
-    // Wire: _inputNode → Preamp → Equalizer → BassBoost → TrebleBoost → MasterVolume → destination
+    // Wire: _inputNode → Preamp → Equalizer → BassBoost → TrebleBoost → Balance → MasterVolume → destination
     this._inputNode.connect(this._preampEffect.input)
     console.log('[DSP] _inputNode -> Preamp.input connected')
     this._preampEffect.output.connect(this._equalizerEffect.input)
@@ -180,8 +190,10 @@ class DspEngineSingleton {
     console.log('[DSP] Equalizer.output -> BassBoost.input connected')
     this._bassBoostEffect.output.connect(this._trebleBoostEffect.input)
     console.log('[DSP] BassBoost.output -> TrebleBoost.input connected')
-    this._trebleBoostEffect.output.connect(this._masterVolumeEffect.input)
-    console.log('[DSP] TrebleBoost.output -> MasterVolume.input connected')
+    this._trebleBoostEffect.output.connect(this._balanceEffect.input)
+    console.log('[DSP] TrebleBoost.output -> Balance.input connected')
+    this._balanceEffect.output.connect(this._masterVolumeEffect.input)
+    console.log('[DSP] Balance.output -> MasterVolume.input connected')
     this._masterVolumeEffect.output.connect(this._ctx.destination)
     console.log('[DSP] MasterVolume.output -> AudioContext.destination connected')
 
@@ -221,13 +233,14 @@ class DspEngineSingleton {
     // Routing summary.
     const mvGain = (this._masterVolumeEffect as any)?._gainNode?.gain?.value ?? '?'
     console.log('[DSP] ═══════════════════════════════════════════')
-    console.log('[DSP] DSP Engine initialized — Phase 5 (Preamp + Equalizer + BassBoost + TrebleBoost + MasterVolume):')
+    console.log('[DSP] DSP Engine initialized — Phase 6 (Preamp + Equalizer + BassBoost + TrebleBoost + Balance + MasterVolume):')
     console.log('[DSP]   Source')
     console.log('[DSP]   → _inputNode (gain:', this._inputNode.gain.value, ')')
     console.log('[DSP]   → [Preamp] (0 dB unity)')
     console.log('[DSP]   → [Equalizer 10-band] (all bands 0 dB flat)')
     console.log('[DSP]   → [BassBoost] (lowshelf, 0 dB transparent, 120 Hz cutoff)')
     console.log('[DSP]   → [TrebleBoost] (highshelf, 0 dB transparent, 4 kHz cutoff)')
+    console.log('[DSP]   → [Balance] (StereoPannerNode, center)')
     console.log('[DSP]   → [MasterVolume class] _gainNode.gain:', mvGain)
     console.log('[DSP]   → AudioContext.destination')
     console.log('[DSP]   🔬 _inputProbe fftSize:', this._inputProbe?.fftSize, '— snooping post-_inputNode')
@@ -273,6 +286,8 @@ class DspEngineSingleton {
     this._bassBoostEffect = null
     this._trebleBoostEffect?.destroy()
     this._trebleBoostEffect = null
+    this._balanceEffect?.destroy()
+    this._balanceEffect = null
     this._masterVolumeEffect?.destroy()
     this._masterVolumeEffect = null
     this._effects = []
@@ -299,7 +314,7 @@ class DspEngineSingleton {
   /**
    * Connect an external AudioNode to the DSP pipeline.
    * The source feeds into:
-   *   _inputNode → Preamp → Equalizer → BassBoost → TrebleBoost → MasterVolume → destination.
+   *   _inputNode → Preamp → Equalizer → BassBoost → TrebleBoost → Balance → MasterVolume → destination.
    *
    * @returns A disconnect function.
    */

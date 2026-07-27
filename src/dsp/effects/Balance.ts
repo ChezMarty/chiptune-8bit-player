@@ -57,21 +57,21 @@ export class Balance implements AudioEffect {
     return [
       {
         id: 'pan',
-        name: 'Pan',
+        name: 'Balance',
         type: 'float',
         defaultValue: 0,
-        value: this._pan,
-        min: -1,
-        max: 1,
-        step: 0.01,
-        unit: 'degrees',
+        value: this._pan * 100,
+        min: -100,
+        max: 100,
+        step: 1,
+        unit: '%',
       },
     ]
   }
 
   setParameter(id: string, value: number | boolean | string): void {
     if (id === 'pan') {
-      this._pan = Math.max(-1, Math.min(1, Number(value)))
+      this._pan = Math.max(-1, Math.min(1, Number(value) / 100))
       if (this._panner) {
         this._panner.pan.value = this._pan
       }
