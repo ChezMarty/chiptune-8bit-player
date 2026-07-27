@@ -12,11 +12,16 @@ interface EffectState {
   expanded: boolean
 }
 
+interface EffectsTabProps {
+  /** Incremented when a preset is applied — triggers a full re-read. */
+  refreshKey?: number
+}
+
 /**
  * Effects Tab — shows all available effects with enable/disable,
  * bypass, and expandable parameter controls.
  */
-export function EffectsTab() {
+export function EffectsTab({ refreshKey = 0 }: EffectsTabProps) {
   const [effects, setEffects] = useState<EffectState[]>([])
 
   // Load effects from the real DSP engine (single source of truth).
@@ -34,7 +39,7 @@ export function EffectsTab() {
       })
     }
     setEffects(states)
-  }, [])
+  }, [refreshKey])
 
   const toggleEnabled = useCallback((effectId: string) => {
     const effect = dspEngine.effects.find((e) => e.id === effectId)

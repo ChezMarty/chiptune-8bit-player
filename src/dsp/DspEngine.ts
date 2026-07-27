@@ -10,7 +10,7 @@ import { AnalyzerService } from './analyzers/AnalyzerService'
 import { PresetManager } from './presets/PresetManager'
 import { logDisconnect } from './diagnostics'
 import type { AudioEffect } from './AudioEffect'
-import type { QualityPreset, Preset } from './types'
+import type { QualityPreset, Preset, ChainEffectSerialized } from './types'
 
 /**
  * Set to true to enable verbose DSP debug logging (wiring, probes, diagnostics).
@@ -65,6 +65,8 @@ class DspEngineSingleton {
   private _masterVolumeEffect: MasterVolume | null = null
   /** Ordered list of effects — single source of truth for the UI. */
   private _effects: AudioEffect[] = []
+  private _applyVersion = 0
+  private _activePresetName: string | null = null
   private _initialized = false
   private _masterVolume = 0.7
   /** 🔬 Input probe — AnalyserNode snooping signal entering _inputNode. */
@@ -115,6 +117,16 @@ class DspEngineSingleton {
   /** Ordered list of real effects wired into the audio graph — single source of truth. */
   get effects(): readonly AudioEffect[] {
     return this._effects
+  }
+
+  /** Version counter incremented on every applyPreset() call — used by UI to refresh. */
+  get applyVersion(): number {
+    return this._applyVersion
+  }
+
+  /** Name of the currently active preset, or null if none. */
+  get activePresetName(): string | null {
+    return this._activePresetName
   }
 
   constructor() {
@@ -370,27 +382,69 @@ class DspEngineSingleton {
     }
   }
 
-  // ── Stub methods for UI compatibility ───────────────────────────
+  // ── Preset serialization & application ──────────────────────
+
+  /** Serialize the current state of all real effects. */
+  serializeChain(): ChainEffectSerialized[] {
+    return this._effects.map((effect) => ({
+      effectId: effect.id,
+      enabled: effect.enabled,
+      bypassed: effect.bypassed,
+      parameters: this._effectParamsToRecord(effect),
+    }))
+  }
+
+  /** Apply a preset to all real effects in the audio graph. */
+  applyPreset(preset: Preset): void {
+    if (DSP_DEBUG) {
+      console.log('[DSP] applyPreset —', preset.name)
+    }
+    for (const serialized of preset.chain) {
+      const effect = this._effects.find((e) => e.id === serialized.effectId)
+      if (!effect) {
+        if (DSP_DEBUG) console.warn('[DSP] applyPreset: effect not found:', serialized.effectId)
+        continue
+      }
+      effect.enabled = serialized.enabled
+      effect.bypassed = serialized.bypassed
+      for (const [paramId, value] of Object.entries(serialized.parameters)) {
+        effect.setParameter(paramId, value)
+      }
+    }
+    this._activePresetName = preset.name
+    this._applyVersion++
+  }
+
+  /** Convert an effect's parameters to a flat record for serialization. */
+  private _effectParamsToRecord(effect: AudioEffect): Record<string, number | boolean | string> {
+    const record: Record<string, number | boolean | string> = {}
+    for (const param of effect.getParameters()) {
+      record[param.id] = param.value
+    }
+    return record
+  }
+
+  /** Load and apply a built-in or user preset by name. Returns true if found. */
+  applyPresetByName(name: string): boolean {
+    const preset = this._presets.allPresets.find((p) => p.name === name)
+    if (!preset) return false
+    this.applyPreset(preset)
+    return true
+  }
+
+  /** Return the name of the currently active preset, or null. */
+  getActivePresetName(): string | null {
+    return this._activePresetName
+  }
+
+  // ── Stub methods for future use ────────────────────────────
 
   setQualityPreset(_preset: QualityPreset): void {
-    console.log('[DSP] setQualityPreset called — stub (no-op in minimal mode)')
-  }
-
-  applyPresetByName(_name: string): boolean {
-    console.log('[DSP] applyPresetByName called — stub (no-op in minimal mode)')
-    return false
-  }
-
-  applyPreset(_preset: Preset): void {
-    console.log('[DSP] applyPreset called — stub (no-op in minimal mode)')
-  }
-
-  getActivePresetName(): string | null {
-    return null
+    // No-op until quality presets are implemented.
   }
 
   setAnalyserSource(_source: 'pre-fx' | 'post-fx'): void {
-    console.log('[DSP] setAnalyserSource called — stub (no-op in minimal mode)')
+    // No-op until analyser is fully wired.
   }
 }
 

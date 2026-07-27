@@ -2,10 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { dspEngine } from '../../../dsp/DspEngine'
 import type { Preset } from '../../../dsp/types'
 
+interface PresetsTabProps {
+  /** Callback invoked after a preset is applied — used to refresh other tabs. */
+  onPresetApplied?: () => void
+}
+
 /**
  * Presets Tab — browse, apply, and manage audio presets.
  */
-export function PresetsTab() {
+export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
   const [presets, setPresets] = useState<Preset[]>([])
   const [activePreset, setActivePreset] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -53,13 +58,13 @@ export function PresetsTab() {
   const handleApply = useCallback((preset: Preset) => {
     dspEngine.applyPreset(preset)
     setActivePreset(preset.name)
-  }, [])
+    onPresetApplied?.()
+  }, [onPresetApplied])
 
   const handleSave = useCallback(async () => {
     if (!newPresetName.trim()) return
 
-    const chain = dspEngine.chain
-    const serialized = chain.serialize()
+    const chain = dspEngine.serializeChain()
     const preset: Preset = {
       formatVersion: 1,
       name: newPresetName.trim(),
@@ -69,15 +74,17 @@ export function PresetsTab() {
       tags: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      qualityPreset: chain.qualityPreset,
-      chain: serialized.effects,
+      qualityPreset: 'balanced',
+      chain,
     }
 
     await dspEngine.presetManager.savePreset(preset)
+    dspEngine.applyPreset(preset)
     setShowSaveDialog(false)
     setNewPresetName('')
     setActivePreset(preset.name)
-  }, [newPresetName])
+    onPresetApplied?.()
+  }, [newPresetName, onPresetApplied])
 
   const handleDelete = useCallback(
     async (name: string) => {
@@ -100,8 +107,10 @@ export function PresetsTab() {
     const preset = await dspEngine.presetManager.importPreset()
     if (preset) {
       await dspEngine.presetManager.savePreset(preset)
+      dspEngine.applyPreset(preset)
+      onPresetApplied?.()
     }
-  }, [])
+  }, [onPresetApplied])
 
   const categories = ['all', ...new Set(presets.map((p) => p.category))]
 

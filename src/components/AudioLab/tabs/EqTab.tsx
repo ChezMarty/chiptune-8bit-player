@@ -14,11 +14,16 @@ const BAND_COLORS = [
  */
 const ACTIVE_BANDS = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
+interface EqTabProps {
+  /** Incremented when a preset is applied — triggers a full re-read. */
+  refreshKey?: number
+}
+
 /**
  * Equalizer Tab — 10-band graphic EQ with sliders.
  * Shows real-time frequency response curve when dragging.
  */
-export function EqTab() {
+export function EqTab({ refreshKey = 0 }: EqTabProps) {
   const [params, setParams] = useState<EffectParameter[]>([])
   const [responseCurve, setResponseCurve] = useState<number[]>([])
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -31,7 +36,7 @@ export function EqTab() {
     if (!eq) return
     const p = eq.getParameters()
     setParams(p)
-  }, [eq])
+  }, [eq, refreshKey])
 
   // Draw the frequency response curve.
   const drawCurve = useCallback((gains: number[]) => {

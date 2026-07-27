@@ -305,11 +305,11 @@ function eqPreset(
   const chain: ChainEffectSerialized[] = [
     { effectId: 'preamp', enabled: true, bypassed: false, parameters: { gain: 0 } },
     { effectId: 'equalizer-10band', enabled: true, bypassed: false, parameters: eqParams },
-    { effectId: 'bass-boost', enabled: false, bypassed: false, parameters: { gain: 4.0, frequency: 100 } },
-    { effectId: 'treble-boost', enabled: false, bypassed: false, parameters: { gain: 3.0, frequency: 8000 } },
+    { effectId: 'bass-boost', enabled: false, bypassed: false, parameters: { gain: 0, frequency: 120 } },
+    { effectId: 'treble-boost', enabled: false, bypassed: false, parameters: { gain: 0, frequency: 4.0 } },
     { effectId: 'balance', enabled: true, bypassed: false, parameters: { pan: 0 } },
-    { effectId: 'stereo-width', enabled: false, bypassed: false, parameters: { width: 1.0 } },
-    { effectId: 'master-volume', enabled: true, bypassed: false, parameters: { volume: 0.7 } },
+    { effectId: 'stereo-width', enabled: true, bypassed: false, parameters: { width: 100 } },
+    { effectId: 'master-volume', enabled: true, bypassed: false, parameters: { volume: 70 } },
   ]
 
   return {
@@ -388,11 +388,11 @@ const BUILTIN_PRESETS: Omit<Preset, 'createdAt' | 'updatedAt'>[] = [
           q: 0.7,
         },
       },
-      { effectId: 'bass-boost', enabled: false, bypassed: false, parameters: { gain: 4.0, frequency: 100 } },
-      { effectId: 'treble-boost', enabled: false, bypassed: false, parameters: { gain: 3.0, frequency: 8000 } },
+      { effectId: 'bass-boost', enabled: false, bypassed: false, parameters: { gain: 0, frequency: 120 } },
+      { effectId: 'treble-boost', enabled: false, bypassed: false, parameters: { gain: 0, frequency: 4.0 } },
       { effectId: 'balance', enabled: true, bypassed: false, parameters: { pan: 0 } },
-      { effectId: 'stereo-width', enabled: false, bypassed: false, parameters: { width: 1.0 } },
-      { effectId: 'master-volume', enabled: true, bypassed: false, parameters: { volume: 0.7 } },
+      { effectId: 'stereo-width', enabled: true, bypassed: false, parameters: { width: 100 } },
+      { effectId: 'master-volume', enabled: true, bypassed: false, parameters: { volume: 70 } },
     ],
   },
 ]

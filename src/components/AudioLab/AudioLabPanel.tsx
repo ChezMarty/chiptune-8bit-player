@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { dspEngine } from '../../dsp/DspEngine'
 import { EqTab } from './tabs/EqTab'
 import { EffectsTab } from './tabs/EffectsTab'
@@ -34,6 +34,8 @@ const TAB_LABELS: Record<AudioLabTab, string> = {
 export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
   const activeTab: AudioLabTab = lastTab ?? 'eq'
+  /** Incremented when a preset is applied — children use this to refresh. */
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Close on Escape key.
   useEffect(() => {
@@ -60,6 +62,10 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
     },
     [onTabChange],
   )
+
+  const handlePresetApplied = useCallback(() => {
+    setRefreshKey((k) => k + 1)
+  }, [])
 
   return (
     <>
@@ -205,9 +211,11 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
             padding: '12px 16px',
           }}
         >
-          {activeTab === 'eq' && <EqTab />}
-          {activeTab === 'effects' && <EffectsTab />}
-          {activeTab === 'presets' && <PresetsTab />}
+          {activeTab === 'eq' && <EqTab refreshKey={refreshKey} />}
+          {activeTab === 'effects' && <EffectsTab refreshKey={refreshKey} />}
+          {activeTab === 'presets' && (
+            <PresetsTab onPresetApplied={handlePresetApplied} />
+          )}
           {activeTab === 'visualizer' && <VisualizerTab />}
         </div>
       </div>
