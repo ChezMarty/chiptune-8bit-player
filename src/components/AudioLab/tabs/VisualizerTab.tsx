@@ -73,21 +73,41 @@ export function VisualizerTab() {
         {mode === 'waveform' && <WaveformVisualizer data={data} />}
         {mode === 'circular-spectrum' && <CircularSpectrumVisualizer data={data} />}
 
-        {/* Peak meter */}
+        {/* Peak meter with hold/decay + clip indicator */}
         <div className="audio-lab__visualizer-peak-meter">
-          <div className="audio-lab__visualizer-peak-label">Peak</div>
+          <div className="audio-lab__visualizer-peak-label">
+            Peak
+            {data?.clipped && (
+              <span className="audio-lab__visualizer-clip-badge" title="Signal approaching 0 dBFS">CLIP</span>
+            )}
+          </div>
           <div className="audio-lab__visualizer-peak-bar">
             <div
               className="audio-lab__visualizer-peak-fill"
               style={{
                 width: `${Math.min(100, (data?.peak ?? 0) * 100)}%`,
                 background:
-                  (data?.peak ?? 0) > 0.9
+                  data?.clipped
                     ? 'var(--accent-negative, #E52521)'
-                    : 'var(--accent-positive, #58D68D)',
+                    : (data?.peak ?? 0) > 0.9
+                      ? 'var(--accent-negative, #E52521)'
+                      : 'var(--accent-positive, #58D68D)',
               }}
             />
+            {/* Raw frame peak marker */}
+            {data && (
+              <div
+                className="audio-lab__visualizer-raw-peak-marker"
+                style={{ left: `${Math.min(100, data.rawPeak * 100)}%` }}
+                title={`Raw: ${(data.rawPeak * 100).toFixed(0)}%`}
+              />
+            )}
           </div>
+          <span className="audio-lab__visualizer-peak-value">
+            {(data?.peak ?? 0) > 0.01
+              ? `${(20 * Math.log10(data!.peak)).toFixed(1)} dBFS`
+              : '-∞ dBFS'}
+          </span>
         </div>
 
         <div className="audio-lab__visualizer-rms-meter">
@@ -101,6 +121,11 @@ export function VisualizerTab() {
               }}
             />
           </div>
+          <span className="audio-lab__visualizer-peak-value">
+            {(data?.rms ?? 0) > 0.01
+              ? `${(20 * Math.log10(data!.rms)).toFixed(1)} dBFS`
+              : '-∞ dBFS'}
+          </span>
         </div>
       </div>
     </div>

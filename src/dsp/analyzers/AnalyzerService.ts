@@ -7,8 +7,9 @@ import type { AnalyzerCallback, AnalyzerData } from '../types'
  * Provides:
  *   - FFT spectrum (frequency domain)
  *   - Waveform (time domain)
- *   - RMS level
- *   - Peak level
+ *   - RMS level (smoothed via EMA)
+ *   - Peak level (with configurable hold time and logarithmic decay)
+ *   - Clipping indicator (holds when signal approaches 0 dBFS)
  *   - Frequency band energy (sub-bass → brilliance)
  *
  * The service can be connected to either a pre-FX or post-FX AnalyserNode.
@@ -21,6 +22,23 @@ export class AnalyzerService {
   private _rafId: number | null = null
   private _fftSize = 2048
   private _smoothingTimeConstant = 0.8
+
+  // ── Peak hold / decay ──────────────────────────────────────
+  private _peakHoldMs = 1500       // How long to hold the peak before decaying (ms)
+  private _peakDecayDbPerSec = 12  // Decay rate after hold (dB per second)
+  private _heldPeak = 0            // The currently held peak value [0..1]
+  private _lastPeakTime = 0        // Timestamp when the current held peak was detected
+  private _lastFramePeak = 0       // Raw peak from the most recent frame
+
+  // ── RMS smoothing ──────────────────────────────────────────
+  private _rmsSmoothing = 0.3      // EMA factor: 0 = very slow, 1 = instant
+  private _smoothedRms = 0         // Exponentially smoothed RMS value
+
+  // ── Clipping indicator ─────────────────────────────────────
+  private _clipThreshold = 0.98    // −0.2 dBFS
+  private _clipHoldMs = 2000       // How long to show clip indicator after detecting
+  private _clipped = false         // Whether clip indicator is currently lit
+  private _clipDetectedTime = 0    // Timestamp when clip was last detected
 
   /** The underlying AnalyserNode (read-only). */
   get analyserNode(): AnalyserNode | null {
@@ -47,6 +65,43 @@ export class AnalyzerService {
     if (this._analyserNode) {
       this._analyserNode.smoothingTimeConstant = t
     }
+  }
+
+  /** Peak hold duration in milliseconds (default 1500). */
+  get peakHoldMs(): number {
+    return this._peakHoldMs
+  }
+
+  set peakHoldMs(ms: number) {
+    this._peakHoldMs = Math.max(0, ms)
+  }
+
+  /** Peak decay rate in dB per second after hold expires (default 12). */
+  get peakDecayDbPerSec(): number {
+    return this._peakDecayDbPerSec
+  }
+
+  set peakDecayDbPerSec(db: number) {
+    this._peakDecayDbPerSec = Math.max(0, db)
+  }
+
+  /** RMS smoothing factor: 0 = very slow, 1 = instant (default 0.3). */
+  get rmsSmoothing(): number {
+    return this._rmsSmoothing
+  }
+
+  set rmsSmoothing(alpha: number) {
+    this._rmsSmoothing = Math.max(0, Math.min(1, alpha))
+  }
+
+  /** The currently held peak value after hold/decay processing. */
+  get heldPeak(): number {
+    return this._heldPeak
+  }
+
+  /** Whether the clipping indicator is currently active. */
+  get clipped(): boolean {
+    return this._clipped
   }
 
   /**
@@ -114,37 +169,68 @@ export class AnalyzerService {
     const bufferLength = analyser.frequencyBinCount
     const timeData = new Float32Array(bufferLength)
     const freqData = new Float32Array(bufferLength)
+    const now = performance.now()
 
     analyser.getFloatTimeDomainData(timeData)
     analyser.getFloatFrequencyData(freqData)
 
-    // Calculate RMS (root mean square) from time domain data.
+    // ── RMS (root mean square, smoothed via EMA) ────────────
     let sumSquares = 0
     for (let i = 0; i < timeData.length; i++) {
       sumSquares += timeData[i] * timeData[i]
     }
-    const rms = Math.sqrt(sumSquares / timeData.length)
+    const rawRms = Math.sqrt(sumSquares / timeData.length)
+    // Exponential moving average for stable display.
+    this._smoothedRms =
+      this._smoothedRms + this._rmsSmoothing * (rawRms - this._smoothedRms)
 
-    // Calculate peak level (max absolute value in time domain).
-    let peak = 0
+    // ── Peak (with hold & logarithmic decay) ────────────────
+    let rawPeak = 0
     for (let i = 0; i < timeData.length; i++) {
       const abs = Math.abs(timeData[i])
-      if (abs > peak) peak = abs
+      if (abs > rawPeak) rawPeak = abs
+    }
+    this._lastFramePeak = rawPeak
+
+    // Update held peak if new peak is higher.
+    if (rawPeak >= this._heldPeak) {
+      this._heldPeak = rawPeak
+      this._lastPeakTime = now
+    } else {
+      // Hold period expired? Decay.
+      const elapsed = now - this._lastPeakTime
+      if (elapsed > this._peakHoldMs) {
+        // Convert held peak to dB, subtract decay, convert back.
+        // heldPeak 0.0 → −inf, clamp to a small epsilon.
+        const epsilon = 0.0001
+        const heldDb = 20 * Math.log10(Math.max(this._heldPeak, epsilon))
+        const decaySec = (elapsed - this._peakHoldMs) / 1000
+        const newDb = heldDb - this._peakDecayDbPerSec * decaySec
+        this._heldPeak = Math.max(this._lastFramePeak, Math.pow(10, newDb / 20))
+      }
     }
 
-    // Calculate band energy from frequency data.
-    // freqData is in dB (negative values, range ~-100 to 0).
-    // We convert to linear energy for each band.
+    // ── Clipping indicator ──────────────────────────────────
+    if (rawPeak >= this._clipThreshold) {
+      this._clipped = true
+      this._clipDetectedTime = now
+    } else if (this._clipped && now - this._clipDetectedTime > this._clipHoldMs) {
+      this._clipped = false
+    }
+
+    // ── Band energy from frequency data ─────────────────────
     const nyquist = analyser.context.sampleRate / 2
     const bands = this._calculateBands(freqData, nyquist)
 
     const data: AnalyzerData = {
       spectrum: freqData,
       waveform: timeData,
-      rms,
-      peak,
+      rms: this._smoothedRms,
+      peak: this._heldPeak,
+      rawPeak: this._lastFramePeak,
+      clipped: this._clipped,
       bands,
-      timestamp: performance.now(),
+      timestamp: now,
     }
 
     // Distribute to subscribers.

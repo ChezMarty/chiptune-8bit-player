@@ -70,6 +70,10 @@ export interface AnalyzerData {
   waveform: Float32Array
   rms: number
   peak: number
+  /** Raw (un-held) peak from the current frame. */
+  rawPeak: number
+  /** Whether the clipping indicator is active (signal near 0 dBFS). */
+  clipped: boolean
   bands: {
     subBass: number   // 20-60 Hz
     bass: number      // 60-250 Hz
