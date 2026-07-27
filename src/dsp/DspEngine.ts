@@ -1,6 +1,7 @@
 import { PluginChain } from './PluginChain'
 import { MasterVolume } from './effects/MasterVolume'
 import { Preamp } from './effects/Preamp'
+import { Equalizer10Band } from './effects/Equalizer10Band'
 import { AnalyzerService } from './analyzers/AnalyzerService'
 import { PresetManager } from './presets/PresetManager'
 import { logDisconnect } from './diagnostics'
@@ -13,17 +14,17 @@ import type { QualityPreset, Preset } from './types'
  * 2. Provides an input node for audio sources to connect to
  * 3. Provides a master volume GainNode
  *
- * ── Phase 2 topology (Preamp inserted before MasterVolume) ──
+ * ── Phase 3 topology (Equalizer inserted between Preamp and MasterVolume) ──
  *
- *   Source → DspEngine._inputNode → Preamp class
- *   → Preamp._gainNode → Preamp.output → MasterVolume class
- *   → MasterVolume._gainNode → MasterVolume._outputNode
+ *   Source → DspEngine._inputNode
+ *   → Preamp class
+ *   → Equalizer class (10 bands, all 0 dB flat)
+ *   → MasterVolume class
  *   → AudioContext.destination
  *
  * The PluginChain, AnalyzerService, and PresetManager exist as stubs for
  * UI compatibility but are NOT connected to the audio path.
  * They will be wired in incrementally:
- *   3. + Equalizer10Band
  *   4. + BassBoost
  *   5. + TrebleBoost
  *   6. + Balance
@@ -37,6 +38,8 @@ class DspEngineSingleton {
   private _inputNode: GainNode | null = null
   /** Preamp effect — input gain stage before the rest of the DSP chain. Default 0 dB (unity). */
   private _preampEffect: Preamp | null = null
+  /** Equalizer — 10-band graphic EQ. Default all bands at 0 dB (flat, transparent). */
+  private _equalizerEffect: Equalizer10Band | null = null
   /** Dedicated MasterVolume effect (AudioEffect interface, post-chain stage). */
   private _masterVolumeEffect: MasterVolume | null = null
   private _initialized = false
@@ -81,6 +84,11 @@ class DspEngineSingleton {
     return this._masterVolume
   }
 
+  /** The real Equalizer10Band instance (connected to audio path). */
+  get equalizerEffect(): Equalizer10Band | null {
+    return this._equalizerEffect
+  }
+
   constructor() {
     this._chain = new PluginChain()
     this._analyzer = new AnalyzerService()
@@ -120,17 +128,25 @@ class DspEngineSingleton {
     // Default is 0 dB (linear gain = 1.0, unity), so no behavioral change.
     console.log('[DSP] Preamp effect created. gain=0 dB (unity)')
 
+    // ── Create Equalizer (flat, transparent) ───────────────────────
+    this._equalizerEffect = new Equalizer10Band()
+    this._equalizerEffect.initialize(this._ctx)
+    // All 10 bands at 0 dB by default — completely transparent.
+    console.log('[DSP] Equalizer effect created. all bands at 0 dB (flat)')
+
     // ── Create dedicated MasterVolume effect ──────────────────────
     this._masterVolumeEffect = new MasterVolume()
     this._masterVolumeEffect.initialize(this._ctx)
     this._masterVolumeEffect.setParameter('volume', this._masterVolume)
     console.log('[DSP] MasterVolume effect created. volume=', this._masterVolume)
 
-    // Wire: _inputNode → Preamp.input → Preamp.output → MasterVolume.input → MasterVolume.output → destination
+    // Wire: _inputNode → Preamp → Equalizer → MasterVolume → destination
     this._inputNode.connect(this._preampEffect.input)
     console.log('[DSP] _inputNode -> Preamp.input connected')
-    this._preampEffect.output.connect(this._masterVolumeEffect.input)
-    console.log('[DSP] Preamp.output -> MasterVolume.input connected')
+    this._preampEffect.output.connect(this._equalizerEffect.input)
+    console.log('[DSP] Preamp.output -> Equalizer.input connected')
+    this._equalizerEffect.output.connect(this._masterVolumeEffect.input)
+    console.log('[DSP] Equalizer.output -> MasterVolume.input connected')
     this._masterVolumeEffect.output.connect(this._ctx.destination)
     console.log('[DSP] MasterVolume.output -> AudioContext.destination connected')
 
@@ -170,10 +186,11 @@ class DspEngineSingleton {
     // Routing summary.
     const mvGain = (this._masterVolumeEffect as any)?._gainNode?.gain?.value ?? '?'
     console.log('[DSP] ═══════════════════════════════════════════')
-    console.log('[DSP] DSP Engine initialized — Phase 2 (Preamp + MasterVolume):')
+    console.log('[DSP] DSP Engine initialized — Phase 3 (Preamp + Equalizer + MasterVolume):')
     console.log('[DSP]   Source')
     console.log('[DSP]   → _inputNode (gain:', this._inputNode.gain.value, ')')
     console.log('[DSP]   → [Preamp] (0 dB unity)')
+    console.log('[DSP]   → [Equalizer 10-band] (all bands 0 dB flat)')
     console.log('[DSP]   → [MasterVolume class] _gainNode.gain:', mvGain)
     console.log('[DSP]   → AudioContext.destination')
     console.log('[DSP]   🔬 _inputProbe fftSize:', this._inputProbe?.fftSize, '— snooping post-_inputNode')
@@ -213,6 +230,8 @@ class DspEngineSingleton {
     this._analyzer.destroy()
     this._preampEffect?.destroy()
     this._preampEffect = null
+    this._equalizerEffect?.destroy()
+    this._equalizerEffect = null
     this._masterVolumeEffect?.destroy()
     this._masterVolumeEffect = null
     this._chain.destroy()
@@ -237,7 +256,8 @@ class DspEngineSingleton {
 
   /**
    * Connect an external AudioNode to the DSP pipeline.
-   * The source feeds into _inputNode → MasterVolume → destination.
+   * The source feeds into:
+   *   _inputNode → Preamp → Equalizer → MasterVolume → destination.
    *
    * @returns A disconnect function.
    */

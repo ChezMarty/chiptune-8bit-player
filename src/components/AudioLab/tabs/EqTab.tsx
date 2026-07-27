@@ -10,6 +10,11 @@ const BAND_COLORS = [
 ]
 
 /**
+ * All 10 bands are wired to the DSP.
+ */
+const ACTIVE_BANDS = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+/**
  * Equalizer Tab — 10-band graphic EQ with sliders.
  * Shows real-time frequency response curve when dragging.
  */
@@ -18,18 +23,15 @@ export function EqTab() {
   const [responseCurve, setResponseCurve] = useState<number[]>([])
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // Load EQ parameters from the engine.
+  // Get the real Equalizer from the DSP engine (connected to the audio path).
+  const eq = dspEngine.equalizerEffect
+
+  // Load EQ parameters from the real equalizer.
   useEffect(() => {
-    const chain = dspEngine.chain
-    // Find the equalizer effect.
-    for (const effect of chain.effects) {
-      if (effect.id === 'equalizer-10band') {
-        const p = effect.getParameters()
-        setParams(p)
-        break
-      }
-    }
-  }, [])
+    if (!eq) return
+    const p = eq.getParameters()
+    setParams(p)
+  }, [eq])
 
   // Draw the frequency response curve.
   const drawCurve = useCallback((gains: number[]) => {
@@ -103,39 +105,35 @@ export function EqTab() {
 
   const handleSliderChange = useCallback(
     (bandIdx: number, value: number) => {
-      const chain = dspEngine.chain
-      for (const effect of chain.effects) {
-        if (effect.id === 'equalizer-10band') {
-          effect.setParameter(`band${bandIdx + 1}`, value)
-          // Update local state for curve redraw.
-          const updatedParams = effect.getParameters()
-          setParams(updatedParams)
-          const gains = updatedParams
-            .filter((p) => p.id.startsWith('band'))
-            .map((p) => Number(p.value))
-          setResponseCurve(gains)
-          break
-        }
+      if (!eq) return
+
+      if (ACTIVE_BANDS.has(bandIdx)) {
+        // This band is wired to the DSP — apply the change.
+        eq.setParameter(`band${bandIdx + 1}`, value)
       }
+      // Inactive bands: slider moves visually but DSP stays at 0 dB.
+
+      // Refresh local state for curve redraw.
+      const updatedParams = eq.getParameters()
+      setParams(updatedParams)
+      const gains = updatedParams
+        .filter((p) => p.id.startsWith('band'))
+        .map((p) => Number(p.value))
+      setResponseCurve(gains)
     },
-    [],
+    [eq],
   )
 
   const handleReset = useCallback(() => {
-    const chain = dspEngine.chain
-    for (const effect of chain.effects) {
-      if (effect.id === 'equalizer-10band') {
-        effect.reset()
-        const updatedParams = effect.getParameters()
-        setParams(updatedParams)
-        const gains = updatedParams
-          .filter((p) => p.id.startsWith('band'))
-          .map((p) => Number(p.value))
-        setResponseCurve(gains)
-        break
-      }
-    }
-  }, [])
+    if (!eq) return
+    eq.reset()
+    const updatedParams = eq.getParameters()
+    setParams(updatedParams)
+    const gains = updatedParams
+      .filter((p) => p.id.startsWith('band'))
+      .map((p) => Number(p.value))
+    setResponseCurve(gains)
+  }, [eq])
 
   // Extract band gains from params.
   const bandParams = params.filter((p) => p.id.startsWith('band'))
@@ -144,9 +142,11 @@ export function EqTab() {
     <div className="audio-lab__eq">
       <div className="audio-lab__eq-header">
         <span className="audio-lab__eq-title">10-Band Equalizer</span>
-        <button className="pixel-button audio-lab__eq-reset" onClick={handleReset}>
-          FLAT
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button className="pixel-button audio-lab__eq-reset" onClick={handleReset}>
+            FLAT
+          </button>
+        </div>
       </div>
 
       {/* Frequency response curve */}
@@ -167,29 +167,39 @@ export function EqTab() {
 
       {/* Sliders */}
       <div className="audio-lab__eq-sliders">
-        {bandParams.map((param, idx) => (
-          <div key={param.id} className="audio-lab__eq-slider-col">
-            <span
-              className="audio-lab__eq-slider-value"
-              style={{ color: BAND_COLORS[idx] }}
-            >
-              {Number(param.value) > 0 ? '+' : ''}{Number(param.value).toFixed(1)}
-            </span>
-            <div className="audio-lab__eq-slider-track">
-              <input
-                type="range"
-                min={param.min ?? -12}
-                max={param.max ?? 12}
-                step={param.step ?? 0.5}
-                value={Number(param.value)}
-                onChange={(e) => handleSliderChange(idx, Number(e.target.value))}
-                className="audio-lab__eq-slider"
-                style={{ '--slider-color': BAND_COLORS[idx] } as React.CSSProperties}
-              />
+        {bandParams.map((param, idx) => {
+          const isActive = ACTIVE_BANDS.has(idx)
+          return (
+            <div key={param.id} className="audio-lab__eq-slider-col">
+              <span
+                className="audio-lab__eq-slider-value"
+                style={{ color: BAND_COLORS[idx] }}
+              >
+                {Number(param.value) > 0 ? '+' : ''}{Number(param.value).toFixed(1)}
+              </span>
+              <div className="audio-lab__eq-slider-track">
+                <input
+                  type="range"
+                  min={param.min ?? -12}
+                  max={param.max ?? 12}
+                  step={param.step ?? 0.5}
+                  value={isActive ? Number(param.value) : 0}
+                  onChange={(e) => handleSliderChange(idx, Number(e.target.value))}
+                  className="audio-lab__eq-slider"
+                  style={{
+                    '--slider-color': BAND_COLORS[idx],
+                    opacity: isActive ? 1 : 0.35,
+                    cursor: isActive ? 'grab' : 'not-allowed',
+                  } as React.CSSProperties}
+                />
+              </div>
+              <span className="audio-lab__eq-slider-label">
+                {BAND_LABELS[idx]}
+  
+              </span>
             </div>
-            <span className="audio-lab__eq-slider-label">{BAND_LABELS[idx]}</span>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
