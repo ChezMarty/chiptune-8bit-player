@@ -307,10 +307,10 @@ export function TransportControls() {
         onClick={() => {
           window.dispatchEvent(new CustomEvent('toggle-audio-lab'))
         }}
-        title="Audio Lab (Ctrl+Shift+E)"
-        aria-label="Open Audio Lab"
+        title="Chiptune AudioLab (Ctrl+Shift+E)"
+        aria-label="Open Chiptune AudioLab"
       >
-        🔊 FX
+        🔊 LAB
       </button>
     </div>
   )

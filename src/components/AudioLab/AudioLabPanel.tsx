@@ -128,7 +128,7 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
               color: 'var(--accent-secondary, #4EE2EC)',
             }}
           >
-            ≡ AUDIO LAB
+            © Chiptune AudioLab
           </span>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {/* Master volume quick control */}
@@ -168,7 +168,7 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
             <button
               className="pixel-button"
               onClick={onClose}
-              aria-label="Close Audio Lab"
+              aria-label="Close Chiptune AudioLab"
               title="Close (Esc)"
               style={{ fontFamily: 'var(--font-pixel, monospace)', fontSize: '12px' }}
             >
