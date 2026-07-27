@@ -18,6 +18,9 @@ import type { QualityPreset, Preset, ChainEffectSerialized } from './types'
  */
 export let DSP_DEBUG = false
 
+/** localStorage key for persisting the last active preset name across sessions. */
+const STORED_PRESET_KEY = 'chiptune-last-preset'
+
 /**
  * DspEngine — the top-level singleton that:
  *
@@ -223,6 +226,16 @@ class DspEngineSingleton {
     this._analyzer.initialize(this._ctx, dummyAnalyser)
     await this._presets.loadPresets()
 
+    // Restore last active preset, if any.
+    try {
+      const storedName = localStorage.getItem(STORED_PRESET_KEY)
+      if (storedName) {
+        this.applyPresetByName(storedName)
+      }
+    } catch {
+      // localStorage may not be available in all environments — ignore.
+    }
+
     this._initialized = true
 
     if (DSP_DEBUG) {
@@ -413,6 +426,13 @@ class DspEngineSingleton {
     }
     this._activePresetName = preset.name
     this._applyVersion++
+
+    // Persist last active preset.
+    try {
+      localStorage.setItem(STORED_PRESET_KEY, preset.name)
+    } catch {
+      // Silently ignore if localStorage is unavailable.
+    }
   }
 
   /** Convert an effect's parameters to a flat record for serialization. */
@@ -444,6 +464,13 @@ class DspEngineSingleton {
     }
     this._activePresetName = null
     this._applyVersion++
+
+    // Clear the persisted last preset.
+    try {
+      localStorage.removeItem(STORED_PRESET_KEY)
+    } catch {
+      // Silently ignore.
+    }
   }
 
   // ── Stub methods for future use ────────────────────────────

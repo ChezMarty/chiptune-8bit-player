@@ -17,6 +17,10 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [newPresetName, setNewPresetName] = useState('')
+  const [saveOverwriteConfirm, setSaveOverwriteConfirm] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [renamingPreset, setRenamingPreset] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   // Load presets.
   useEffect(() => {
@@ -61,13 +65,11 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
     onPresetApplied?.()
   }, [onPresetApplied])
 
-  const handleSave = useCallback(async () => {
-    if (!newPresetName.trim()) return
-
+  const doSavePreset = useCallback(async (name: string) => {
     const chain = dspEngine.serializeChain()
     const preset: Preset = {
       formatVersion: 1,
-      name: newPresetName.trim(),
+      name,
       author: 'User',
       description: '',
       category: 'custom',
@@ -83,15 +85,72 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
     setShowSaveDialog(false)
     setNewPresetName('')
     setActivePreset(preset.name)
+    setSaveOverwriteConfirm(null)
     onPresetApplied?.()
-  }, [newPresetName, onPresetApplied])
+  }, [onPresetApplied])
+
+  const handleSave = useCallback(async () => {
+    if (!newPresetName.trim()) return
+    const name = newPresetName.trim()
+
+    const existing = presets.find((p) => p.name.toLowerCase() === name.toLowerCase())
+    if (existing && existing.author !== 'Chiptune 8-Bit Player') {
+      setSaveOverwriteConfirm(name)
+      return
+    }
+
+    await doSavePreset(name)
+  }, [newPresetName, presets, doSavePreset])
+
+  const handleSaveOverwrite = useCallback(async () => {
+    if (!saveOverwriteConfirm) return
+    await doSavePreset(saveOverwriteConfirm)
+    setSaveOverwriteConfirm(null)
+  }, [saveOverwriteConfirm, doSavePreset])
 
   const handleDelete = useCallback(
     async (name: string) => {
-      await dspEngine.presetManager.deletePreset(name)
-      if (activePreset === name) {
-        setActivePreset(null)
+      setConfirmDelete(name)
+    },
+    [],
+  )
+
+  const confirmDeleteAction = useCallback(async () => {
+    if (!confirmDelete) return
+    await dspEngine.presetManager.deletePreset(confirmDelete)
+    if (activePreset === confirmDelete) {
+      setActivePreset(null)
+    }
+    setConfirmDelete(null)
+  }, [confirmDelete, activePreset])
+
+  const handleDuplicate = useCallback(
+    async (name: string) => {
+      let newName = `${name} (copy)`
+      let counter = 1
+      while (presets.some((p) => p.name === newName && p.author !== 'Chiptune 8-Bit Player')) {
+        counter++
+        newName = `${name} (copy ${counter})`
       }
+      await dspEngine.presetManager.duplicatePreset(name, newName)
+      dspEngine.applyPresetByName(newName)
+      setActivePreset(newName)
+      onPresetApplied?.()
+    },
+    [presets, onPresetApplied],
+  )
+
+  const handleRename = useCallback(
+    async (oldName: string, newName: string) => {
+      if (!newName.trim() || newName.trim() === oldName) {
+        setRenamingPreset(null)
+        return
+      }
+      await dspEngine.presetManager.renamePreset(oldName, newName.trim())
+      if (activePreset === oldName) {
+        setActivePreset(newName.trim())
+      }
+      setRenamingPreset(null)
     },
     [activePreset],
   )
@@ -177,6 +236,42 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
         </div>
       )}
 
+      {/* Overwrite confirmation dialog */}
+      {saveOverwriteConfirm && (
+        <div className="audio-lab__presets-save-dialog">
+          <div style={{ fontSize: '11px', marginBottom: '8px', fontFamily: 'var(--font-pixel, monospace)' }}>
+            Overwrite &quot;{saveOverwriteConfirm}&quot;?
+          </div>
+          <button className="pixel-button" onClick={handleSaveOverwrite}>
+            OVERWRITE
+          </button>
+          <button
+            className="pixel-button"
+            onClick={() => setSaveOverwriteConfirm(null)}
+          >
+            CANCEL
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {confirmDelete && (
+        <div className="audio-lab__presets-save-dialog">
+          <div style={{ fontSize: '11px', marginBottom: '8px', fontFamily: 'var(--font-pixel, monospace)' }}>
+            Delete &quot;{confirmDelete}&quot;?
+          </div>
+          <button className="pixel-button audio-lab__preset-card-delete" onClick={confirmDeleteAction}>
+            DELETE
+          </button>
+          <button
+            className="pixel-button"
+            onClick={() => setConfirmDelete(null)}
+          >
+            CANCEL
+          </button>
+        </div>
+      )}
+
       {/* Built-in presets */}
       <div className="audio-lab__presets-section">
         <h3 className="audio-lab__presets-section-title">Built-in Presets</h3>
@@ -206,6 +301,16 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
                 onApply={handleApply}
                 onDelete={handleDelete}
                 onExport={handleExport}
+                onDuplicate={handleDuplicate}
+                onRename={handleRename}
+                isRenaming={renamingPreset === preset.name}
+                renameValue={renamingPreset === preset.name ? renameValue : undefined}
+                onRenameChange={setRenameValue}
+                onRenameStart={() => {
+                  setRenamingPreset(preset.name)
+                  setRenameValue(preset.name)
+                }}
+                onRenameCancel={() => setRenamingPreset(null)}
               />
             ))}
           </div>
@@ -229,9 +334,16 @@ interface PresetCardProps {
   onApply: (preset: Preset) => void
   onDelete?: (name: string) => void
   onExport: (preset: Preset) => void
+  onDuplicate?: (name: string) => void
+  onRename?: (oldName: string, newName: string) => void
+  isRenaming?: boolean
+  renameValue?: string
+  onRenameChange?: (value: string) => void
+  onRenameStart?: () => void
+  onRenameCancel?: () => void
 }
 
-function PresetCard({ preset, isActive, onApply, onDelete, onExport }: PresetCardProps) {
+function PresetCard({ preset, isActive, onApply, onDelete, onExport, onDuplicate, onRename, isRenaming, renameValue, onRenameChange, onRenameStart, onRenameCancel }: PresetCardProps) {
   return (
     <div
       className={`audio-lab__preset-card ${isActive ? 'is-active' : ''}`}
@@ -246,7 +358,24 @@ function PresetCard({ preset, isActive, onApply, onDelete, onExport }: PresetCar
       }}
     >
       <div className="audio-lab__preset-card-header">
-        <span className="audio-lab__preset-card-name">{preset.name}</span>
+        {isRenaming ? (
+          <input
+            type="text"
+            className="audio-lab__presets-save-input"
+            value={renameValue}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onRenameChange?.(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => {
+              e.stopPropagation()
+              if (e.key === 'Enter') onRename?.(preset.name, renameValue ?? '')
+              if (e.key === 'Escape') onRenameCancel?.()
+            }}
+            onBlur={() => onRename?.(preset.name, renameValue ?? '')}
+          />
+        ) : (
+          <span className="audio-lab__preset-card-name">{preset.name}</span>
+        )}
         {isActive && <span className="audio-lab__preset-card-active">ACTIVE</span>}
       </div>
       {preset.description && (
@@ -272,6 +401,28 @@ function PresetCard({ preset, isActive, onApply, onDelete, onExport }: PresetCar
         >
           EXPORT
         </button>
+        {onDuplicate && (
+          <button
+            className="pixel-button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDuplicate(preset.name)
+            }}
+          >
+            COPY
+          </button>
+        )}
+        {onRenameStart && (
+          <button
+            className="pixel-button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onRenameStart()
+            }}
+          >
+            RENAME
+          </button>
+        )}
         {onDelete && (
           <button
             className="pixel-button audio-lab__preset-card-delete"
