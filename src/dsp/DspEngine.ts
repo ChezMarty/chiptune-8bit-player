@@ -220,10 +220,15 @@ class DspEngineSingleton {
       console.log('[DSP] 🔬 Analyser probes active (DSP_DEBUG mode)')
     }
 
-    // Initialize stub services for UI compatibility.
+    // Initialize stub PluginChain for UI compatibility.
     this._chain.initialize(this._ctx)
-    const dummyAnalyser = this._ctx.createAnalyser()
-    this._analyzer.initialize(this._ctx, dummyAnalyser)
+
+    // ── Wire the real AnalyzerService to the post-FX output ────
+    // Tap the MasterVolume output (post-FX) through the AnalyzerService.
+    // The service creates its own internal AnalyserNode for the tap.
+    this._analyzer.initialize(this._ctx, this._masterVolumeEffect.output!)
+    this._analyzer.start()
+
     await this._presets.loadPresets()
 
     // Restore last active preset, if any.
@@ -479,8 +484,11 @@ class DspEngineSingleton {
     // No-op until quality presets are implemented.
   }
 
-  setAnalyserSource(_source: 'pre-fx' | 'post-fx'): void {
-    // No-op until analyser is fully wired.
+  setAnalyserSource(source: 'pre-fx' | 'post-fx'): void {
+    // TODO: Implement pre-fx / post-fx switching. Currently always post-FX.
+    if (DSP_DEBUG) {
+      console.log('[DSP] setAnalyserSource —', source, '(not yet implemented)')
+    }
   }
 }
 
