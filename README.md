@@ -209,18 +209,22 @@ Audio Source (Local / Spotify)
 
 ## 📸 Screenshots
 
-> 📷 *Screenshots coming soon for v0.3.0 — the AudioLab panel with the 10-band EQ, visualizer modes (spectrum, waveform, circular), and the preset browser will be documented here.*
+All screenshots captured with the **Monochrome** theme in **English** locale at 1833×980 resolution.
 
-| Section | Description |
-|---------|-------------|
-| 🎛️ **AudioLab Panel** | DSP workspace with EQ, Effects, Presets, and Visualizer tabs |
-| 📊 **Visualizer** | Real-time spectrum analyzer, waveform, and circular spectrum modes with peak/RMS metering |
-| 🎚️ **Preset Browser** | Browse, apply, save, import, and export audio presets |
-| 🎮 **Main Interface** | Library panel, virtual vinyl record, and transport controls |
-| 🟢 **Spotify Panel** | Liked songs, playlists, and search |
-| 🎨 **Theme Switcher** | 70+ retro themes organized into 6 categories |
-
-*Existing screenshots from v0.2.0 are still available in the `screenshots/` directory.*
+| | |
+|---|---|
+| ![Main Player](screenshots/main-view.png) | ![Local Library](screenshots/library-full.png) |
+| *Main player interface with record vinyl, library panel, and transport controls* | *Local library with populated tracks and album artwork on the vinyl record* |
+| ![Spotify Browser](screenshots/spotify-browser.png) | ![AudioLab Equalizer](screenshots/audio-lab-eq.png) |
+| *Spotify playlists browser with connected account* | *10-band graphic equalizer with adjusted frequency curve* |
+| ![AudioLab Effects](screenshots/audio-lab-effects.png) | ![AudioLab Presets](screenshots/audio-lab-presets.png) |
+| *Effects tab showing all 7 DSP modules with expanded parameters* | *Preset browser with built-in and custom presets* |
+| ![Visualizer Spectrum](screenshots/audio-lab-visualizer-spectrum.png) | ![Visualizer Waveform](screenshots/audio-lab-visualizer-waveform.png) |
+| *Spectrum analyzer mode with peak and RMS metering* | *Waveform display mode with real-time audio visualization* |
+| ![Visualizer Circular](screenshots/audio-lab-visualizer-circular.png) | ![Visualizer Settings](screenshots/audio-lab-visualizer-settings.png) |
+| *Circular spectrum visualization in radial layout* | *Visualizer settings panel with smoothing, sensitivity, and metering controls* |
+| ![Settings Window](screenshots/settings-window.png) | |
+| *Settings drawer with playback, Spotify, and display options* | |
 
 ---
 
