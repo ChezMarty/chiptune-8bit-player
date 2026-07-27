@@ -198,12 +198,14 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
         <button
           className="pixel-button audio-lab__presets-btn"
           onClick={() => setShowSaveDialog(true)}
+          title="Save current DSP settings as a new preset"
         >
           SAVE
         </button>
         <button
           className="pixel-button audio-lab__presets-btn"
           onClick={handleImport}
+          title="Import a preset from a JSON file"
         >
           IMPORT
         </button>
@@ -224,12 +226,13 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
               if (e.key === 'Escape') setShowSaveDialog(false)
             }}
           />
-          <button className="pixel-button" onClick={handleSave}>
+          <button className="pixel-button" onClick={handleSave} title="Save preset">
             SAVE
           </button>
           <button
             className="pixel-button"
             onClick={() => setShowSaveDialog(false)}
+            title="Cancel"
           >
             CANCEL
           </button>
@@ -242,12 +245,13 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
           <div style={{ fontSize: '11px', marginBottom: '8px', fontFamily: 'var(--font-pixel, monospace)' }}>
             Overwrite &quot;{saveOverwriteConfirm}&quot;?
           </div>
-          <button className="pixel-button" onClick={handleSaveOverwrite}>
+          <button className="pixel-button" onClick={handleSaveOverwrite} title="Confirm overwrite">
             OVERWRITE
           </button>
           <button
             className="pixel-button"
             onClick={() => setSaveOverwriteConfirm(null)}
+            title="Cancel"
           >
             CANCEL
           </button>
@@ -260,12 +264,13 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
           <div style={{ fontSize: '11px', marginBottom: '8px', fontFamily: 'var(--font-pixel, monospace)' }}>
             Delete &quot;{confirmDelete}&quot;?
           </div>
-          <button className="pixel-button audio-lab__preset-card-delete" onClick={confirmDeleteAction}>
+          <button className="pixel-button audio-lab__preset-card-delete" onClick={confirmDeleteAction} title="Confirm deletion">
             DELETE
           </button>
           <button
             className="pixel-button"
             onClick={() => setConfirmDelete(null)}
+            title="Cancel"
           >
             CANCEL
           </button>
