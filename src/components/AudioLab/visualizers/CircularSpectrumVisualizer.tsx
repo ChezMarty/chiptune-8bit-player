@@ -6,21 +6,35 @@ interface Props {
   barCount?: number
   radius?: number
   rotationSpeed?: number
+  /** Falloff speed (0..1). Higher = slower decay. Default 0.9. */
+  fallSpeed?: number
+  /** EMA smoothing factor (0..1). 0 = off (uses only falloff), 1 = instant. Default 0. */
+  smoothing?: number
+  /** Sensitivity scale factor (0..∞). >1 amplifies, <1 reduces. Default 1. */
+  sensitivity?: number
 }
 
 /**
  * Circular Spectrum Visualizer — radial bar chart.
  * Inspired by Winamp-style circular visualizations.
+ *
+ * Uses EMA smoothing + falloff for smooth animation response.
  */
 export function CircularSpectrumVisualizer({
   data,
   barCount = 48,
   radius = 60,
   rotationSpeed = 0,
+  fallSpeed = 0.9,
+  smoothing = 0,
+  sensitivity = 1,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const barsRef = useRef<number[]>(new Array(barCount).fill(0))
+  const emaRef = useRef<number[]>(new Array(barCount).fill(0))
   const rotationRef = useRef(0)
+  /** Cached CSS color to avoid forced reflows each frame. */
+  const accentRef = useRef<string | null>(null)
 
   const draw = useCallback(
     (spectrum: Float32Array) => {
@@ -35,13 +49,19 @@ export function CircularSpectrumVisualizer({
       const cy = h / 2
       const binCount = spectrum.length
 
+      // Cache CSS lookup once (re-read on theme switch via invalidation above).
+      if (!accentRef.current) {
+        accentRef.current = getComputedStyle(document.documentElement)
+          .getPropertyValue('--accent-secondary').trim() || '#4EE2EC'
+      }
+      const accentSecondary = accentRef.current
+
       // Update rotation.
       rotationRef.current += rotationSpeed
 
-      // Map FFT bins to bars.
+      // Map FFT bins to bars with EMA + falloff smoothing.
       const binsPerBar = Math.floor(binCount / barCount)
       const newBars: number[] = []
-      const fallSpeed = 0.9
 
       for (let i = 0; i < barCount; i++) {
         let sum = 0
@@ -49,18 +69,25 @@ export function CircularSpectrumVisualizer({
         const start = i * binsPerBar
         const end = Math.min(start + binsPerBar, binCount)
         for (let j = start; j < end; j++) {
-          sum += (spectrum[j] + 100) / 100
+          const val = ((spectrum[j] + 100) / 100) * sensitivity
+          sum += Math.max(0, Math.min(1, val))
           count++
         }
         const raw = count > 0 ? Math.max(0, Math.min(1, sum / count)) : 0
+
+        // Stage 1: EMA smoothing.
+        const emaPrev = emaRef.current[i] ?? 0
+        const emaVal = smoothing > 0
+          ? emaPrev + smoothing * (raw - emaPrev)
+          : raw
+        emaRef.current[i] = emaVal
+
+        // Stage 2: Falloff (slow decay, instant rise).
         const prev = barsRef.current[i] ?? 0
-        const smoothed = raw >= prev ? raw : prev * fallSpeed + raw * (1 - fallSpeed)
+        const smoothed = emaVal >= prev ? emaVal : prev * fallSpeed + emaVal * (1 - fallSpeed)
         newBars.push(smoothed)
       }
       barsRef.current = newBars
-
-      const accentSecondary = getComputedStyle(document.documentElement)
-        .getPropertyValue('--accent-secondary').trim() || '#4EE2EC'
 
       ctx.clearRect(0, 0, w, h)
 
@@ -98,7 +125,7 @@ export function CircularSpectrumVisualizer({
       ctx.arc(cx, cy, 4, 0, Math.PI * 2)
       ctx.fill()
     },
-    [barCount, radius, rotationSpeed],
+    [barCount, radius, rotationSpeed, fallSpeed, smoothing, sensitivity],
   )
 
   useEffect(() => {
