@@ -6,12 +6,14 @@ import type { EffectCategory, EffectParameter } from '../types'
  *
  * Works by:
  *   1. Splitting the stereo signal into Mid (L+R) and Side (L-R) channels
- *   2. Applying gain to the Side channel
- *   3. Recombining into stereo
+ *   2. Applying gain (width) to the Side channel
+ *   3. Recombining into stereo via proper M/S decoding:
+ *        L_out = Mid + Side * width
+ *        R_out = Mid - Side * width
  *
- * Width = 0 → mono (no side signal)
- * Width = 1 → normal stereo
- * Width > 1 → enhanced stereo (side signal amplified)
+ * Width = 0   → mono (no side signal)
+ * Width = 1   → original stereo (pass-through)
+ * Width > 1   → expanded stereo (side signal amplified)
  *
  * This implementation uses ChannelSplitterNode, ChannelMergerNode, and GainNode
  * for zero-latency mid/side processing.
@@ -25,11 +27,10 @@ export class StereoWidth implements AudioEffect {
   private _inputNode: GainNode | null = null
   private _outputNode: GainNode | null = null
 
-  // Mid/Side processing nodes
+  // Mid/Side encoding nodes
   private _splitter: ChannelSplitterNode | null = null
   private _midGain: GainNode | null = null
   private _sideGain: GainNode | null = null
-  private _merger: ChannelMergerNode | null = null
 
   // For mid extraction: L → mid, R → mid
   private _midL: GainNode | null = null
@@ -37,6 +38,12 @@ export class StereoWidth implements AudioEffect {
   // For side extraction: L → side (+), R → side (-)
   private _sideL: GainNode | null = null
   private _sideRNeg: GainNode | null = null
+
+  // M/S decoding nodes
+  private _merger: ChannelMergerNode | null = null
+  private _leftSummer: GainNode | null = null
+  private _rightSummer: GainNode | null = null
+  private _sideInvert: GainNode | null = null
 
   private _width = 1.0 // 0..2 range
 
@@ -59,32 +66,42 @@ export class StereoWidth implements AudioEffect {
     this._inputNode = ctx.createGain()
     this._outputNode = ctx.createGain()
 
-    // Create splitter (2 channels → L, R)
+    // ── Splitter (2 channels → L, R) ──────────────────────────────
     this._splitter = ctx.createChannelSplitter(2)
 
-    // Create gain nodes for mid/side matrix
-    // Mid = L + R (both with 0.5 gain to prevent clipping)
+    // ── Mid encoding: L + R (both scaled 0.5 to prevent clipping) ─
     this._midL = ctx.createGain()
     this._midL.gain.value = 0.5
     this._midR = ctx.createGain()
     this._midR.gain.value = 0.5
 
-    // Side = L - R
+    // ── Side encoding: L - R (L scaled 0.5, R scaled -0.5) ───────
     this._sideL = ctx.createGain()
     this._sideL.gain.value = 0.5
     this._sideRNeg = ctx.createGain()
     this._sideRNeg.gain.value = -0.5
 
-    // Mid and side bus gains
+    // ── Mid and side bus gains ─────────────────────────────────────
     this._midGain = ctx.createGain()
     this._midGain.gain.value = 1.0
     this._sideGain = ctx.createGain()
     this._sideGain.gain.value = this._width
 
-    // Merger (2 channels → stereo)
+    // ── M/S decoding: L_out = Mid + Side*width, R_out = Mid - Side*width ──
+    // Left output: Mid + Side*width
+    this._leftSummer = ctx.createGain()
+    this._leftSummer.gain.value = 1.0
+    // Right output: Mid - Side*width
+    this._rightSummer = ctx.createGain()
+    this._rightSummer.gain.value = 1.0
+    // Invert side for right channel
+    this._sideInvert = ctx.createGain()
+    this._sideInvert.gain.value = -1.0
+
+    // ── Merger (2 channels → stereo) ──────────────────────────────
     this._merger = ctx.createChannelMerger(2)
 
-    // Wiring:
+    // ── Wiring: Encoding ──────────────────────────────────────────
     // Input → splitter
     this._inputNode.connect(this._splitter)
 
@@ -100,17 +117,27 @@ export class StereoWidth implements AudioEffect {
     this._splitter.connect(this._midR, 1)
     this._splitter.connect(this._sideRNeg, 1)
 
-    // Mid bus: sum L+R → merger channel 0
+    // Mid bus: sum L+R
     this._midL.connect(this._midGain)
     this._midR.connect(this._midGain)
 
-    // Side bus: sum L-R → merger channel 1
+    // Side bus: sum L-R, then apply width
     this._sideL.connect(this._sideGain)
     this._sideRNeg.connect(this._sideGain)
 
+    // ── Wiring: Decoding ──────────────────────────────────────────
+    // L_out = Mid + Side*width
+    this._midGain.connect(this._leftSummer)
+    this._sideGain.connect(this._leftSummer)
+    this._leftSummer.connect(this._merger, 0, 0)
+
+    // R_out = Mid - Side*width
+    this._midGain.connect(this._rightSummer)
+    this._sideGain.connect(this._sideInvert)
+    this._sideInvert.connect(this._rightSummer)
+    this._rightSummer.connect(this._merger, 0, 1)
+
     // Merger → output
-    this._midGain.connect(this._merger, 0, 0)
-    this._sideGain.connect(this._merger, 0, 1)
     this._merger.connect(this._outputNode)
   }
 
@@ -123,6 +150,9 @@ export class StereoWidth implements AudioEffect {
     this._sideRNeg?.disconnect()
     this._midGain?.disconnect()
     this._sideGain?.disconnect()
+    this._leftSummer?.disconnect()
+    this._rightSummer?.disconnect()
+    this._sideInvert?.disconnect()
     this._merger?.disconnect()
     this._outputNode?.disconnect()
 
@@ -134,6 +164,9 @@ export class StereoWidth implements AudioEffect {
     this._sideRNeg = null
     this._midGain = null
     this._sideGain = null
+    this._leftSummer = null
+    this._rightSummer = null
+    this._sideInvert = null
     this._merger = null
     this._outputNode = null
   }
@@ -144,11 +177,11 @@ export class StereoWidth implements AudioEffect {
         id: 'width',
         name: 'Width',
         type: 'float',
-        defaultValue: 1.0,
-        value: this._width,
+        defaultValue: 100,
+        value: this._width * 100,
         min: 0,
-        max: 2,
-        step: 0.05,
+        max: 200,
+        step: 1,
         unit: '%',
       },
     ]
@@ -156,7 +189,7 @@ export class StereoWidth implements AudioEffect {
 
   setParameter(id: string, value: number | boolean | string): void {
     if (id === 'width') {
-      this._width = Math.max(0, Math.min(2, Number(value)))
+      this._width = Math.max(0, Math.min(2, Number(value) / 100))
       if (this._sideGain) {
         this._sideGain.gain.value = this._width
       }
