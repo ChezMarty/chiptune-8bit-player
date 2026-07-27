@@ -42,13 +42,13 @@ export function WaveformVisualizer({
       const h = canvas.height
       const len = waveform.length
 
-      // Cache CSS lookup once (re-read on theme switch via invalidation above).
-      if (!accentRef.current) {
-        accentRef.current = color ||
-          getComputedStyle(document.documentElement)
-            .getPropertyValue('--accent-secondary').trim() || '#4EE2EC'
-      }
-      const accentColor = accentRef.current
+      // Use explicit color if provided, otherwise cache CSS lookup once.
+      const accentColor = color && color.startsWith('#')
+        ? color
+        : (accentRef.current ?? (
+            accentRef.current = getComputedStyle(document.documentElement)
+              .getPropertyValue('--accent-secondary').trim() || '#4EE2EC'
+          ))
 
       // Initialize smoothing buffer if needed.
       if (!samplesRef.current || samplesRef.current.length !== len) {

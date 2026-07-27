@@ -693,6 +693,85 @@
   flex-shrink: 0;
 }
 
+/* ── Visualizer Settings Panel ───────────────────────────── */
+.audio-lab__visualizer-settings-btn {
+  font-family: var(--font-pixel, monospace);
+  font-size: 14px !important;
+  padding: 4px 8px !important;
+  line-height: 1;
+}
+
+.audio-lab__visualizer-settings {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-panel-light, #252544);
+  border: 2px solid var(--accent-secondary, #4EE2EC);
+  animation: audio-lab-fade-in 0.2s ease-out;
+}
+
+.audio-lab__visualizer-settings-title {
+  font-family: var(--font-pixel, monospace);
+  font-size: 10px;
+  color: var(--accent-secondary, #4EE2EC);
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+
+.audio-lab__visualizer-settings-section {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light, #1F1F3A);
+}
+
+.audio-lab__visualizer-settings-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.audio-lab__visualizer-settings-section-title {
+  font-family: var(--font-pixel, monospace);
+  font-size: 8px;
+  color: var(--text-tertiary, #4A4E65);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.audio-lab__slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.audio-lab__slider-label {
+  font-family: var(--font-pixel, monospace);
+  font-size: 9px;
+  color: var(--text-secondary, #8B8FA4);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.audio-lab__slider-value {
+  font-family: var(--font-pixel, monospace);
+  font-size: 9px;
+  color: var(--accent-secondary, #4EE2EC);
+  min-width: 50px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.audio-lab__visualizer-settings-reset {
+  margin-top: 12px;
+  text-align: right;
+}
+
+.audio-lab__visualizer-settings-reset .pixel-button {
+  font-size: 9px !important;
+  padding: 3px 10px !important;
+}
+
 /* ── Scrollbar (within Audio Lab) ───────────────────────── */
 .audio-lab__content::-webkit-scrollbar {
   width: 6px;

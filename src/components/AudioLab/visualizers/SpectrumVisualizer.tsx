@@ -36,6 +36,12 @@ export function SpectrumVisualizer({
   // Cache CSS custom property lookups to avoid forced reflows.
   const cssCacheRef = useRef<{ accent: string; accentSecondary: string } | null>(null)
 
+  // Re-initialize bar refs when barCount changes.
+  if (barsRef.current.length !== barCount) {
+    barsRef.current = new Array(barCount).fill(0)
+    emaRef.current = new Array(barCount).fill(0)
+  }
+
   const draw = useCallback(
     (spectrum: Float32Array) => {
       const canvas = canvasRef.current
@@ -48,16 +54,24 @@ export function SpectrumVisualizer({
       const h = canvas.height
       const binCount = spectrum.length
 
-      // Cache CSS lookups once (re-read on theme switch via invalidation above).
-      if (!cssCacheRef.current) {
-        cssCacheRef.current = {
-          accent: getComputedStyle(document.documentElement)
-            .getPropertyValue('--accent').trim() || '#E52521',
-          accentSecondary: getComputedStyle(document.documentElement)
-            .getPropertyValue('--accent-secondary').trim() || '#4EE2EC',
-        }
+      // Use explicit color if provided, otherwise cache CSS vars once.
+      let accentColor: string
+      let accentSecondary: string
+      if (color && color.startsWith('#')) {
+        accentColor = color
+        accentSecondary = color
+      } else if (cssCacheRef.current) {
+        accentColor = cssCacheRef.current.accent
+        accentSecondary = cssCacheRef.current.accentSecondary
+      } else {
+        const accent = getComputedStyle(document.documentElement)
+          .getPropertyValue('--accent').trim() || '#E52521'
+        const accentSec = getComputedStyle(document.documentElement)
+          .getPropertyValue('--accent-secondary').trim() || '#4EE2EC'
+        cssCacheRef.current = { accent, accentSecondary: accentSec }
+        accentColor = accent
+        accentSecondary = accentSec
       }
-      const { accent: accentColor, accentSecondary } = cssCacheRef.current
 
       // Map FFT bins to visual bars.
       const barsPerBin = Math.floor(binCount / barCount)

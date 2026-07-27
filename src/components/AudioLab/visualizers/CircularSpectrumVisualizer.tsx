@@ -12,6 +12,8 @@ interface Props {
   smoothing?: number
   /** Sensitivity scale factor (0..∞). >1 amplifies, <1 reduces. Default 1. */
   sensitivity?: number
+  /** Optional explicit color override (hex). Falls back to CSS var --accent-secondary. */
+  color?: string
 }
 
 /**
@@ -28,6 +30,7 @@ export function CircularSpectrumVisualizer({
   fallSpeed = 0.9,
   smoothing = 0,
   sensitivity = 1,
+  color,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const barsRef = useRef<number[]>(new Array(barCount).fill(0))
@@ -35,6 +38,12 @@ export function CircularSpectrumVisualizer({
   const rotationRef = useRef(0)
   /** Cached CSS color to avoid forced reflows each frame. */
   const accentRef = useRef<string | null>(null)
+
+  // Re-initialize bar refs when barCount changes.
+  if (barsRef.current.length !== barCount) {
+    barsRef.current = new Array(barCount).fill(0)
+    emaRef.current = new Array(barCount).fill(0)
+  }
 
   const draw = useCallback(
     (spectrum: Float32Array) => {
@@ -49,12 +58,13 @@ export function CircularSpectrumVisualizer({
       const cy = h / 2
       const binCount = spectrum.length
 
-      // Cache CSS lookup once (re-read on theme switch via invalidation above).
-      if (!accentRef.current) {
-        accentRef.current = getComputedStyle(document.documentElement)
-          .getPropertyValue('--accent-secondary').trim() || '#4EE2EC'
-      }
-      const accentSecondary = accentRef.current
+      // Use explicit color if provided, otherwise cache CSS lookup once.
+      const accentColor = color ?? (
+        accentRef.current ?? (
+          accentRef.current = getComputedStyle(document.documentElement)
+            .getPropertyValue('--accent-secondary').trim() || '#4EE2EC'
+        )
+      )
 
       // Update rotation.
       rotationRef.current += rotationSpeed
@@ -120,12 +130,12 @@ export function CircularSpectrumVisualizer({
       }
 
       // Draw center dot.
-      ctx.fillStyle = accentSecondary
+      ctx.fillStyle = accentColor
       ctx.beginPath()
       ctx.arc(cx, cy, 4, 0, Math.PI * 2)
       ctx.fill()
     },
-    [barCount, radius, rotationSpeed, fallSpeed, smoothing, sensitivity],
+    [barCount, radius, rotationSpeed, fallSpeed, smoothing, sensitivity, color],
   )
 
   useEffect(() => {
