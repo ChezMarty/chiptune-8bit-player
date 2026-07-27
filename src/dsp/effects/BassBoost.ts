@@ -17,7 +17,7 @@ export class BassBoost implements AudioEffect {
   private _outputNode: GainNode | null = null
 
   private _gainDb = 0 // 0..12 dB
-  private _frequency = 100 // 20..500 Hz
+  private _frequency = 120 // 20..500 Hz (default ~120 Hz)
 
   enabled = true
   bypassed = false
@@ -72,7 +72,7 @@ export class BassBoost implements AudioEffect {
         id: 'frequency',
         name: 'Cutoff',
         type: 'float',
-        defaultValue: 100,
+        defaultValue: 120,
         value: this._frequency,
         min: 20,
         max: 500,
@@ -97,7 +97,7 @@ export class BassBoost implements AudioEffect {
 
   reset(): void {
     this._gainDb = 0
-    this._frequency = 100
+    this._frequency = 120
     this._applyParams()
   }
 

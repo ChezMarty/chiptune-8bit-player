@@ -19,11 +19,10 @@ interface EffectState {
 export function EffectsTab() {
   const [effects, setEffects] = useState<EffectState[]>([])
 
-  // Load effects from the engine.
+  // Load effects from the real DSP engine (single source of truth).
   useEffect(() => {
-    const chain = dspEngine.chain
     const states: EffectState[] = []
-    for (const effect of chain.effects) {
+    for (const effect of dspEngine.effects) {
       states.push({
         id: effect.id,
         name: effect.name,
@@ -38,19 +37,24 @@ export function EffectsTab() {
   }, [])
 
   const toggleEnabled = useCallback((effectId: string) => {
-    dspEngine.chain.setEffectEnabled(effectId, !dspEngine.chain.effects.find((e) => e.id === effectId)?.enabled)
+    const effect = dspEngine.effects.find((e) => e.id === effectId)
+    if (!effect) return
+    effect.enabled = !effect.enabled
+    effect.bypassed = !effect.enabled
     setEffects((prev) =>
       prev.map((e) =>
-        e.id === effectId ? { ...e, enabled: !e.enabled } : e,
+        e.id === effectId ? { ...e, enabled: effect.enabled, bypassed: effect.bypassed } : e,
       ),
     )
   }, [])
 
   const toggleBypassed = useCallback((effectId: string) => {
-    dspEngine.chain.bypassEffect(effectId, !dspEngine.chain.effects.find((e) => e.id === effectId)?.bypassed)
+    const effect = dspEngine.effects.find((e) => e.id === effectId)
+    if (!effect) return
+    effect.bypassed = !effect.bypassed
     setEffects((prev) =>
       prev.map((e) =>
-        e.id === effectId ? { ...e, bypassed: !e.bypassed } : e,
+        e.id === effectId ? { ...e, bypassed: effect.bypassed } : e,
       ),
     )
   }, [])
@@ -65,36 +69,28 @@ export function EffectsTab() {
 
   const handleParamChange = useCallback(
     (effectId: string, paramId: string, value: number | boolean | string) => {
-      const chain = dspEngine.chain
-      for (const effect of chain.effects) {
-        if (effect.id === effectId) {
-          effect.setParameter(paramId, value)
-          // Refresh parameters.
-          setEffects((prev) =>
-            prev.map((e) =>
-              e.id === effectId ? { ...e, params: effect.getParameters() } : e,
-            ),
-          )
-          break
-        }
-      }
+      const effect = dspEngine.effects.find((e) => e.id === effectId)
+      if (!effect) return
+      effect.setParameter(paramId, value)
+      // Refresh parameters.
+      setEffects((prev) =>
+        prev.map((e) =>
+          e.id === effectId ? { ...e, params: effect.getParameters() } : e,
+        ),
+      )
     },
     [],
   )
 
   const resetEffect = useCallback((effectId: string) => {
-    const chain = dspEngine.chain
-    for (const effect of chain.effects) {
-      if (effect.id === effectId) {
-        effect.reset()
-        setEffects((prev) =>
-          prev.map((e) =>
-            e.id === effectId ? { ...e, params: effect.getParameters() } : e,
-          ),
-        )
-        break
-      }
-    }
+    const effect = dspEngine.effects.find((e) => e.id === effectId)
+    if (!effect) return
+    effect.reset()
+    setEffects((prev) =>
+      prev.map((e) =>
+        e.id === effectId ? { ...e, params: effect.getParameters() } : e,
+      ),
+    )
   }, [])
 
   const categoryLabels: Record<string, string> = {
