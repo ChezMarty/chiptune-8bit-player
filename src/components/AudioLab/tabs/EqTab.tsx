@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { dspEngine } from '../../../dsp/DspEngine'
+import { useT } from '../../../i18n/useT'
 import type { EffectParameter } from '../../../dsp/types'
 
 const BAND_LABELS = ['31', '62', '125', '250', '500', '1k', '2k', '4k', '8k', '16k']
@@ -24,6 +25,7 @@ interface EqTabProps {
  * Shows real-time frequency response curve when dragging.
  */
 export function EqTab({ refreshKey = 0 }: EqTabProps) {
+  const { t } = useT()
   const [params, setParams] = useState<EffectParameter[]>([])
   const [responseCurve, setResponseCurve] = useState<number[]>([])
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -146,10 +148,10 @@ export function EqTab({ refreshKey = 0 }: EqTabProps) {
   return (
     <div className="audio-lab__eq">
       <div className="audio-lab__eq-header">
-        <span className="audio-lab__eq-title">10-Band Equalizer</span>
+        <span className="audio-lab__eq-title">{t('audioLab.eq.title')}</span>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button className="pixel-button audio-lab__eq-reset" onClick={handleReset}>
-            FLAT
+            {t('audioLab.eq.reset')}
           </button>
         </div>
       </div>

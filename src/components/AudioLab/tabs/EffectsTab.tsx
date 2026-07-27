@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { dspEngine } from '../../../dsp/DspEngine'
+import { useT } from '../../../i18n/useT'
 import type { EffectParameter } from '../../../dsp/types'
 
 interface EffectState {
@@ -18,46 +19,29 @@ interface EffectsTabProps {
   refreshKey?: number
 }
 
-const EFFECT_INFO: Record<string, { icon: string; description: string }> = {
-  'preamp': {
-    icon: '📡',
-    description: 'Input gain stage. Boosts or cuts the signal level before any other processing.',
-  },
-  'equalizer-10band': {
-    icon: '📊',
-    description: '10-band graphic equalizer. Adjust frequency balance from 31 Hz (bass) to 16 kHz (treble).',
-  },
-  'bass-boost': {
-    icon: '🔊',
-    description: 'Low-frequency enhancer. Boosts bass using a lowshelf filter with adjustable cutoff.',
-  },
-  'treble-boost': {
-    icon: '🔊',
-    description: 'High-frequency enhancer. Boosts treble using a highshelf filter with adjustable cutoff.',
-  },
-  'balance': {
-    icon: '⚖️',
-    description: 'Stereo balance control. Shifts the audio signal between the left and right channels.',
-  },
-  'stereo-width': {
-    icon: '↔️',
-    description: 'Stereo field processor. Widens or narrows the stereo image using mid/side processing.',
-  },
-  'master-volume': {
-    icon: '🔈',
-    description: 'Final output volume. Controls the overall listening level sent to your speakers.',
-  },
+const EFFECT_ICONS: Record<string, string> = {
+  preamp: '📡',
+  'equalizer-10band': '📊',
+  'bass-boost': '🔊',
+  'treble-boost': '🔊',
+  balance: '⚖️',
+  'stereo-width': '↔️',
+  'master-volume': '🔈',
 }
 
-const categoryLabels: Record<string, string> = {
-  filter: 'Filters',
-  dynamic: 'Dynamics',
-  spatial: 'Spatial',
-  time: 'Time-Based',
-  modulation: 'Modulation',
-  utility: 'Utility',
-  distortion: 'Distortion',
-  pitch: 'Pitch',
+function categoryLabel(t: (key: string) => string, cat: string): string {
+  const known: Record<string, string> = {
+    filter: 'audioLab.category.filter',
+    dynamic: 'audioLab.category.dynamic',
+    spatial: 'audioLab.category.spatial',
+    time: 'audioLab.category.time',
+    modulation: 'audioLab.category.modulation',
+    utility: 'audioLab.category.utility',
+    distortion: 'audioLab.category.distortion',
+    pitch: 'audioLab.category.pitch',
+  }
+  const key = known[cat]
+  return key ? t(key) : cat
 }
 
 /** Check if any of an effect's parameters differ from their defaults. */
@@ -77,6 +61,7 @@ function hasEditedParams(params: EffectParameter[]): boolean {
  * bypass, and expandable parameter controls.
  */
 export function EffectsTab({ refreshKey = 0 }: EffectsTabProps) {
+  const { t } = useT()
   const [effects, setEffects] = useState<EffectState[]>([])
 
   // Load effects from the real DSP engine (single source of truth).
@@ -162,18 +147,22 @@ export function EffectsTab({ refreshKey = 0 }: EffectsTabProps) {
   return (
     <div className="audio-lab__effects">
       <div className="audio-lab__effects-header">
-        <span className="audio-lab__effects-title">Effect Chain</span>
+        <span className="audio-lab__effects-title">{t('audioLab.effects.title')}</span>
       </div>
 
       {effects.length === 0 && (
         <div className="audio-lab__effects-empty">
-          No effects in the chain.
+          {t('audioLab.effects.empty')}
         </div>
       )}
 
       <div className="audio-lab__effects-list">
         {effects.map((effect, idx) => {
-          const info = EFFECT_INFO[effect.id]
+          const icon = EFFECT_ICONS[effect.id] ?? '🔘'
+          const descKey = t(`audioLab.effect.${effect.id}.desc`)
+          const desc = descKey !== `audioLab.effect.${effect.id}.desc` ? descKey : undefined
+          const nameKey = t(`audioLab.effect.${effect.id}.name`)
+          const effectName = nameKey !== `audioLab.effect.${effect.id}.name` ? nameKey : effect.name
           return (
             <div
               key={effect.id}
@@ -186,27 +175,27 @@ export function EffectsTab({ refreshKey = 0 }: EffectsTabProps) {
               <div className="audio-lab__effect-header">
                 <span
                   className="audio-lab__effect-icon"
-                  title={info?.description}
+                  title={desc}
                 >
-                  {info?.icon ?? '🔘'}
+                  {icon}
                 </span>
                 <span className="audio-lab__effect-index">{idx + 1}</span>
                 <span className="audio-lab__effect-category">
-                  {categoryLabels[effect.category] ?? effect.category}
+                  {categoryLabel(t, effect.category)}
                 </span>
-                <span className="audio-lab__effect-name" title={info?.description}>
-                  {effect.name}
+                <span className="audio-lab__effect-name" title={desc}>
+                  {effectName}
                 </span>
                 {effect.edited && (
                   <span
                     className="audio-lab__effect-edited-badge"
-                    title="This effect has been modified from its default values"
+                    title={t('audioLab.effects.edited.title')}
                   >
-                    EDITED
+                    {t('audioLab.effects.edited')}
                   </span>
                 )}
                 <div className="audio-lab__effect-controls">
-                  <label className="audio-lab__toggle" title="Enable or disable this effect">
+                  <label className="audio-lab__toggle" title={t('audioLab.effects.toggle.enable')}>
                     <input
                       type="checkbox"
                       checked={effect.enabled}
@@ -214,11 +203,11 @@ export function EffectsTab({ refreshKey = 0 }: EffectsTabProps) {
                       className="audio-lab__toggle-input"
                     />
                     <span className="audio-lab__toggle-label">
-                      {effect.enabled ? 'ON' : 'OFF'}
+                      {effect.enabled ? t('audioLab.effects.on') : t('audioLab.effects.off')}
                     </span>
                   </label>
                   {effect.enabled && (
-                    <label className="audio-lab__toggle audio-lab__toggle--secondary" title="Bypass the effect (signal passes through unchanged)">
+                    <label className="audio-lab__toggle audio-lab__toggle--secondary" title={t('audioLab.effects.toggle.bypass')}>
                       <input
                         type="checkbox"
                         checked={effect.bypassed}
@@ -226,7 +215,7 @@ export function EffectsTab({ refreshKey = 0 }: EffectsTabProps) {
                         className="audio-lab__toggle-input"
                       />
                       <span className="audio-lab__toggle-label">
-                        {effect.bypassed ? 'BYP' : 'ACT'}
+                        {effect.bypassed ? t('audioLab.effects.bypass') : t('audioLab.effects.active')}
                       </span>
                     </label>
                   )}
@@ -234,7 +223,7 @@ export function EffectsTab({ refreshKey = 0 }: EffectsTabProps) {
                     <button
                       className="pixel-button audio-lab__effect-expand"
                       onClick={() => toggleExpanded(effect.id)}
-                      title={effect.expanded ? 'Collapse parameters' : 'Expand parameters'}
+                      title={effect.expanded ? t('audioLab.effects.collapse') : t('audioLab.effects.expand')}
                     >
                       {effect.expanded ? '▲' : '▼'}
                     </button>
@@ -242,7 +231,7 @@ export function EffectsTab({ refreshKey = 0 }: EffectsTabProps) {
                   <button
                     className="pixel-button audio-lab__effect-reset"
                     onClick={() => resetEffect(effect.id)}
-                    title="Reset this effect to its default values"
+                    title={t('audioLab.effects.reset')}
                   >
                     ↺
                   </button>

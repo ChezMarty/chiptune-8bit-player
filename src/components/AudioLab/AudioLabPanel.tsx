@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { dspEngine } from '../../dsp/DspEngine'
+import { useT } from '../../i18n/useT'
 import { EqTab } from './tabs/EqTab'
 import { EffectsTab } from './tabs/EffectsTab'
 import { PresetsTab } from './tabs/PresetsTab'
@@ -15,12 +16,7 @@ interface Props {
   onTabChange?: (tab: AudioLabTab) => void
 }
 
-const TAB_LABELS: Record<AudioLabTab, string> = {
-  eq: 'EQ',
-  effects: 'Effects',
-  presets: 'Presets',
-  visualizer: 'Visualizer',
-}
+const TAB_KEYS: AudioLabTab[] = ['eq', 'effects', 'presets', 'visualizer']
 
 /**
  * AudioLabPanel — the slide-up DSP workspace panel.
@@ -32,6 +28,7 @@ const TAB_LABELS: Record<AudioLabTab, string> = {
  *   - Visualizer: real-time audio visualization
  */
 export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
+  const { t } = useT()
   const panelRef = useRef<HTMLDivElement>(null)
   const activeTab: AudioLabTab = lastTab ?? 'eq'
   /** Incremented when a preset is applied — children use this to refresh. */
@@ -128,7 +125,7 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
               color: 'var(--accent-secondary, #4EE2EC)',
             }}
           >
-            © Chiptune AudioLab
+            {t('audioLab.title')}
           </span>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {/* Master volume quick control */}
@@ -141,7 +138,7 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
               }}
             >
               <span style={{ fontFamily: 'var(--font-pixel, monospace)' }}>
-                VOL
+                {t('audioLab.masterVolume')}
               </span>
               <input
                 type="range"
@@ -159,8 +156,8 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
             <button
               className="pixel-button"
               onClick={handleResetAll}
-              aria-label="Reset all effects"
-              title="Reset all effects to defaults"
+              aria-label={t('audioLab.resetAll')}
+              title={t('audioLab.resetAll.title')}
               style={{ fontFamily: 'var(--font-pixel, monospace)', fontSize: '12px' }}
             >
               ↺ ALL
@@ -168,8 +165,8 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
             <button
               className="pixel-button"
               onClick={onClose}
-              aria-label="Close Chiptune AudioLab"
-              title="Close (Esc)"
+              aria-label={t('audioLab.close.aria')}
+              title={t('audioLab.close.title')}
               style={{ fontFamily: 'var(--font-pixel, monospace)', fontSize: '12px' }}
             >
               ✕ CLOSE
@@ -186,7 +183,7 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
             flexShrink: 0,
           }}
         >
-          {(Object.keys(TAB_LABELS) as AudioLabTab[]).map((tab) => (
+          {TAB_KEYS.map((tab) => (
             <button
               key={tab}
               className={`audio-lab__tab ${activeTab === tab ? 'is-active' : ''}`}
@@ -211,7 +208,7 @@ export function AudioLabPanel({ open, onClose, lastTab, onTabChange }: Props) {
                 transition: 'all 0.15s',
               }}
             >
-              {TAB_LABELS[tab]}
+              {t(`audioLab.tab.${tab}`)}
             </button>
           ))}
         </div>

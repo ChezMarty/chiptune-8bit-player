@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { dspEngine } from '../../../dsp/DspEngine'
+import { useT } from '../../../i18n/useT'
 import type { Preset } from '../../../dsp/types'
 
 interface PresetsTabProps {
@@ -11,6 +12,7 @@ interface PresetsTabProps {
  * Presets Tab — browse, apply, and manage audio presets.
  */
 export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
+  const { t } = useT()
   const [presets, setPresets] = useState<Preset[]>([])
   const [activePreset, setActivePreset] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -180,7 +182,7 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
         <input
           type="text"
           className="audio-lab__presets-search"
-          placeholder="Search presets..."
+          placeholder={t('audioLab.presets.search.placeholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -198,16 +200,16 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
         <button
           className="pixel-button audio-lab__presets-btn"
           onClick={() => setShowSaveDialog(true)}
-          title="Save current DSP settings as a new preset"
+          title={t('audioLab.presets.save.title')}
         >
-          SAVE
+          {t('audioLab.presets.save')}
         </button>
         <button
           className="pixel-button audio-lab__presets-btn"
           onClick={handleImport}
-          title="Import a preset from a JSON file"
+          title={t('audioLab.presets.import.title')}
         >
-          IMPORT
+          {t('audioLab.presets.import')}
         </button>
       </div>
 
@@ -217,7 +219,7 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
           <input
             type="text"
             className="audio-lab__presets-save-input"
-            placeholder="Preset name..."
+            placeholder={t('audioLab.presets.saveDialog')}
             value={newPresetName}
             onChange={(e) => setNewPresetName(e.target.value)}
             autoFocus
@@ -226,15 +228,15 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
               if (e.key === 'Escape') setShowSaveDialog(false)
             }}
           />
-          <button className="pixel-button" onClick={handleSave} title="Save preset">
-            SAVE
+          <button className="pixel-button" onClick={handleSave} title={t('audioLab.presets.save.title')}>
+            {t('audioLab.presets.save')}
           </button>
           <button
             className="pixel-button"
             onClick={() => setShowSaveDialog(false)}
-            title="Cancel"
+            title={t('audioLab.presets.cancel')}
           >
-            CANCEL
+            {t('audioLab.presets.cancel')}
           </button>
         </div>
       )}
@@ -243,17 +245,17 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
       {saveOverwriteConfirm && (
         <div className="audio-lab__presets-save-dialog">
           <div style={{ fontSize: '11px', marginBottom: '8px', fontFamily: 'var(--font-pixel, monospace)' }}>
-            Overwrite &quot;{saveOverwriteConfirm}&quot;?
+            {t('audioLab.presets.overwrite', { name: saveOverwriteConfirm })}
           </div>
-          <button className="pixel-button" onClick={handleSaveOverwrite} title="Confirm overwrite">
-            OVERWRITE
+          <button className="pixel-button" onClick={handleSaveOverwrite} title={t('audioLab.presets.overwrite.title')}>
+            {t('audioLab.presets.overwrite')}
           </button>
           <button
             className="pixel-button"
             onClick={() => setSaveOverwriteConfirm(null)}
-            title="Cancel"
+            title={t('audioLab.presets.cancel')}
           >
-            CANCEL
+            {t('audioLab.presets.cancel')}
           </button>
         </div>
       )}
@@ -262,24 +264,24 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
       {confirmDelete && (
         <div className="audio-lab__presets-save-dialog">
           <div style={{ fontSize: '11px', marginBottom: '8px', fontFamily: 'var(--font-pixel, monospace)' }}>
-            Delete &quot;{confirmDelete}&quot;?
+            {t('audioLab.presets.delete.confirm', { name: confirmDelete })}
           </div>
-          <button className="pixel-button audio-lab__preset-card-delete" onClick={confirmDeleteAction} title="Confirm deletion">
-            DELETE
+          <button className="pixel-button audio-lab__preset-card-delete" onClick={confirmDeleteAction} title={t('audioLab.presets.delete.title')}>
+            {t('audioLab.presets.delete')}
           </button>
           <button
             className="pixel-button"
             onClick={() => setConfirmDelete(null)}
-            title="Cancel"
+            title={t('audioLab.presets.cancel')}
           >
-            CANCEL
+            {t('audioLab.presets.cancel')}
           </button>
         </div>
       )}
 
       {/* Built-in presets */}
       <div className="audio-lab__presets-section">
-        <h3 className="audio-lab__presets-section-title">Built-in Presets</h3>
+        <h3 className="audio-lab__presets-section-title">{t('audioLab.presets.builtin')}</h3>
         <div className="audio-lab__presets-grid">
           {builtinPresets.map((preset) => (
             <PresetCard
@@ -296,7 +298,7 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
       {/* User presets */}
       {userPresets.length > 0 && (
         <div className="audio-lab__presets-section">
-          <h3 className="audio-lab__presets-section-title">User Presets</h3>
+          <h3 className="audio-lab__presets-section-title">{t('audioLab.presets.user')}</h3>
           <div className="audio-lab__presets-grid">
             {userPresets.map((preset) => (
               <PresetCard
@@ -324,7 +326,7 @@ export function PresetsTab({ onPresetApplied }: PresetsTabProps) {
 
       {filteredPresets.length === 0 && (
         <div className="audio-lab__presets-empty">
-          No presets match your search.
+          {t('audioLab.presets.empty')}
         </div>
       )}
     </div>
@@ -349,6 +351,7 @@ interface PresetCardProps {
 }
 
 function PresetCard({ preset, isActive, onApply, onDelete, onExport, onDuplicate, onRename, isRenaming, renameValue, onRenameChange, onRenameStart, onRenameCancel }: PresetCardProps) {
+  const { t } = useT()
   return (
     <div
       className={`audio-lab__preset-card ${isActive ? 'is-active' : ''}`}
@@ -381,7 +384,7 @@ function PresetCard({ preset, isActive, onApply, onDelete, onExport, onDuplicate
         ) : (
           <span className="audio-lab__preset-card-name">{preset.name}</span>
         )}
-        {isActive && <span className="audio-lab__preset-card-active">ACTIVE</span>}
+        {isActive && <span className="audio-lab__preset-card-active">{t('audioLab.presets.active')}</span>}
       </div>
       {preset.description && (
         <p className="audio-lab__preset-card-desc">{preset.description}</p>
@@ -396,16 +399,16 @@ function PresetCard({ preset, isActive, onApply, onDelete, onExport, onDuplicate
           <span className="audio-lab__preset-card-tag">+{preset.tags.length - 3}</span>
         )}
       </div>
-      <div className="audio-lab__preset-card-actions">
-        <button
-          className="pixel-button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onExport(preset)
-          }}
-        >
-          EXPORT
-        </button>
+      <div className="audio-lab__preset-card-actions">          <button
+            className="pixel-button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onExport(preset)
+            }}
+            title={t('audioLab.presets.export.title')}
+          >
+            {t('audioLab.presets.export')}
+          </button>
         {onDuplicate && (
           <button
             className="pixel-button"
@@ -414,7 +417,7 @@ function PresetCard({ preset, isActive, onApply, onDelete, onExport, onDuplicate
               onDuplicate(preset.name)
             }}
           >
-            COPY
+            {t('audioLab.presets.duplicate')}
           </button>
         )}
         {onRenameStart && (
@@ -425,7 +428,7 @@ function PresetCard({ preset, isActive, onApply, onDelete, onExport, onDuplicate
               onRenameStart()
             }}
           >
-            RENAME
+            {t('audioLab.presets.rename')}
           </button>
         )}
         {onDelete && (
@@ -436,7 +439,7 @@ function PresetCard({ preset, isActive, onApply, onDelete, onExport, onDuplicate
               onDelete(preset.name)
             }}
           >
-            DELETE
+            {t('audioLab.presets.delete')}
           </button>
         )}
       </div>

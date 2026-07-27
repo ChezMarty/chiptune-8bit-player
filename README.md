@@ -5,11 +5,11 @@
 
 # 🎵 Chiptune 8-Bit Player
 
-**v0.2.0**
+**v0.3.0**
 
 A retro-inspired desktop music player with an authentic 8-bit aesthetic — bringing the look, sound, and feel of classic NES-era interfaces to your modern desktop. Powered by **Tauri 2** + **React 19**, with optional **Spotify streaming** via Librespot.
 
-[![Version](https://img.shields.io/badge/version-0.2.0-brightgreen?style=flat-square)]()
+[![Version](https://img.shields.io/badge/version-0.3.0-brightgreen?style=flat-square)]()
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-latest-orange?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Tauri](https://img.shields.io/badge/Tauri-2-6C4FBB?style=flat-square&logo=tauri&logoColor=white)](https://v2.tauri.app/)
@@ -229,7 +229,7 @@ Stay tuned for updates!
 
 - [x] **v0.1.0** — Core player with local audio support, retro UI, basic themes
 - [x] **v0.2.0** — Spotify integration (Librespot + Web SDK), 70+ themes, i18n (EN/FR)
-- [ ] **v0.3.0** — Equalizer & audio effects (visualizer, bass boost, reverb)
+- [x] **v0.3.0** — AudioLab DSP engine with real-time effects, spectrum visualizer, and preset system
 - [ ] **v0.4.0** — Listening Party (synchronized multi-user playback)
 - [ ] **v0.5.0** — Custom theme editor & community theme sharing
 - [ ] **v1.0.0** — Stable release with cross-platform distribution

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { dspEngine } from '../../../dsp/DspEngine'
+import { useT } from '../../../i18n/useT'
 import type { AnalyzerData, VisualizerMode } from '../../../dsp/types'
 import { SpectrumVisualizer } from '../visualizers/SpectrumVisualizer'
 import { WaveformVisualizer } from '../visualizers/WaveformVisualizer'
@@ -57,10 +58,14 @@ function ToggleRow({
   label,
   checked,
   onChange,
+  onLabel,
+  offLabel,
 }: {
   label: string
   checked: boolean
   onChange: (v: boolean) => void
+  onLabel: string
+  offLabel: string
 }) {
   return (
     <label className="audio-lab__toggle audio-lab__slider-row">
@@ -71,7 +76,7 @@ function ToggleRow({
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />
-      <span className="audio-lab__toggle-label">{checked ? 'ON' : 'OFF'}</span>
+      <span className="audio-lab__toggle-label">{checked ? onLabel : offLabel}</span>
     </label>
   )
 }
@@ -89,6 +94,7 @@ const VISUALIZER_THEMES = [
 ] as const
 
 export function VisualizerTab() {
+  const { t } = useT()
   const [mode, setMode] = useState<VisualizerMode>('spectrum')
   const [analyserSource, setAnalyserSource] = useState<'post-fx' | 'pre-fx'>('post-fx')
   const [data, setData] = useState<AnalyzerData | null>(null)
@@ -158,10 +164,10 @@ export function VisualizerTab() {
                 onClick={() => handleModeChange(m)}
               >
                 {m === 'spectrum'
-                  ? 'SPECTRUM'
+                  ? t('audioLab.visualizer.spectrum')
                   : m === 'waveform'
-                    ? 'WAVEFORM'
-                    : 'CIRCULAR'}
+                    ? t('audioLab.visualizer.waveform')
+                    : t('audioLab.visualizer.circular')}
               </button>
             ),
           )}
@@ -171,7 +177,7 @@ export function VisualizerTab() {
           <button
             className="pixel-button audio-lab__visualizer-settings-btn"
             onClick={() => setShowSettings((s) => !s)}
-            title={showSettings ? 'Hide settings' : 'Show settings'}
+            title={showSettings ? t('audioLab.visualizer.settingsBtnHide') : t('audioLab.visualizer.settingsBtn')}
             style={{
               background: showSettings ? 'var(--accent-secondary, #4EE2EC)' : undefined,
               color: showSettings ? 'var(--text-inverse, #0D0D1A)' : undefined,
@@ -187,7 +193,7 @@ export function VisualizerTab() {
               className="audio-lab__toggle-input"
             />
             <span className="audio-lab__toggle-label">
-              {analyserSource === 'post-fx' ? 'POST-FX' : 'PRE-FX'}
+              {analyserSource === 'post-fx' ? t('audioLab.visualizer.postFx') : t('audioLab.visualizer.preFx')}
             </span>
           </label>
         </div>
@@ -226,9 +232,9 @@ export function VisualizerTab() {
         {settings.showPeakMeter && (
           <div className="audio-lab__visualizer-peak-meter">
             <div className="audio-lab__visualizer-peak-label">
-              Peak
+              {t('audioLab.visualizer.peak')}
               {settings.showClipIndicator && data?.clipped && (
-                <span className="audio-lab__visualizer-clip-badge" title="Signal approaching 0 dBFS">CLIP</span>
+                <span className="audio-lab__visualizer-clip-badge" title={t('audioLab.visualizer.clip.title')}>{t('audioLab.visualizer.clip')}</span>
               )}
             </div>
             <div className="audio-lab__visualizer-peak-bar">
@@ -248,7 +254,7 @@ export function VisualizerTab() {
                 <div
                   className="audio-lab__visualizer-raw-peak-marker"
                   style={{ left: `${Math.min(100, data.rawPeak * 100)}%` }}
-                  title={`Raw: ${(data.rawPeak * 100).toFixed(0)}%`}
+                  title={t('audioLab.visualizer.rawPeak', { pct: (data.rawPeak * 100).toFixed(0) })}
                 />
               )}
             </div>
@@ -263,7 +269,7 @@ export function VisualizerTab() {
         {/* RMS meter */}
         {settings.showRmsMeter && (
           <div className="audio-lab__visualizer-rms-meter">
-            <div className="audio-lab__visualizer-peak-label">RMS</div>
+            <div className="audio-lab__visualizer-peak-label">{t('audioLab.visualizer.rms')}</div>
             <div className="audio-lab__visualizer-peak-bar">
               <div
                 className="audio-lab__visualizer-peak-fill"
@@ -285,12 +291,12 @@ export function VisualizerTab() {
       {/* ── Settings panel ───────────────────────────────── */}
       {showSettings && (
         <div className="audio-lab__visualizer-settings">
-          <div className="audio-lab__visualizer-settings-title">VISUALIZER SETTINGS</div>
+          <div className="audio-lab__visualizer-settings-title">{t('audioLab.visualizer.settings')}</div>
 
           <div className="audio-lab__visualizer-settings-section">
-            <div className="audio-lab__visualizer-settings-section-title">GENERAL</div>
+            <div className="audio-lab__visualizer-settings-section-title">{t('audioLab.visualizer.section.general')}</div>
             <SliderRow
-              label="FFT Size"
+              label={t('audioLab.visualizer.fftSize')}
               value={settings.fftSize}
               min={256}
               max={4096}
@@ -305,7 +311,7 @@ export function VisualizerTab() {
               }}
             />
             <SliderRow
-              label="Bars"
+              label={t('audioLab.visualizer.bars')}
               value={settings.barCount}
               min={8}
               max={128}
@@ -313,7 +319,7 @@ export function VisualizerTab() {
               onChange={(v) => updateSetting('barCount', v)}
             />
             <div className="audio-lab__slider-row">
-              <span className="audio-lab__slider-label">Color</span>
+              <span className="audio-lab__slider-label">{t('audioLab.visualizer.color')}</span>
               <select
                 className="audio-lab__param-select"
                 value={settings.colorTheme}
@@ -330,9 +336,9 @@ export function VisualizerTab() {
           </div>
 
           <div className="audio-lab__visualizer-settings-section">
-            <div className="audio-lab__visualizer-settings-section-title">SMOOTHING</div>
+            <div className="audio-lab__visualizer-settings-section-title">{t('audioLab.visualizer.section.smoothing')}</div>
             <SliderRow
-              label="Spectrum"
+              label={t('audioLab.visualizer.spectrumLabel')}
               value={settings.spectrumSmoothing}
               min={0}
               max={1}
@@ -340,7 +346,7 @@ export function VisualizerTab() {
               onChange={(v) => updateSetting('spectrumSmoothing', v)}
             />
             <SliderRow
-              label="Waveform"
+              label={t('audioLab.visualizer.waveformLabel')}
               value={settings.waveformSmoothing}
               min={0}
               max={1}
@@ -348,7 +354,7 @@ export function VisualizerTab() {
               onChange={(v) => updateSetting('waveformSmoothing', v)}
             />
             <SliderRow
-              label="Circular"
+              label={t('audioLab.visualizer.circularLabel')}
               value={settings.circularSmoothing}
               min={0}
               max={1}
@@ -358,9 +364,9 @@ export function VisualizerTab() {
           </div>
 
           <div className="audio-lab__visualizer-settings-section">
-            <div className="audio-lab__visualizer-settings-section-title">SENSITIVITY</div>
+            <div className="audio-lab__visualizer-settings-section-title">{t('audioLab.visualizer.section.sensitivity')}</div>
             <SliderRow
-              label="Spectrum"
+              label={t('audioLab.visualizer.spectrumLabel')}
               value={settings.spectrumSensitivity}
               min={0.1}
               max={5}
@@ -368,7 +374,7 @@ export function VisualizerTab() {
               onChange={(v) => updateSetting('spectrumSensitivity', v)}
             />
             <SliderRow
-              label="Waveform"
+              label={t('audioLab.visualizer.waveformLabel')}
               value={settings.waveformSensitivity}
               min={0.1}
               max={5}
@@ -376,7 +382,7 @@ export function VisualizerTab() {
               onChange={(v) => updateSetting('waveformSensitivity', v)}
             />
             <SliderRow
-              label="Circular"
+              label={t('audioLab.visualizer.circularLabel')}
               value={settings.circularSensitivity}
               min={0.1}
               max={5}
@@ -386,9 +392,9 @@ export function VisualizerTab() {
           </div>
 
           <div className="audio-lab__visualizer-settings-section">
-            <div className="audio-lab__visualizer-settings-section-title">METERING</div>
+            <div className="audio-lab__visualizer-settings-section-title">{t('audioLab.visualizer.section.metering')}</div>
             <SliderRow
-              label="Peak Hold"
+              label={t('audioLab.visualizer.peakHold')}
               value={settings.peakHoldMs}
               min={0}
               max={5000}
@@ -397,7 +403,7 @@ export function VisualizerTab() {
               onChange={(v) => updateSetting('peakHoldMs', v)}
             />
             <SliderRow
-              label="Peak Decay"
+              label={t('audioLab.visualizer.peakDecay')}
               value={settings.peakDecayDbPerSec}
               min={0}
               max={60}
@@ -406,7 +412,7 @@ export function VisualizerTab() {
               onChange={(v) => updateSetting('peakDecayDbPerSec', v)}
             />
             <SliderRow
-              label="RMS Smooth"
+              label={t('audioLab.visualizer.rmsSmooth')}
               value={settings.rmsSmoothing}
               min={0}
               max={1}
@@ -416,21 +422,27 @@ export function VisualizerTab() {
           </div>
 
           <div className="audio-lab__visualizer-settings-section">
-            <div className="audio-lab__visualizer-settings-section-title">DISPLAY</div>
+            <div className="audio-lab__visualizer-settings-section-title">{t('audioLab.visualizer.section.display')}</div>
             <ToggleRow
-              label="Peak Meter"
+              label={t('audioLab.visualizer.peakMeter')}
               checked={settings.showPeakMeter}
               onChange={(v) => updateSetting('showPeakMeter', v)}
+              onLabel={t('audioLab.visualizer.peakOn')}
+              offLabel={t('audioLab.visualizer.peakOff')}
             />
             <ToggleRow
-              label="RMS Meter"
+              label={t('audioLab.visualizer.rmsMeter')}
               checked={settings.showRmsMeter}
               onChange={(v) => updateSetting('showRmsMeter', v)}
+              onLabel={t('audioLab.visualizer.peakOn')}
+              offLabel={t('audioLab.visualizer.peakOff')}
             />
             <ToggleRow
-              label="Clip Indicator"
+              label={t('audioLab.visualizer.clipIndicator')}
               checked={settings.showClipIndicator}
               onChange={(v) => updateSetting('showClipIndicator', v)}
+              onLabel={t('audioLab.visualizer.peakOn')}
+              offLabel={t('audioLab.visualizer.peakOff')}
             />
           </div>
 
@@ -440,9 +452,9 @@ export function VisualizerTab() {
               onClick={() => {
                 setSettings({ ...DEFAULT_VISUALIZER_SETTINGS })
               }}
-              title="Reset all visualizer settings to defaults"
+              title={t('audioLab.visualizer.resetSettings')}
             >
-              ↺ RESET SETTINGS
+              {t('audioLab.visualizer.resetSettings')}
             </button>
           </div>
         </div>
