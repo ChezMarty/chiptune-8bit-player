@@ -383,6 +383,7 @@ Stay tuned for updates!
 - [x] **v0.1.0** — Core player with local audio support, retro UI, basic themes
 - [x] **v0.2.0** — Spotify integration (Librespot + Web SDK), 70+ themes, i18n (EN/FR)
 - [x] **v0.3.0** — AudioLab DSP engine with real-time effects, spectrum visualizer, and preset system
+- [x] **v0.3.5** — Discord Rich Presence
 - [ ] **v0.4.0** — Listening Party (synchronized multi-user playback)
 - [ ] **v0.5.0** — Custom theme editor & community theme sharing
 - [ ] **v1.0.0** — Stable release with cross-platform distribution
