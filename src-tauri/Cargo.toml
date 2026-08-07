@@ -43,6 +43,9 @@ url = "2"
 tokio = { version = "1", features = ["net", "io-util"] }
 keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
 
+# Discord Rich Presence (local IPC — named pipes on Windows, unix sockets on macOS/Linux)
+discord-rich-presence = "0.2"
+
 # Rustls CryptoProvider — must be installed before any TLS code runs.
 # Both reqwest (rustls-tls) and librespot (via its HTTP client deps) use
 # rustls 0.23+, which no longer auto-selects a crypto provider at runtime.

@@ -431,6 +431,7 @@ class DspEngineSingleton {
     }
     this._activePresetName = preset.name
     this._applyVersion++
+    this._notifyDspChanged()
 
     // Persist last active preset.
     try {
@@ -469,6 +470,7 @@ class DspEngineSingleton {
     }
     this._activePresetName = null
     this._applyVersion++
+    this._notifyDspChanged()
 
     // Clear the persisted last preset.
     try {
@@ -476,6 +478,16 @@ class DspEngineSingleton {
     } catch {
       // Silently ignore.
     }
+  }
+
+  /**
+   * Broadcast a DOM event whenever the active preset changes so
+   * non-React consumers (e.g. the Discord Rich Presence module) can
+   * refresh without polling. Mirrors the existing 'toggle-audio-lab'
+   * window-event convention.
+   */
+  private _notifyDspChanged(): void {
+    window.dispatchEvent(new CustomEvent('chiptune-dsp-changed'))
   }
 
   // ── Stub methods for future use ────────────────────────────

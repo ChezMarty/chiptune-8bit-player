@@ -314,6 +314,26 @@ pub async fn librespot_get_state(
     Ok(manager.get_state())
 }
 
+// ── Discord Rich Presence ────────────────────────────────────────
+
+/// Push a new Rich Presence activity. Fire-and-forget — the payload is
+/// forwarded to the Discord worker thread; the IPC happens off-thread.
+#[tauri::command]
+pub fn discord_update_activity(
+    presence: State<'_, crate::discord_presence::DiscordPresence>,
+    payload: crate::discord_presence::DiscordActivityPayload,
+) {
+    presence.update(payload);
+}
+
+/// Clear the current Rich Presence activity (e.g. when disabled).
+#[tauri::command]
+pub fn discord_clear_activity(
+    presence: State<'_, crate::discord_presence::DiscordPresence>,
+) {
+    presence.clear();
+}
+
 // ── Other playback commands ──────────────────────────────────────
 
 #[tauri::command]

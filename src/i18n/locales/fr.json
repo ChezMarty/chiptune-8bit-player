@@ -181,9 +181,27 @@
   "settings.language.os": "OS",
   "settings.language.hint": "Détection automatique selon la langue du système.",
 
+  "settings.section.discord": "DISCORD",
+  "settings.discord.richPresence": "PRÉSENCE RICHE",
+  "settings.discord.richPresenceHint": "Affichez votre activité d'écoute sur votre profil Discord. Nécessite l'application de bureau Discord.",
+
   "settings.on": "MARCHE",
   "settings.off": "ARRET",
   "settings.check": "✓",
+
+  "presence.listening": "Écoute de musique",
+  "presence.paused": "En pause",
+  "presence.browsingLibrary": "Parcours de la bibliothèque",
+  "presence.browsingSpotify": "Parcours de Spotify",
+  "presence.editingAudioLab": "Modification d'AudioLab",
+  "presence.idle": "Inactif",
+  "presence.trackCount": "{n} titres dans la bibliothèque",
+  "presence.trackCount.singular": "{n} titre dans la bibliothèque",
+  "presence.audioLabEnabled": "AudioLab activé",
+  "presence.customPreset": "Préréglage personnalisé",
+  "presence.spotify": "Spotify",
+  "presence.localMusic": "Musique locale",
+  "presence.audioLabBrand": "© Chiptune AudioLab",
 
   "themeSwitcher.label": "THEME",
   "themeSwitcher.aria": "Sélectionner le thème",

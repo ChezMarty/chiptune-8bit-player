@@ -12,6 +12,7 @@ import { useSpotifyStore } from './state/useSpotifyStore'
 import { setupPersistenceSubscription } from './lib/libraryPersistence'
 import { playbackEngine } from './lib/playback/engine'
 import { addAudioFiles } from './lib/addAudioFiles'
+import { discordPresence } from './lib/discordPresence'
 import { AppContextMenu } from './components/AppContextMenu'
 import { KeyboardShortcutsDialog } from './components/KeyboardShortcutsDialog'
 import { AboutDialog } from './components/AboutDialog'
@@ -144,6 +145,19 @@ function App() {
       playbackEngine.setVolume(vol)
     })
   }, [])
+
+  // Initialize Discord Rich Presence (event-driven subscriptions inside).
+  useEffect(() => {
+    discordPresence.init()
+  }, [])
+
+  // Keep Rich Presence in sync with the app's active view and AudioLab.
+  useEffect(() => {
+    discordPresence.setUiContext({
+      view: libraryTab === 'local' ? 'local' : 'spotify',
+      audioLabOpen,
+    })
+  }, [libraryTab, audioLabOpen])
 
   // Keyboard shortcut: Ctrl+Shift+E toggles Audio Lab.
   useEffect(() => {

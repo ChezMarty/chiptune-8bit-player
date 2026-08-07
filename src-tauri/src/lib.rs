@@ -1,10 +1,12 @@
 mod commands;
+mod discord_presence;
 mod librespot;
 mod spotify;
 
 use librespot::LibrespotManager;
 use log::LevelFilter;
 use spotify::SpotifyService;
+use tauri::Manager;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -57,12 +59,13 @@ pub fn run() {
     spotify_service.init();
     let librespot_manager = LibrespotManager::new();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .manage(spotify_service)
         .manage(librespot_manager)
+        .manage(discord_presence::DiscordPresence::new())
         .invoke_handler(tauri::generate_handler![
             greet,
             // Spotify config
@@ -101,7 +104,22 @@ pub fn run() {
             commands::librespot_set_volume,
             commands::librespot_stop_playback,
             commands::librespot_get_state,
+            // Discord Rich Presence
+            commands::discord_update_activity,
+            commands::discord_clear_activity,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| {
+        // Disconnect from Discord cleanly when the app exits so the
+        // presence doesn't linger on the user's profile.
+        if let tauri::RunEvent::Exit = event {
+            if let Some(presence) =
+                app_handle.try_state::<discord_presence::DiscordPresence>()
+            {
+                presence.shutdown();
+            }
+        }
+    });
 }

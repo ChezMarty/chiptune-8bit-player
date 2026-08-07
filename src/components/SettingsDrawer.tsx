@@ -6,6 +6,7 @@ import {
   LOCALE_CHOICES,
 } from '../state/usePlayerStore'
 import { useSpotifyStore } from '../state/useSpotifyStore'
+import { discordPresence } from '../lib/discordPresence'
 
 export interface SettingsDrawerProps {
   open: boolean
@@ -44,6 +45,8 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
   const [clientIdInput, setClientIdInput] = useState('')
   const [spotifySaving, setSpotifySaving] = useState(false)
   const [spotifyConnecting, setSpotifyConnecting] = useState(false)
+  // Discord Rich Presence toggle
+  const [discordRpEnabled, setDiscordRpEnabled] = useState(() => discordPresence.isEnabled())
 
   // Load Spotify config and librespot version when settings open.
   useEffect(() => {
@@ -72,6 +75,11 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
     await spotifyDoLogout()
     await loadSpotifyConfig()
   }, [spotifyDoLogout, loadSpotifyConfig])
+
+  const handleDiscordRpToggle = useCallback((v: boolean) => {
+    setDiscordRpEnabled(v)
+    discordPresence.setEnabled(v)
+  }, [])
 
   // Move focus into the drawer on open, restore on close.
   useEffect(() => {
@@ -158,6 +166,33 @@ export function SettingsDrawer({ open, onClose, returnFocusRef }: SettingsDrawer
               ))}
             </SegmentedRow>
             <p className="settings-section__hint">{t('settings.language.hint')}</p>
+          </Section>
+
+          <Section title={t('settings.section.discord')}>
+            <div className="settings-row">
+              <span className="settings-row__label">
+                {t('settings.discord.richPresence')}
+              </span>
+              <SegmentedRow compact>
+                <SegmentButton
+                  active={discordRpEnabled}
+                  onClick={() => handleDiscordRpToggle(true)}
+                  aria-label={t('settings.discord.richPresence') + ' ' + t('settings.on')}
+                >
+                  {t('settings.on')}
+                </SegmentButton>
+                <SegmentButton
+                  active={!discordRpEnabled}
+                  onClick={() => handleDiscordRpToggle(false)}
+                  aria-label={t('settings.discord.richPresence') + ' ' + t('settings.off')}
+                >
+                  {t('settings.off')}
+                </SegmentButton>
+              </SegmentedRow>
+            </div>
+            <p className="settings-section__hint">
+              {t('settings.discord.richPresenceHint')}
+            </p>
           </Section>
 
           <Section title={t('settings.section.spotify')}>

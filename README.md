@@ -34,6 +34,7 @@ A retro-inspired desktop music player with an authentic 8-bit aesthetic — brin
 | 🟢 **Spotify** | OAuth PKCE login, Librespot + Web Playback SDK, library browsing |
 | 🎨 **Themes** | 70+ retro themes in 6 categories, search, favorites, smooth transitions |
 | 🌐 **i18n** | English, French, or OS auto-detect |
+| 🎮 **Discord Rich Presence** | Live listening status on your Discord profile — track, artist, album, source, AudioLab state |
 
 ---
 
@@ -333,6 +334,26 @@ Both engines route audio through the **AudioLab DSP pipeline**, so effects and v
 - **Display options** — always-on-top mode, theme selection
 - **Visualizer defaults** — FFT size, bar count, smoothing, sensitivity, metering preferences
 - **Spotify configuration** — Client ID management, connection status, Librespot version info
+- **Discord Rich Presence** — show your listening activity on Discord (toggleable in Settings)
+
+---
+
+## 🎮 Discord Rich Presence
+
+While the app runs, your Discord profile automatically shows what you're doing — listening to a track (title, artist, album, live progress, Spotify/Local source), browsing the library or Spotify, editing the **© Chiptune AudioLab**, or idle. Presence text follows the app language (EN/FR), updates automatically from the playback engine, and is cleared when you close the app. You can turn it off anytime in **Settings → DISCORD**.
+
+### One-time setup (app developer)
+
+1. Create an application at the [Discord Developer Portal](https://discord.com/developers/applications) and copy its **Application ID**.
+2. The ID lives in `src-tauri/src/discord_presence.rs` as `DISCORD_CLIENT_ID` (or override at runtime with the `DISCORD_CLIENT_ID` env var).
+3. Under **Rich Presence → Art Assets**, upload three images with these exact keys:
+   - `chiptune_audio_lab` — large image (the © Chiptune AudioLab logo)
+   - `spotify` — small image shown for Spotify playback
+   - `local_music` — small image shown for local playback
+
+> ℹ️ Album artwork: Spotify tracks display their cover art via Discord's external-image proxy; local track art stays with the logo asset since it is a local data URL.
+
+> ℹ️ Discord must be running (and your presence-sharing setting enabled) for the status to appear. The app reconnects automatically if Discord is launched later.
 
 ---
 
