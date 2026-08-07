@@ -5,11 +5,11 @@
 
 # 🎵 Chiptune 8-Bit Player
 
-**v0.3.0**
+**v0.3.5**
 
 A retro-inspired desktop music player with an authentic 8-bit aesthetic — bringing the look, sound, and feel of classic NES-era interfaces to your modern desktop. Now featuring the **© Chiptune AudioLab** — a complete real-time DSP engine with effects, visualizers, and presets.
 
-[![Version](https://img.shields.io/badge/version-0.3.0-brightgreen?style=flat-square)]()
+[![Version](https://img.shields.io/badge/version-0.3.5-brightgreen?style=flat-square)]()
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-latest-orange?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Tauri](https://img.shields.io/badge/Tauri-2-6C4FBB?style=flat-square&logo=tauri&logoColor=white)](https://v2.tauri.app/)

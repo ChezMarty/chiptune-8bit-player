@@ -526,7 +526,7 @@ dependencies = [
 
 [[package]]
 name = "chiptune-8bit-player"
-version = "0.3.0"
+version = "0.3.5"
 dependencies = [
  "base64 0.22.1",
  "discord-rich-presence",
